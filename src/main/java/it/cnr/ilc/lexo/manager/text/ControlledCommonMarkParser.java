@@ -36,6 +36,62 @@ public final class ControlledCommonMarkParser {
         return doc;
     }
 
+    /**
+     * Parses an unstructured UTF-8 text file. Blank lines delimit paragraphs;
+     * CommonMark headings and front matter are not required or interpreted.
+     */
+    public ParsedTextDocument parsePlainText(String rawText) throws ControlledCommonMarkException {
+        ParsedTextDocument doc = parsePlainTextStructure(rawText);
+        segmentWithBreakIterator(doc);
+        return doc;
+    }
+
+    /**
+     * Parses only the paragraph structure of an unstructured text file.
+     * Linguistic segmentation can then be supplied by an optional CoNLL-U file.
+     */
+    public ParsedTextDocument parsePlainTextStructure(String rawText)
+            throws ControlledCommonMarkException {
+        List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
+        if (rawText == null) {
+            issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT", "Documento assente"));
+            throw new ControlledCommonMarkException(issues);
+        }
+
+        String source = normalizeText(rawText);
+        if (source.indexOf('\u0000') >= 0) {
+            issues.add(new ValidationIssue(1, 1, "NUL_CHARACTER",
+                    "Il file contiene un carattere NUL"));
+        }
+
+        String[] lines = source.split("\\n", -1);
+        ParsedTextDocument doc = new ParsedTextDocument();
+        StringBuilder clean = new StringBuilder();
+        List<String> paragraphLines = new ArrayList<String>();
+        int paragraphOrdinal = 0;
+
+        for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                paragraphOrdinal = flushPlainParagraph(paragraphLines, clean, doc,
+                        paragraphOrdinal);
+            } else {
+                paragraphLines.add(line);
+            }
+        }
+        flushPlainParagraph(paragraphLines, clean, doc, paragraphOrdinal);
+
+        if (doc.paragraphs.isEmpty()) {
+            issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT",
+                    "Il documento di testo è vuoto"));
+        }
+        if (!issues.isEmpty()) {
+            throw new ControlledCommonMarkException(issues);
+        }
+
+        doc.cleanText = clean.toString();
+        return doc;
+    }
+
     public ParsedTextDocument parseStructure(String rawText) throws ControlledCommonMarkException {
         List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
         if (rawText == null) {
@@ -328,6 +384,33 @@ public final class ControlledCommonMarkParser {
         paragraph.endChar = end;
         paragraph.heading = stack.peek();
         paragraph.heading.paragraphs.add(paragraph);
+        doc.paragraphs.add(paragraph);
+        return ordinal;
+    }
+
+    private static int flushPlainParagraph(List<String> lines, StringBuilder clean,
+                                           ParsedTextDocument doc, int ordinal) {
+        if (lines.isEmpty()) {
+            return ordinal;
+        }
+        String text = joinAndNormalizeParagraph(lines);
+        lines.clear();
+        if (text.isEmpty()) {
+            return ordinal;
+        }
+
+        appendBlockSeparator(clean);
+        int begin = clean.length();
+        clean.append(text);
+        int end = clean.length();
+
+        Paragraph paragraph = new Paragraph();
+        paragraph.ordinal = ++ordinal;
+        paragraph.id = "paragraph-" + ordinal;
+        paragraph.text = text;
+        paragraph.beginChar = begin;
+        paragraph.endChar = end;
+        paragraph.heading = null;
         doc.paragraphs.add(paragraph);
         return ordinal;
     }

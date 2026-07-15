@@ -188,7 +188,8 @@ public final class NifModelWriter {
         addType(model, paragraphIri, DOCO_NS + "Paragraph");
         addType(model, paragraphIri, NIF_NS + "Paragraph");
         addType(model, paragraphIri, NIF_NS + "OffsetBasedString");
-        addIri(model, paragraphIri, DCTERMS_NS + "isPartOf", headingIri(document, paragraph.heading));
+        addIri(model, paragraphIri, DCTERMS_NS + "isPartOf",
+                paragraph.heading == null ? context : headingIri(document, paragraph.heading));
         writeHeadingMembership(model, paragraphIri, document, paragraph.heading);
         addIri(model, paragraphIri, NIF_NS + "referenceContext", context);
         addLiteral(model, paragraphIri, NIF_NS + "anchorOf", paragraph.text, language);
@@ -202,10 +203,13 @@ public final class NifModelWriter {
                                Sentence sentence, String language) {
         IRI sentenceIri = charIri(document, fullText, sentence.beginChar, sentence.endChar);
         Heading directHeading = sentence.heading != null
-                ? sentence.heading : sentence.paragraph.heading;
+                ? sentence.heading
+                : sentence.paragraph == null ? null : sentence.paragraph.heading;
         IRI container = sentence.paragraph != null
                 ? iri(document + "#paragraph=" + sentence.paragraph.ordinal)
-                : iri(headingIri(document, directHeading).stringValue() + "/title");
+                : directHeading == null
+                        ? context
+                        : iri(headingIri(document, directHeading).stringValue() + "/title");
         addType(model, sentenceIri, NIF_NS + "Sentence");
         addType(model, sentenceIri, NIF_NS + "OffsetBasedString");
         addIri(model, sentenceIri, DCTERMS_NS + "isPartOf", container);
@@ -232,7 +236,8 @@ public final class NifModelWriter {
         IRI sentenceIri = charIri(document, fullText,
                 token.sentence.beginChar, token.sentence.endChar);
         Heading directHeading = token.sentence.heading != null
-                ? token.sentence.heading : token.sentence.paragraph.heading;
+                ? token.sentence.heading
+                : token.sentence.paragraph == null ? null : token.sentence.paragraph.heading;
         addType(model, tokenIri, NIF_NS + "Word");
         addType(model, tokenIri, NIF_NS + "OffsetBasedString");
         addIri(model, tokenIri, DCTERMS_NS + "isPartOf", sentenceIri);

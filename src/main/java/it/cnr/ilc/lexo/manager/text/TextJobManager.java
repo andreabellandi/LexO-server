@@ -196,11 +196,15 @@ public final class TextJobManager {
             checkCancelled();
 
             ControlledCommonMarkParser parser = new ControlledCommonMarkParser();
+            boolean plainText = isPlainTextExtension(
+                    upload.textFileName.toLowerCase(Locale.ROOT));
             ParsedTextDocument doc;
             if (rawConllu == null) {
-                doc = parser.parse(rawText);
+                doc = plainText ? parser.parsePlainText(rawText) : parser.parse(rawText);
             } else {
-                doc = parser.parseStructure(rawText);
+                doc = plainText
+                        ? parser.parsePlainTextStructure(rawText)
+                        : parser.parseStructure(rawText);
                 new ConlluSegmenter().apply(doc, rawConllu, upload.conlluFileName);
             }
             job.progress = 55;
@@ -513,8 +517,16 @@ public final class TextJobManager {
     }
 
     public static boolean isTextExtension(String lowerName) {
-        return lowerName.endsWith(".txt") || lowerName.endsWith(".md")
-                || lowerName.endsWith(".markdown");
+        return isPlainTextExtension(lowerName) || isMarkdownExtension(lowerName);
+    }
+
+    public static boolean isPlainTextExtension(String lowerName) {
+        return lowerName != null && lowerName.endsWith(".txt");
+    }
+
+    public static boolean isMarkdownExtension(String lowerName) {
+        return lowerName != null && (lowerName.endsWith(".md")
+                || lowerName.endsWith(".markdown"));
     }
 
     public static boolean isConlluExtension(String lowerName) {
