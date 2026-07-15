@@ -1,0 +1,522 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package it.cnr.ilc.lexo.sparql;
+
+/**
+ *
+ * @author andreabellandi
+ */
+public class SparqlInsertData {
+
+    public static final String CREATE_LEXICAL_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <[ID]> a ontolex:LexicalEntry ;\n"
+            + "                   rdfs:label \"[LABEL]\" ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   vs:term_status \"working\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "}";
+
+    public static final String CREATE_DICTIONARY_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <[ID]> a lexicog:Entry ;\n"
+            + "                   rdfs:label \"[LABEL]\" ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   vs:term_status \"working\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "}";
+
+    public static final String CREATE_ECD_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <[DICT]> lexicog:entry <[ID]> .\n"
+            + "    <[ID]> a lexicog:Entry ;\n"
+            + "                   rdfs:label \"[LABEL]\"@[LANG] ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   vs:term_status \"working\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "     _LEXICAL_ENTRY_DESCRIBES_\n"
+            + "     _LEXICAL_ENTRY_ \n"
+            + "}";
+
+    public static final String CREATE_LEXICAL_ENTRY_FOR_ECD_ENTRY
+            = "<[LEX]> lime:entry <[ID]> .\n"
+            + "<[ID]> a <[TYPE]> ;\n"
+            + "      rdfs:label \"[LABEL]\"@[LANG] ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   vs:term_status \"working\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" ; \n"
+            + "                   lexinfo:partOfSpeech <[POS]> . \n"
+            + "";
+
+    public static final String CREATE_ECD_MEANING
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_LE_ID_> ontolex:sense <_SENSE_ID_> .\n"
+            + "    <_SENSE_ID_> a ontolex:LexicalSense ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "    <_NEW_COMP_ID_> a lexicog:LexicographicComponent ;\n"
+            + "                   rdfs:label \"_SENSE_LABEL_\" ;\n"
+            + "                   lexicog:describes <_SENSE_ID_> ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "    <_DE_ID_> rdf:_[POSITION] <_NEW_COMP_ID_> .\n"
+            + "}";
+    
+    public static final String CREATE_LEXICON_LANGUAGE
+            = SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA { \n"
+            + "<_ID_> a " + SparqlPrefix.LIME.getPrefix() + "Lexicon ;\n"
+            + SparqlPrefix.LIME.getPrefix() + "language \"_LANG_\" ;\n"
+            + SparqlPrefix.LIME.getPrefix() + "linguisticCatalog <http://www.lexinfo.net/ontologies/3.0/lexinfo> ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "creator \"_AUTHOR_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "created \"_CREATED_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "modified \"_MODIFIED_\" . \n"
+            + "}";
+
+    public static final String CREATE_EC_DICTIONARY
+            = SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA { \n"
+            + "<_ID_ECD_> a " + SparqlPrefix.LEXICOG.getPrefix() + "LexicographicResource ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "language \"_LANG_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "creator \"_AUTHOR_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "created \"_CREATED_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "modified \"_MODIFIED_\" . \n"
+            + "<_ID_LEX_> a " + SparqlPrefix.LIME.getPrefix() + "Lexicon ;\n"
+            + SparqlPrefix.LIME.getPrefix() + "language \"_LANG_\" ;\n"
+            + SparqlPrefix.LIME.getPrefix() + "linguisticCatalog <http://www.lexinfo.net/ontologies/3.0/lexinfo> ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "creator \"_AUTHOR_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "created \"_CREATED_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "modified \"_MODIFIED_\" . \n"
+            + "}";
+    
+    public static final String CREATE_DICTIONARY
+            = SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA { \n"
+            + "<_ID_> a " + SparqlPrefix.LEXICOG.getPrefix() + "LexicographicResource ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "language \"_LANG_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "creator \"_AUTHOR_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "created \"_CREATED_\" ;\n"
+            + SparqlPrefix.DCT.getPrefix() + "modified \"_MODIFIED_\" . \n"
+            + "}";
+
+    public static final String CREATE_FORM
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ontolex:Form ;\n"
+            + "                   ontolex:writtenRep \"_LABEL_\"@_LANG_ ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> ontolex:lexicalForm <_ID_> .\n"
+            + "}";
+    
+    public static final String CREATE_ECD_FORM
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ontolex:Form ;\n"
+            + "                   ontolex:writtenRep \"_LABEL_\"@_LANG_ ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> <_TYPE_> <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_ETYMOLOGY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ETY.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ety:Etymology ;\n"
+            + "                   rdfs:label \"Etymology of: _LABEL_\" ;\n"
+            //            + "                   lexinfo:confidence 1 ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> ety:etymology <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_ETYMOLOGICAL_LINK
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ETY.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ety:EtyLink ;\n"
+            + "                   ety:etyLinkType \"inheritance\" ;\n"
+            + "                   ety:etyTarget <_LEID_> ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_ETID_> ety:hasEtyLink <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_LEXICAL_SENSE
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ontolex:LexicalSense ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> ontolex:sense <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_COMPONENT
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DECOMP.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a decomp:Component ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> decomp:constituent <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_DICTIONARY_ENTRY_COMPONENT
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a lexicog:LexicographicComponent ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "}";
+
+    public static final String CREATE_COLLOCATION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.FRAC.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a frac:Collocation ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "                   frac:head <_LEID_> .\n"
+            + "}";
+
+    public static final String CREATE_CORPUS_FREQUENCY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.FRAC.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a frac:CorpusFrequency ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> frac:frequency <_ID_>\n"
+            + "}";
+
+    public static final String CREATE_LEXICOSEMANTIC_RELATION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VARTRANS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DECOMP.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a <_TYPE_> ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   rdfs:label \"_LABEL_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_ID_> vartrans:source <_LEID_> .\n"
+            + "}";
+
+    public static final String CREATE_TRANSLATIONSET
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VARTRANS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DECOMP.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a vartrans:TranslationSet ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   rdfs:label \"_LABEL_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "}";
+
+    public static final String CREATE_FORMRESTRICTION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VARTRANS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a lexicog:FormRestriction ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   rdfs:label \"_LABEL_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEXID_> lexicog:restrictedTo <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_LEXICAL_CONCEPT
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ontolex:LexicalConcept ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" ; \n"
+            + "                   _LABEL_ . \n"
+            + "}";
+
+    public static final String CREATE_CONCEPT_SET
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a ontolex:ConceptSet ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" ; \n"
+            + "                   _LABEL_ . \n"
+            + "}";
+
+    public static final String CREATE_LINGUISTIC_RELATION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.SKOS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + "DELETE { <_ID_> dct:modified ?modified . } \n"
+            + "INSERT { "
+            + "<_ID_> <_RELATION_> <_VALUE_TO_INSERT_> ;\n"
+            + "                  dct:modified _LAST_UPDATE_ . }  "
+            + "\n"
+            + "WHERE {  OPTIONAL { <_ID_> dct:modified ?modified . } }";
+
+    public static final String CREATE_GENERIC_RELATION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + "DELETE { <_ID_> dct:modified ?modified . } \n"
+            + "INSERT { "
+            + "<_ID_> <_RELATION_> _VALUE_TO_INSERT_ ;\n"
+            + "                  dct:modified _LAST_UPDATE_ . }  "
+            + "\n"
+            + "WHERE {  OPTIONAL { <_ID_> dct:modified ?modified . } }";
+
+    public static final String CREATE_BIBLIOGRAPHIC_REFERENCE
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a rdf:Description ; \n"
+            + "        dct:publisher \"_KEY_\" ;\n"
+            + "        _OPTIONAL_"
+            + "        dct:title \"_TITLE_\" ;\n"
+            + "        dct:date \"_DATE_\" ;\n"
+            + "        dct:contributor \"_AUTHORS_\" ;\n  "
+            + "        dct:creator \"_AUTHOR_\" ;\n"
+            + "        dct:created \"_CREATED_\" ;\n"
+            + "        dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> dct:references <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_COGNATE_TYPE
+            = SparqlPrefix.ETY.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDF.getSparqlPrefix() + "\n"
+            + "INSERT DATA { "
+            + "<_ID_> a ety:Cognate .  "
+            + "}";
+
+    public static final String CREATE_COMPONENT_POSITION
+            = SparqlPrefix.RDF.getSparqlPrefix() + "\n"
+            + SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + "INSERT DATA {  "
+            + "<_IDLE_> rdf:_POSITION <_IDCOMPONENT_>. "
+            + "}";
+
+    public static final String UPDATE_ORDERING
+            = "DELETE {\n"
+            + "_TO_DELETE_ }\n"
+            + "INSERT {\n"
+            + "_TO_INSERT_ }\n"
+            + "WHERE {\n"
+            + "_TO_WHERE_ }";
+
+    public static final String CREATE_IMAGE_REFERENCE
+            // source, rights, title, description, publisher
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.FOAF.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a foaf:Image ; \n"
+            + "        dct:identifier \"_IMAGEURL_\" ;\n"
+            + "        dct:format \"image/_FORMAT_\" ;\n"
+            + "        dct:type \"image\" ;\n"
+            + "        dct:creator \"_AUTHOR_\" ;\n"
+            + "        dct:created \"_CREATED_\" ;\n"
+            + "        foaf:depicts <_LEID_> ;\n"
+            + "        dct:modified \"_MODIFIED_\" . \n"
+            + "    <_LEID_> foaf:depiction <_ID_> .\n"
+            + "}";
+
+    public static final String CREATE_ASSOCIATION_BETWEEN_DICT_ENTRY_AND_LEXICAL_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDF.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_COMPONENT_> a lexicog:LexicographicComponent ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_ID_DICT_ENTRY_> rdf:_POSITION <_ID_COMPONENT_>. \n"
+            + "    <_ID_COMPONENT_> lexicog:describes <_ID_LEX_ENTRY_>. \n"
+            + "}";
+    
+    public static final String PUT_LEXICAL_SENSES_IN_FLAT_ORDERED_LIST
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDF.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_COMPONENT_> a lexicog:LexicographicComponent ;\n"
+            + "                   dct:creator \"_AUTHOR_\" ;\n"
+            + "                   dct:created \"_CREATED_\" ;\n"
+            + "                   dct:modified \"_MODIFIED_\" . \n"
+            + "    <_ID_LEX_ENTRY_> rdf:_POSITION <_ID_COMPONENT_>. \n"
+            + "    <_ID_COMPONENT_> lexicog:describes <_ID_LEX_SENSE_>. \n"
+            + "}";
+
+    /*--------------*/
+ /* Melcuk Model */
+ /*--------------*/
+    public static final String CREATE_LEXICAL_FUNCTION
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LFREL.getSparqlPrefix() + "\n"
+            + "_PREFIX_ \n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a <_TYPE_> ; \n"
+            + "        lfrel:hasLexicalFunction <_LF_> ;\n"
+            + "        lfrel:hasLFKeyword <_SOURCE_> ;\n"
+            + "        lfrel:hasLFValue <_TARGET_> ;\n"
+            + "        lfrel:hasFusedElement _FUSED_ ;\n"
+            + "        dct:created \"_CREATED_\" ;\n"
+            + "        dct:creator \"_AUTHOR_\" ;\n"
+            + "        dct:created \"_CREATED_\" ;\n"
+            + "        dct:modified \"_MODIFIED_\" . \n"
+            + "}";
+    
+    public static final String CREATE_LEXICAL_ENTRY_POS_FOR_ECD_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "INSERT DATA {\n"
+            + "    <_ID_> a <_LE_TYPE_> ;\n"
+            + "                   rdfs:label \"[LABEL]\"@_LANG_ ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   vs:term_status \"working\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   lexinfo:partOfSpeech <_POS_> ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "    <_LEXICON_> lime:entry <_ID_> .\n"
+            + "    <_DE_> lexicog:describes <_ID_> .\n"
+            + "}";
+    
+    public static final String CREATE_ECD_FORM_POS_FOR_ECD_ENTRY
+            = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
+            + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.VS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LIME.getSparqlPrefix() + "\n"
+            + SparqlPrefix.LEXICOG.getSparqlPrefix() + "\n"
+            + "INSERT DATA {\n"
+            + "    <_ID_FORM_> a ontolex:Form ;\n"
+            + "                   ontolex:writtenRep \"[LABEL]\"@_LANG_ ;\n"
+            + "                   dct:creator \"[AUTHOR]\" ;\n"
+            + "                   dct:created \"[CREATED]\" ;\n"
+            + "                   dct:modified \"[MODIFIED]\" . \n"
+            + "    <_ID_LE_> <_FORM_TYPE_> <_ID_FORM_> .\n"
+            + "}";
+
+}
