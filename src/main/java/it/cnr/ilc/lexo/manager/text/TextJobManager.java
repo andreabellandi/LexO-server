@@ -196,8 +196,7 @@ public final class TextJobManager {
             checkCancelled();
 
             ControlledCommonMarkParser parser = new ControlledCommonMarkParser();
-            boolean plainText = isPlainTextExtension(
-                    upload.textFileName.toLowerCase(Locale.ROOT));
+            boolean plainText = !parser.hasControlledCommonMarkHeading(rawText);
             ParsedTextDocument doc;
             if (rawConllu == null) {
                 doc = plainText ? parser.parsePlainText(rawText) : parser.parse(rawText);
