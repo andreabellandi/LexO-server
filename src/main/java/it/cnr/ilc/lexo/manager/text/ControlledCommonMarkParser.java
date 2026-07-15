@@ -92,6 +92,25 @@ public final class ControlledCommonMarkParser {
         return doc;
     }
 
+    /**
+     * Returns true when the input declares CommonMark heading syntax.
+     * The import service uses this content check instead of relying on the
+     * multipart filename, which may be rewritten by a client.
+     */
+    public boolean hasControlledCommonMarkHeading(String rawText) {
+        if (rawText == null) {
+            return false;
+        }
+        String source = normalizeText(rawText);
+        String[] lines = source.split("\\n", -1);
+        for (String line : lines) {
+            if (line.startsWith("#")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public ParsedTextDocument parseStructure(String rawText) throws ControlledCommonMarkException {
         List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
         if (rawText == null) {
