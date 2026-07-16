@@ -127,9 +127,9 @@ public final class NifModelWriter {
                 addLiteral(model, context, DCTERMS_NS + "identifier", value, null);
             } else if ("title".equals(key)) {
                 addLiteral(model, context, DCTERMS_NS + "title", value, language);
-            } else if ("creator".equals(key)) {
+            } else if ("author".equals(key)) {
                 addIriOrLiteral(model, context, DCTERMS_NS + "creator", value);
-            } else if ("created".equals(key)) {
+            } else if ("date".equals(key)) {
                 addLiteral(model, context, DCTERMS_NS + "created", value, null);
             } else if ("language".equals(key)) {
                 addIriOrLiteral(model, context, DCTERMS_NS + "language", value);
