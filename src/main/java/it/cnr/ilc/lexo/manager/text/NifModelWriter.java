@@ -49,16 +49,30 @@ public final class NifModelWriter {
         return publicBaseUri + encode(fileId);
     }
 
+    public String corpusUri(String corpusId) {
+        return publicBaseUri + "corpora/" + encode(corpusId);
+    }
+
     public void write(Path output, String fileId, String originalFileName,
                       ParsedTextDocument doc) throws IOException {
+        write(output, fileId, originalFileName, doc, null);
+    }
+
+    public void write(Path output, String fileId, String originalFileName,
+                      ParsedTextDocument doc, String corpusUri) throws IOException {
         Files.createDirectories(output.getParent());
-        Model model = build(fileId, originalFileName, doc);
+        Model model = build(fileId, originalFileName, doc, corpusUri);
         try (OutputStream out = Files.newOutputStream(output)) {
             Rio.write(model, out, RDFFormat.TURTLE);
         }
     }
 
     public Model build(String fileId, String originalFileName, ParsedTextDocument doc) {
+        return build(fileId, originalFileName, doc, null);
+    }
+
+    public Model build(String fileId, String originalFileName, ParsedTextDocument doc,
+                       String corpusUri) {
         Model model = new LinkedHashModel();
         model.setNamespace("rdf", RDF.NAMESPACE);
         model.setNamespace("xsd", XSD.NAMESPACE);
@@ -99,6 +113,9 @@ public final class NifModelWriter {
         model.add(context, iri(structureNamespace + "frontMatterPresent"),
                 vf.createLiteral(doc.frontMatterPresent));
         writeMetadata(model, context, doc, language);
+        if (corpusUri != null) {
+            addIri(model, context, DCTERMS_NS + "isPartOf", iri(corpusUri));
+        }
         addLiteral(model, context, NIF_NS + "isString", doc.cleanText, language);
         addNonNegativeInteger(model, context, NIF_NS + "beginIndex", 0);
         addNonNegativeInteger(model, context, NIF_NS + "endIndex",
@@ -115,6 +132,44 @@ public final class NifModelWriter {
         }
         for (Token token : doc.tokens) {
             writeToken(model, document, context, doc.cleanText, token, language);
+        }
+        return model;
+    }
+
+    public void writeCorpus(Path output, String corpusId, String originalFileName,
+                            ParsedTextDocument metadata, List<String> memberContextUris)
+            throws IOException {
+        Files.createDirectories(output.getParent());
+        try (OutputStream out = Files.newOutputStream(output)) {
+            Rio.write(buildCorpus(corpusId, originalFileName, metadata, memberContextUris),
+                    out, RDFFormat.TURTLE);
+        }
+    }
+
+    public Model buildCorpus(String corpusId, String originalFileName,
+                             ParsedTextDocument metadata, List<String> memberContextUris) {
+        Model model = new LinkedHashModel();
+        model.setNamespace("rdf", RDF.NAMESPACE);
+        model.setNamespace("dcterms", DCTERMS_NS);
+        model.setNamespace("dcmitype", DCMITYPE_NS);
+        model.setNamespace("nif", NIF_NS);
+        model.setNamespace("prov", PROV_NS);
+        model.setNamespace("nifs", structureNamespace);
+
+        IRI corpus = iri(corpusUri(corpusId));
+        IRI source = iri(corpus.stringValue() + "/source");
+        addType(model, corpus, DCMITYPE_NS + "Collection");
+        addType(model, corpus, NIF_NS + "ContextCollection");
+        addLiteral(model, corpus, structureNamespace + "corpusId", corpusId, null);
+        writeMetadata(model, corpus, metadata, firstSafeLanguageTag(metadata));
+        addType(model, source, DCMITYPE_NS + "Text");
+        addLiteral(model, source, DCTERMS_NS + "identifier", originalFileName, null);
+        addLiteral(model, source, DCTERMS_NS + "format", "text/plain", null);
+        addIri(model, corpus, PROV_NS + "wasDerivedFrom", source);
+        if (memberContextUris != null) {
+            for (String member : memberContextUris) {
+                addIri(model, corpus, DCTERMS_NS + "hasPart", iri(member));
+            }
         }
         return model;
     }
