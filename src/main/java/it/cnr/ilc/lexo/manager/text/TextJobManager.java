@@ -120,37 +120,41 @@ public final class TextJobManager {
         if (input == null) {
             throw new IOException("Missing upload stream");
         }
-        String safeName = sanitizeFileName(originalName);
-        Path dir = uploadRoot.resolve(fileId);
-        Files.createDirectories(dir);
-        Path target = dir.resolve(safeName);
-        Path temp = dir.resolve("." + safeName + "." + UUID.randomUUID().toString() + ".part");
         try {
-            copyLimited(input, temp, maxBytes);
-            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temp);
-        }
-
-        UploadSet set = uploads.computeIfAbsent(fileId, k -> new UploadSet(fileId, Instant.now().toString()));
-        synchronized (set) {
-            if (kind == UploadKind.TEXT) {
-                if (set.text != null && !set.text.equals(target)) {
-                    Files.deleteIfExists(target);
-                    throw new IOException("Only one text file is allowed for a text job");
-                }
-                set.text = target;
-                set.textFileName = safeName;
-            } else {
-                if (set.conllu != null && !set.conllu.equals(target)) {
-                    Files.deleteIfExists(target);
-                    throw new IOException("Only one CoNLL-U file is allowed for a text job");
-                }
-                set.conllu = target;
-                set.conlluFileName = safeName;
+            String safeName = sanitizeFileName(originalName);
+            Path dir = uploadRoot.resolve(fileId);
+            Files.createDirectories(dir);
+            Path target = dir.resolve(safeName);
+            Path temp = dir.resolve("." + safeName + "." + UUID.randomUUID().toString() + ".part");
+            try {
+                copyLimited(input, temp, maxBytes);
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(temp);
             }
+
+            UploadSet set = uploads.computeIfAbsent(fileId,
+                    k -> new UploadSet(fileId, Instant.now().toString()));
+            synchronized (set) {
+                if (kind == UploadKind.TEXT) {
+                    if (set.text != null && !set.text.equals(target)) {
+                        throw new IOException("Only one text file is allowed for a text job");
+                    }
+                    set.text = target;
+                    set.textFileName = safeName;
+                } else {
+                    if (set.conllu != null && !set.conllu.equals(target)) {
+                        throw new IOException("Only one CoNLL-U file is allowed for a text job");
+                    }
+                    set.conllu = target;
+                    set.conlluFileName = safeName;
+                }
+            }
+            return target;
+        } catch (IOException | RuntimeException e) {
+            cleanupUpload(fileId);
+            throw e;
         }
-        return target;
     }
 
     public boolean hasTextUpload(String fileId) {
@@ -175,15 +179,23 @@ public final class TextJobManager {
 
         TextJobInfo job = new TextJobInfo(fileId, TextJobType.CONVERT);
         jobs.put(fileId, job);
-        Future<?> future = ioPool.submit(() -> executeConversion(upload, job));
-        futures.put(fileId, future);
-        return job;
+        try {
+            Future<?> future = ioPool.submit(() -> executeConversion(upload, job));
+            futures.put(fileId, future);
+            return job;
+        } catch (RuntimeException e) {
+            jobs.remove(fileId);
+            cleanupFailedConversion(fileId, null);
+            throw e;
+        }
     }
 
     private void executeConversion(UploadSet upload, TextJobInfo job) {
         String fileId = upload.fileId;
         Path workDir = workRoot.resolve(fileId + "-" + UUID.randomUUID().toString());
+        Path finalDir = documentRoot.resolve(fileId);
         boolean committed = false;
+        TextJobState terminalState = null;
         try {
             job.state = TextJobState.RUNNING;
             job.progress = 2;
@@ -235,7 +247,6 @@ public final class TextJobManager {
             job.message = "RDF/NIF model serialized";
             checkCancelled();
 
-            Path finalDir = documentRoot.resolve(fileId);
             TextRecord record = buildRecord(fileId, upload, doc, writer.documentUri(fileId), finalDir);
             mapper.writerWithDefaultPrettyPrinter().writeValue(metadataPath.toFile(), record);
             moveDirectory(workDir, finalDir);
@@ -253,20 +264,21 @@ public final class TextJobManager {
                     + ", tokens=" + doc.tokens.size();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            job.state = TextJobState.CANCELLED;
             job.message = "Text conversion cancelled";
+            terminalState = TextJobState.CANCELLED;
         } catch (TextValidationException e) {
-            job.state = TextJobState.FAILED;
             job.message = e.getMessage();
             job.issues = new ArrayList<ValidationIssue>(e.getIssues());
-            uploads.remove(fileId);
-            deleteRecursively(uploadRoot.resolve(fileId));
+            terminalState = TextJobState.FAILED;
         } catch (Throwable e) {
-            job.state = TextJobState.FAILED;
             job.message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            terminalState = TextJobState.FAILED;
         } finally {
             if (!committed) {
-                deleteRecursively(workDir);
+                cleanupFailedConversion(fileId, workDir);
+            }
+            if (terminalState != null) {
+                job.state = terminalState;
             }
         }
     }
@@ -388,6 +400,21 @@ public final class TextJobManager {
         uploads.remove(fileId);
         deleteRecursively(uploadRoot.resolve(fileId));
     }
+
+    private void cleanupFailedConversion(String fileId, Path workDir) {
+        uploads.remove(fileId);
+        records.remove(fileId);
+        deleteRecursively(uploadRoot.resolve(fileId));
+        deleteRecursively(workDir);
+        deleteRecursively(documentRoot.resolve(fileId));
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(workRoot, fileId + "-*")) {
+            for (Path path : stream) {
+                deleteRecursively(path);
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
 
     public void shutdown() {
         ioPool.shutdownNow();
