@@ -56,9 +56,14 @@ LexO-server uses the following technology to work properly:
 6. Run the build.
 7. Open the browser at http://localhost:8080/LexO-backend/, and the swagger sholud appear.
 
+## Tests
+
+Run the unit suite with `mvn test`. Tests for the text services, including the
+optional end-to-end profile for a deployed LexO-server and GraphDB Free, are
+documented in [docs/text-services-tests.md](docs/text-services-tests.md).
+
 ## License
 
 MIT
 
 **Free Software, Hell Yeah!**
-

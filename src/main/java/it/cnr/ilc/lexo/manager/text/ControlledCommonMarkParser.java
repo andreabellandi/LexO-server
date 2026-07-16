@@ -415,7 +415,9 @@ public final class ControlledCommonMarkParser {
             String value = matcher.group(2).trim();
             if (!isSupportedMetadataKey(key)) {
                 activeListKey = null;
-                ignoredList = value.isEmpty();
+                // Ignore the whole value of unsupported metadata, including
+                // any following YAML-style list items, until another key is met.
+                ignoredList = true;
                 continue;
             }
             ignoredList = false;

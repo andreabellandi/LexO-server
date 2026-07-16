@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -27,6 +29,8 @@ import org.eclipse.rdf4j.rio.Rio;
 
 /** Builds and serializes the RDF/NIF model using the RDF4J already used by LexO-server. */
 public final class NifModelWriter {
+
+    private static final Pattern MARKDOWN_IRI = Pattern.compile("^\\[([^\\]]+)]\\(([^)]+)\\)$");
 
     private static final String NIF_NS = "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
     private static final String DCTERMS_NS = "http://purl.org/dc/terms/";
@@ -432,6 +436,13 @@ public final class NifModelWriter {
         String candidate = value.trim();
         if (candidate.length() >= 2 && candidate.startsWith("<") && candidate.endsWith(">")) {
             candidate = candidate.substring(1, candidate.length() - 1).trim();
+        }
+        // Metadata exported by Markdown editors may preserve an URI as
+        // [URI](URI), optionally surrounded by angle brackets. It represents
+        // the same RDF IRI only when label and target are identical.
+        Matcher markdown = MARKDOWN_IRI.matcher(candidate);
+        if (markdown.matches() && markdown.group(1).equals(markdown.group(2))) {
+            candidate = markdown.group(2).trim();
         }
         return candidate.matches("[A-Za-z][A-Za-z0-9+.-]*:.*") ? candidate : null;
     }
