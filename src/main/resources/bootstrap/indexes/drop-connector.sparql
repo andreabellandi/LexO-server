@@ -1,0 +1,5 @@
+PREFIX inst: <http://www.ontotext.com/connectors/lucene/instance#>
+PREFIX luc: <http://www.ontotext.com/connectors/lucene#>
+INSERT DATA {
+  inst:_INDEX_NAME_ luc:dropConnector "" .
+}

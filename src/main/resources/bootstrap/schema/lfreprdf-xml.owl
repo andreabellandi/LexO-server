@@ -1,0 +1,812 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://github.com/alex-fonseca/lexfom/lfrep.owl#"
+     xml:base="http://github.com/alex-fonseca/lexfom/lfrep.owl"
+     xmlns:cc="http://creativecommons.org/ns#"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:vann="http://purl.org/vocab/vann/"
+     xmlns:lffam="http://github.com/alex-fonseca/lexfom/lffam.owl#"
+     xmlns:lfsem="http://github.com/alex-fonseca/lexfom/lfsem.owl#"
+     xmlns:decomp="http://www.w3.org/ns/lemon/decomp#"
+     xmlns:synsem="http://www.w3.org/ns/lemon/synsem#"
+     xmlns:vartrans="http://www.w3.org/ns/lemon/vartrans#"
+     xmlns:semiotics="http://www.ontologydesignpatterns.org/cp/owl/semiotics.owl#">
+    <owl:Ontology rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl">
+        <owl:imports rdf:resource="http://github.com/alex-fonseca/lexfom/lffam.owl"/>
+        <owl:imports rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#andComposition -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#andComposition">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#belongsToLFFamily -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#belongsToLFFamily">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunctionFamily"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#combinatorialPerspective -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#combinatorialPerspective">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#communicationalPerspective -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#communicationalPerspective">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentComplexLF -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentComplexLF">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexLF"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#correspondsTo -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#correspondsTo">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#dimension -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#dimension">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#typeLF"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#gloss -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#gloss"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasCircunstanceSpecification -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasCircunstanceSpecification">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasDimensionMode -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasDimensionMode">
+        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#dimensionMode"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasEquivDegree -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasEquivDegree">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasIntensificationMode -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasIntensificationMode">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasLFMeaning -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasLFMeaning">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasRealizationDegree -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasRealizationDegree">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSpatialSpecification -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSpatialSpecification">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSpecializationType -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSpecializationType">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#specializationType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSyntActant -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSyntActant">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSyntActantModifier -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#hasSyntActantModifier">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#justapositionComposition -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#justapositionComposition">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#orComposition -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#orComposition">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#plusComposition -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#plusComposition">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexCompositionType"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#posPerspective -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#posPerspective">
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#semanticPerspective -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#semanticPerspective">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#classSystem"/>
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#ParadigmaticLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#ParadigmaticLF">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#SyntagmaticLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#SyntagmaticLF">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#complexLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#complexLF">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#componentComplexLF"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#dimensionMode -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#dimensionMode">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunctionFamily -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunctionFamily"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#semanticPerspective -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#semanticPerspective"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#simpleLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#simpleLF">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#specializationType -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#specializationType"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#constituentsLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#typeLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#typeLF"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Individuals
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-inst -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-inst">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-loc -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-loc">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-med -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-med">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-mod -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-mod">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-res -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-cs-res">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#circunstanceSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-dm-amount -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-dm-amount">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#dimensionMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-dm-time -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-dm-time">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#dimensionMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-inter -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-inter">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-less -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-less">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-more -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-more">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-sex -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ed-sex">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#equivalenceDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-behaviour -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-behaviour">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-effect -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-effect">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-height -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-height">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-length -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-length">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-size -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-size">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-speed -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-speed">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-strength -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-strength">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-thickness -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-thickness">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-width -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-im-width">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#intensificationMode"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_I -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_I">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_II -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_II">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_III -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-rd-realDeg_III">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#realizationDegree"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_1 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_1">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_2 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_2">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_3 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_3">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_4 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_4">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_5 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_5">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_xt -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-sa-ASynt_xt">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActant"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialAB -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialAB">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialAD -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialAD">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialIN -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialIN">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#spatialSpecification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialTEMP -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-const-ss-spatialTEMP"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-XYchange -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-XYchange">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-lfAppliedToActant_1 -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-lfAppliedToActant_1">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-setOFIndividuals -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-setOFIndividuals">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-simultaneousActants -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-sam-simultaneousActants">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#syntacticActantModifiers"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-st-prototype -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-st-prototype">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#specializationType"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-st-usual -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-st-usual">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#specializationType"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-locally_semi-standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-locally_semi-standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-locally_standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-locally_standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-proposed_simple_standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-proposed_simple_standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-proposed_standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-proposed_standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-semi-standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-semi-standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-simple_standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-simple_standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-standard -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-stand-standard">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#standardness"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-type-paradigmaticLF -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-type-paradigmaticLF">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#typeLF"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-type-syntagmaticLF -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lfrep-type-syntagmaticLF">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#typeLF"/>
+    </owl:NamedIndividual>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+

@@ -1,0 +1,206 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://github.com/alex-fonseca/lexfom/lfrel.owl#"
+     xml:base="http://github.com/alex-fonseca/lexfom/lfrel.owl"
+     xmlns:cc="http://creativecommons.org/ns#"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:ns="http://www.w3.org/2003/06/sw-vocab-status/ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:vann="http://purl.org/vocab/vann/"
+     xmlns:lfrep="http://github.com/alex-fonseca/lexfom/lfrep.owl#"
+     xmlns:decomp="http://www.w3.org/ns/lemon/decomp#"
+     xmlns:synsem="http://www.w3.org/ns/lemon/synsem#"
+     xmlns:ontolex="http://www.w3.org/ns/lemon/ontolex#"
+     xmlns:vartrans="http://www.w3.org/ns/lemon/vartrans#"
+     xmlns:semiotics="http://www.ontologydesignpatterns.org/cp/owl/semiotics.owl#">
+    <owl:Ontology rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl">
+        <owl:imports rdf:resource="C:/Users/bd291193/workspace/lexfom/lexfom/lfrep.owl"/>
+        <owl:imports rdf:resource="http://www.w3.org/ns/lemon/ontolex"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasGovPattern -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasGovPattern">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLFKeyword -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLFKeyword">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+        <rdfs:domain>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLFKeyword"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+            </owl:Restriction>
+        </rdfs:domain>
+        <rdfs:range rdf:resource="http://www.w3.org/ns/lemon/ontolex#LexicalSense"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLFValue -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLFValue">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+        <rdfs:range rdf:resource="http://www.w3.org/ns/lemon/ontolex#LexicalSense"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLexicalFunction -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLexicalFunction">
+        <rdfs:domain>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLexicalFunction"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+            </owl:Restriction>
+        </rdfs:domain>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLexicalRelationDirection -->
+
+    <owl:ObjectProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasLexicalRelationDirection">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#syntagmaticRelation"/>
+        <rdfs:range rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationDirection"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#hasFusedElement -->
+
+    <owl:DatatypeProperty rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#hasFusedElement">
+        <rdfs:domain rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#ParadigmaticLFSenseRelation -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#ParadigmaticLFSenseRelation">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#SyntagmaticLFSenseRelation -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#SyntagmaticLFSenseRelation">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#govPattern -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#govPattern"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationDirection -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationDirection"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationLF"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#syntagmaticRelation -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#syntagmaticRelation"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfrep.owl#lexicalFunction"/>
+    
+
+
+    <!-- http://www.w3.org/ns/lemon/ontolex#LexicalSense -->
+
+    <owl:Class rdf:about="http://www.w3.org/ns/lemon/ontolex#LexicalSense"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Individuals
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#KeywordValue -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#KeywordValue">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationDirection"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfrel.owl#ValueKeyword -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfrel.owl#ValueKeyword">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfrel.owl#lexicalRelationDirection"/>
+    </owl:NamedIndividual>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+

@@ -1,0 +1,467 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://github.com/alex-fonseca/lexfom/lfsem.owl#"
+     xml:base="http://github.com/alex-fonseca/lexfom/lfsem.owl"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#causativity -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#causativity">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#equivalence -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#equivalence">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#form -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#form">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#location -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#location">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#opposition -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#opposition">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#participants -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#participants">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#qualification -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#qualification">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticallyEmptyVerb -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticallyEmptyVerb">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#supportVerb -->
+
+    <owl:Class rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#supportVerb">
+        <rdfs:subClassOf rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticPerspective"/>
+    </owl:Class>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Individuals
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-attempt -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-attempt">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-creation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-creation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-decreaseDegradation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-decreaseDegradation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-disparationExistencialCease -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-disparationExistencialCease">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-imminence -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-imminence">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-increaseImprovement -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-increaseImprovement">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-manifestation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-manifestation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-nonOperationRefusal -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-nonOperationRefusal">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-utilizationTypicalOperation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ae-utilizationTypicalOperation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#actionEvent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ca-causativity -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ca-causativity">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#causativity"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-conversionEquiv -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-conversionEquiv">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#equivalence"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-similarLexies -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-similarLexies">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#equivalence"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-syntacticConversion -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-eq-syntacticConversion">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#equivalence"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-family -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-family">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-hierarchies -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-hierarchies">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-leaderTeam -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-leaderTeam">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-measure -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-measure">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-meronymyHolonymy -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-meronymyHolonymy">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-regularElementSet -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-es-regularElementSet">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#elementSet"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ev-semanticallyEmptyVerb -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-ev-semanticallyEmptyVerb">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#semanticallyEmptyVerb"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-instrument -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-instrument">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#form"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-realizationForm -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-realizationForm">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#form"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-utilizationForm -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-fm-utilizationForm">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#form"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-lc-spatialTemporal -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-lc-spatialTemporal">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#location"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-lc-typicalPlace -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-lc-typicalPlace">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#location"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-conversionOpposite -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-conversionOpposite">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#opposition"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-genderEquivalent -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-genderEquivalent">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#opposition"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-semanticOpposite -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-op-semanticOpposite">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#opposition"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-continuation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-continuation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-duration -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-duration">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-preparation -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-preparation">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-reiteration -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-reiteration">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-resultPhase -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-resultPhase">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-start -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-start">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-termination -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pa-termination">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#phaseAspect"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pp-externalActant -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pp-externalActant">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#participants"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pp-keywordActant -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-pp-keywordActant">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#participants"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-intensity -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-intensity">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#qualification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-judgement -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-judgement">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#qualification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-physicalAppearance -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-qf-physicalAppearance">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#qualification"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-sv-supportVerb -->
+
+    <owl:NamedIndividual rdf:about="http://github.com/alex-fonseca/lexfom/lfsem.owl#pSem-sv-supportVerb">
+        <rdf:type rdf:resource="http://github.com/alex-fonseca/lexfom/lfsem.owl#supportVerb"/>
+    </owl:NamedIndividual>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+

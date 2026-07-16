@@ -1,0 +1,49 @@
+PREFIX inst: <http://www.ontotext.com/connectors/lucene/instance#>
+PREFIX luc: <http://www.ontotext.com/connectors/lucene#>
+INSERT DATA {
+     inst:dictionaryEntryIndex luc:createConnector '''
+{
+   "types": [
+     "http://www.w3.org/ns/lemon/lexicog#Entry"
+   ],
+   "fields": [
+     {
+       "fieldName": "dictionaryEntryLabel",
+       "propertyChain": [
+        "http://www.w3.org/2000/01/rdf-schema#label"
+       ],
+      "multivalued": false,
+      "analyzed": false
+     },
+    {
+       "fieldName": "dictionaryEntryIRI",
+       "propertyChain": [
+         "$self"
+       ],
+	"multivalued": false,
+    "analyzed": false
+    },
+    {
+         "fieldName": "entryLanguage",
+         "propertyChain": [
+           "http://www.w3.org/2000/01/rdf-schema#label",
+           "lang()"
+         ],
+         "analyzed": false
+     },
+     {
+          "fieldName": "status",
+          "propertyChain": [
+                "http://www.w3.org/2003/06/sw-vocab-status/ns#term_status"
+          ]
+     },
+    {
+          "fieldName": "author",
+          "propertyChain": [
+                "http://purl.org/dc/terms/creator"
+          ]
+     }
+   ],
+   "documentFilter": "bound(?dictionaryEntryLabel)" }
+ ''' .
+ }

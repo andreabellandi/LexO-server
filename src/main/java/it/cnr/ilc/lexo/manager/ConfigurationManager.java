@@ -6,18 +6,14 @@
 package it.cnr.ilc.lexo.manager;
 
 import com.github.jsonldjava.shaded.com.google.common.io.Files;
+import it.cnr.ilc.lexo.bootstrap.BootstrapResources;
+import it.cnr.ilc.lexo.bootstrap.GraphDbBootstrap;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.service.data.RepositoryData;
-import it.cnr.ilc.lexo.sparql.SparqlIndex;
-import it.cnr.ilc.lexo.sparql.SparqlInsertData;
-import it.cnr.ilc.lexo.sparql.SparqlRepositoryConfiguration;
-import it.cnr.ilc.lexo.sparql.SparqlVariable;
 import it.cnr.ilc.lexo.util.EnumUtil;
-import it.cnr.ilc.lexo.util.RDFQueryUtil;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -79,14 +75,20 @@ public class ConfigurationManager implements Manager, Cached {
 
     private File getAttachedFile(RepositoryData rd) throws ManagerException, IOException {
         validateRuleset(rd.getRuleset());
-        String content = SparqlRepositoryConfiguration.REPOSITORY_CONFIGURATION.replace("_REPO_ID_", repoName)
-                .replace("_REPO_LABEL_", rd.getLabelID())
-                .replace("_BASE_URL_", rd.getBaseUrl())
-                .replace("_RULESET_", rd.getRuleset());
+        String content = BootstrapResources.readUtf8("bootstrap/repositories/lexicon-repository.ttl")
+                .replace("__REPOSITORY_ID__", escapeTurtle(repoName))
+                .replace("__REPOSITORY_LABEL__", escapeTurtle(rd.getLabelID()))
+                .replace("__BASE_URL__", escapeTurtle(rd.getBaseUrl()))
+                .replace("owl-horst-optimized", escapeTurtle(rd.getRuleset()));
 //        InputStream stream = new ByteArrayInputStream(file.getBytes(StandardCharsets.UTF_8));
         File file = new File("pippo.ttl");
         Files.write(content.getBytes(), file);
         return file;
+    }
+
+    private String escapeTurtle(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\r", "\\r").replace("\n", "\\n");
     }
 
     public void validateRuleset(String rs) throws ManagerException {
@@ -94,34 +96,7 @@ public class ConfigurationManager implements Manager, Cached {
     }
 
     
-    private void deleteIndex(ArrayList<String> connectors, String connector) {
-        if (connectors.contains(connector)) {
-                RDFQueryUtil.update(SparqlIndex.DELETE_INDEX.replace("_INDEX_NAME_", connector));
-            }
-    }
-    
     public void updateIndex(String repo) {
-        ArrayList<String> connectors = ManagerFactory.getManager(UtilityManager.class).getConnectors();
-        if (!connectors.isEmpty()) {
-            deleteIndex(connectors, SparqlVariable.LEXICAL_ENTRY_INDEX);
-            deleteIndex(connectors, SparqlVariable.DICTIONARY_ENTRY_INDEX);
-            deleteIndex(connectors, SparqlVariable.FORM_INDEX);
-            deleteIndex(connectors, SparqlVariable.LEXICAL_SENSE_INDEX);
-            deleteIndex(connectors, SparqlVariable.LEXICAL_CONCEPT_INDEX);
-            deleteIndex(connectors, SparqlVariable.ETYMOLOGY_INDEX);
-            deleteIndex(connectors, SparqlVariable.CONCEPT_REFERENCE_INDEX);
-            deleteIndex(connectors, SparqlVariable.COMPONENT_INDEX);
-            deleteIndex(connectors, SparqlVariable.CONCEPT_SET_INDEX);
-        }
-        RDFQueryUtil.update(SparqlIndex.LEXICAL_ENTRY_INDEX);
-        RDFQueryUtil.update(SparqlIndex.DICTIONARY_ENTRY_INDEX);
-        RDFQueryUtil.update(SparqlIndex.FORM_INDEX);
-        RDFQueryUtil.update(SparqlIndex.LEXICAL_SENSE_INDEX);
-        RDFQueryUtil.update(SparqlIndex.COMPONENT_INDEX);
-        RDFQueryUtil.update(SparqlIndex.CONCEPT_REFERENCE_INDEX);
-        RDFQueryUtil.update(SparqlIndex.CONCEPT_SET_INDEX);
-        RDFQueryUtil.update(SparqlIndex.ETYMOLOGY_INDEX);
-        RDFQueryUtil.update(SparqlIndex.LEXICAL_CONCEPT_INDEX);
-
+        GraphDbBootstrap.rebuildIndexes();
     }
 }

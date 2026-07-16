@@ -1,12 +1,15 @@
 package it.cnr.ilc.lexo.service.data.text.output;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
+import it.cnr.ilc.lexo.service.data.Data;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class TextRecord {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class TextRecord implements Data {
     public String fileId;
     public String documentUri;
     public String corpusId;
@@ -31,4 +34,7 @@ public class TextRecord {
     public Map<String, List<String>> metadataValues =
             new LinkedHashMap<String, List<String>>();
     public List<ValidationIssue> warnings = new ArrayList<ValidationIssue>();
+
+    public TextRecord() {
+    }
 }
