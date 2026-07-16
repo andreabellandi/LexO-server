@@ -12,6 +12,11 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
 | `TextServicesIT` | End-to-end | Upload, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
+| `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
+
+Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
+chiamano servizi lessicali, non eseguono query sul repository del lessico e non
+creano o modificano indici lessicali.
 
 I test RDF non confrontano Turtle come una stringa. Caricano il risultato in un
 `Model` RDF4J e verificano soggetto, predicato e tipo dell'oggetto. In questo modo
@@ -53,7 +58,7 @@ Questi test sono esclusi da `mvn test` perché modificano una vera installazione
 Prima di eseguirli:
 
 1. avviare GraphDB Free;
-2. configurare LexO-server con repository lessicale e repository testi dedicati ai test;
+2. configurare LexO-server con un repository testi dedicato ai test;
 3. avviare LexO-server e attendere il completamento del bootstrap;
 4. ottenere un valore valido per l'header HTTP `Authorization`;
 5. non usare repository di sviluppo o produzione.
@@ -91,6 +96,55 @@ I report end-to-end vengono scritti in `target/failsafe-reports`.
 Se il profilo viene attivato senza `lexo.test.baseUrl` o senza autorizzazione, i
 test end-to-end risultano *skipped* anziché tentare accidentalmente una connessione.
 
+## Esecuzione dei workflow completi
+
+I workflow in `TextServiceUseCasesIT` richiedono anche l'accesso SPARQL diretto al
+repository GraphDB dei testi e l'accesso locale alla directory di persistenza. Se
+una di queste configurazioni manca, i quattro workflow vengono saltati: non vengono
+eseguiti con controlli parziali.
+
+```bash
+mvn verify -Ptext-e2e \
+  -Dlexo.test.baseUrl=http://localhost:8080/LexO-backend/service \
+  -Dlexo.test.authorization='Bearer TOKEN_LEXO' \
+  -Dlexo.test.graphdbUrl=http://localhost:7200 \
+  -Dlexo.test.textRepository=LexOTexts \
+  -Dlexo.test.namedGraphBase=https://lexo.ilc.cnr.it/graphs/nif/ \
+  -Dlexo.test.storageDir=/percorso/assoluto/data/texts
+```
+
+Se GraphDB richiede autenticazione, aggiungere il valore completo del relativo
+header:
+
+```bash
+-Dlexo.test.graphdbAuthorization='Basic BASE64_USER_PASSWORD'
+```
+
+Proprietà dei workflow:
+
+| Proprietà | Obbligatoria | Significato |
+|---|---:|---|
+| `lexo.test.baseUrl` | sì | Radice Jersey di LexO-server |
+| `lexo.test.authorization` | sì | Header Authorization per LexO-server |
+| `lexo.test.graphdbUrl` | sì | URL della sola installazione GraphDB usata dai testi |
+| `lexo.test.textRepository` | sì | ID del repository GraphDB dei NIF testuali |
+| `lexo.test.namedGraphBase` | no | Base dei named graph NIF; usa il default LexO se omessa |
+| `lexo.test.storageDir` | sì | Directory configurata come `lexo.text.storage.dir` |
+| `lexo.test.graphdbAuthorization` | no | Header Authorization per GraphDB |
+
+### Casi d'uso implementati
+
+- **UC-01 — documento autonomo:** upload, controllo area temporanea, conversione,
+  polling, download NIF, ASK SPARQL, controllo degli artefatti finali, eliminazione
+  e verifica della pulizia completa;
+- **UC-02 — corpus con due documenti:** creazione corpus, due conversioni,
+  verifica bidirezionale `hasPart`/`isPartOf`, eliminazione del corpus, controllo
+  che i documenti sopravvivano scollegati e cleanup finale;
+- **UC-03 — TXT, CoNLL-U e metadati misti:** upload multipart, conversione,
+  download CoNLL-U e verifica SPARQL di lemma, autore letterale e autore URI;
+- **UC-04 — rollback:** CoNLL-U non allineato, stato `FAILED`, assenza del record,
+  assenza del named graph e rimozione di upload, work directory e artefatti finali.
+
 ## Dati creati dai test end-to-end
 
 Ogni scenario usa nomi univoci. Nei blocchi `finally` elimina documenti e corpus
@@ -100,7 +154,6 @@ conversione non valida non esponga né il record del testo né il relativo NIF.
 È comunque opportuno dedicare ai test:
 
 - un repository GraphDB per i testi;
-- un repository GraphDB per il lessico/bootstrap;
 - una directory `lexo.text.storage.dir` separata.
 
 Questo garantisce isolamento anche in caso di arresto forzato della JVM prima del
