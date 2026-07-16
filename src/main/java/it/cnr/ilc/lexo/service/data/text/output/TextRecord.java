@@ -18,6 +18,7 @@ public class TextRecord {
     public String originalPath;
     public String canonicalPath;
     public String nifPath;
+    public String nifGraph;
     public String metadataPath;
     public String conlluPath;
     public String createdAt;
