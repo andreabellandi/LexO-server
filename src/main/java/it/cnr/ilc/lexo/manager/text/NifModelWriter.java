@@ -124,7 +124,7 @@ public final class NifModelWriter {
             String key = entry.getKey().toLowerCase(Locale.ROOT);
             String value = entry.getValue();
             if ("id".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "identifier", value, null);
+                addIriOrLiteral(model, context, DCTERMS_NS + "identifier", value);
             } else if ("title".equals(key)) {
                 addLiteral(model, context, DCTERMS_NS + "title", value, language);
             } else if ("author".equals(key)) {
