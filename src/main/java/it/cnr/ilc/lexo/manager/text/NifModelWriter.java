@@ -123,23 +123,20 @@ public final class NifModelWriter {
         for (Map.Entry<String, String> entry : metadata.entrySet()) {
             String key = entry.getKey().toLowerCase(Locale.ROOT);
             String value = entry.getValue();
-            if ("title".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "title", value, language);
-            } else if ("creator".equals(key) || "author".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "creator", value, null);
-            } else if ("language".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "language", value, null);
-            } else if ("date".equals(key) || "issued".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "issued", value, null);
-            } else if ("license".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "license", value);
-            } else if ("source".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "source", value);
-            } else if ("id".equals(key)) {
+            if ("id".equals(key)) {
                 addLiteral(model, context, DCTERMS_NS + "identifier", value, null);
-            } else {
-                addLiteral(model, context, structureNamespace + "metadataValue",
-                        key + "=" + value, null);
+            } else if ("title".equals(key)) {
+                addLiteral(model, context, DCTERMS_NS + "title", value, language);
+            } else if ("creator".equals(key)) {
+                addIriOrLiteral(model, context, DCTERMS_NS + "creator", value);
+            } else if ("created".equals(key)) {
+                addLiteral(model, context, DCTERMS_NS + "created", value, null);
+            } else if ("language".equals(key)) {
+                addIriOrLiteral(model, context, DCTERMS_NS + "language", value);
+            } else if ("format".equals(key)) {
+                addLiteral(model, context, DCTERMS_NS + "format", value, null);
+            } else if ("corpus".equals(key)) {
+                addIriOrLiteral(model, context, DCTERMS_NS + "isPartOf", value);
             }
         }
     }
