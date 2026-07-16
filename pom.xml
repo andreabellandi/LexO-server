@@ -10,6 +10,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <postfix></postfix>
+        <textGraphdb.url>${graphdb.url}</textGraphdb.url>
+        <textGraphdb.repository>LexOTexts</textGraphdb.repository>
+        <textGraphdb.namedGraphBase>https://lexo.ilc.cnr.it/graphs/nif/</textGraphdb.namedGraphBase>
     </properties>
     
     <dependencies>
