@@ -8,6 +8,7 @@ import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.eclipse.rdf4j.model.Model;
 
 /**
  * Asynchronous manager dedicated to TXT/CommonMark + optional CoNLL-U -> NIF jobs.
@@ -181,7 +183,8 @@ public final class TextJobManager {
                 || current.state == TextJobState.RUNNING)) {
             throw new IllegalStateException("A text conversion job is already running for " + fileId);
         }
-        if (Files.exists(documentRoot.resolve(fileId))) {
+        if (Files.exists(documentRoot.resolve(fileId))
+                || TextNifRepository.get().containsDocument(fileId)) {
             throw new IllegalStateException("A completed text record already exists for " + fileId);
         }
 
@@ -206,6 +209,7 @@ public final class TextJobManager {
         Path finalDir = documentRoot.resolve(fileId);
         boolean committed = false;
         boolean corpusMembershipAdded = false;
+        boolean graphCommitted = false;
         TextJobState terminalState = null;
         try {
             job.state = TextJobState.RUNNING;
@@ -237,7 +241,6 @@ public final class TextJobManager {
             Path originalDir = workDir.resolve("original");
             Path canonicalPath = workDir.resolve("canonical.txt");
             Path conlluDir = workDir.resolve("conllu");
-            Path nifPath = workDir.resolve("document.ttl");
             Path metadataPath = workDir.resolve("metadata.json");
             Files.createDirectories(originalDir);
             Files.copy(upload.text, originalDir.resolve(upload.textFileName),
@@ -253,15 +256,18 @@ public final class TextJobManager {
             checkCancelled();
 
             NifModelWriter writer = new NifModelWriter(publicBaseUri, structureNamespace);
-            writer.write(nifPath, fileId, upload.textFileName, doc, corpusUri);
+            Model nifModel = writer.build(fileId, upload.textFileName, doc, corpusUri);
             job.progress = 88;
-            job.message = "RDF/NIF model serialized";
+            job.message = "RDF/NIF model built";
             checkCancelled();
 
             TextRecord record = buildRecord(fileId, upload, doc, writer.documentUri(fileId),
                     corpusId, corpusUri, finalDir);
             mapper.writerWithDefaultPrettyPrinter().writeValue(metadataPath.toFile(), record);
             moveDirectory(workDir, finalDir);
+            TextNifRepository.get().saveDocument(fileId, nifModel,
+                    record.documentUri + "#context", corpusId, corpusUri);
+            graphCommitted = true;
             if (corpusId != null) {
                 CorpusManager.get().addDocument(corpusId, fileId, record.documentUri);
                 corpusMembershipAdded = true;
@@ -291,6 +297,13 @@ public final class TextJobManager {
             terminalState = TextJobState.FAILED;
         } finally {
             if (!committed) {
+                if (graphCommitted) {
+                    try {
+                        TextNifRepository.get().deleteDocument(fileId,
+                                writerDocumentUri(fileId) + "#context", corpusId, corpusUri);
+                    } catch (Throwable ignored) {
+                    }
+                }
                 if (corpusMembershipAdded) {
                     try {
                         CorpusManager.get().removeDocument(
@@ -320,7 +333,7 @@ public final class TextJobManager {
         record.conlluFileName = upload.conlluFileName;
         record.originalPath = relative(finalDir.resolve("original").resolve(upload.textFileName));
         record.canonicalPath = relative(finalDir.resolve("canonical.txt"));
-        record.nifPath = relative(finalDir.resolve("document.ttl"));
+        record.nifGraph = TextNifRepository.get().documentGraphUri(fileId);
         record.metadataPath = relative(finalDir.resolve("metadata.json"));
         if (upload.conlluFileName != null) {
             record.conlluPath = relative(finalDir.resolve("conllu").resolve(upload.conlluFileName));
@@ -402,25 +415,41 @@ public final class TextJobManager {
         return record == null || record.conlluPath == null ? null : resolveRelative(record.conlluPath);
     }
 
-    public Path getNif(String fileId) {
+    public boolean hasNif(String fileId) {
         TextRecord record = getRecord(fileId);
-        return record == null ? null : resolveRelative(record.nifPath);
+        return record != null && ensureNif(record);
+    }
+
+    public void writeNif(String fileId, OutputStream output) {
+        TextRecord record = getRecord(fileId);
+        if (record == null || !ensureNif(record)) {
+            throw new IllegalArgumentException("Text NIF not found: " + fileId);
+        }
+        TextNifRepository.get().writeDocument(fileId, output);
     }
 
     public boolean delete(String fileId) throws IOException {
         requireSafeFileId(fileId);
         TextRecord record = getRecord(fileId);
-        if (record != null && record.corpusId != null) {
-            CorpusManager.get().removeDocument(
-                    record.corpusId, fileId, record.documentUri);
-        }
         cancel(fileId);
+        boolean graphExisted = TextNifRepository.get().containsDocument(fileId);
+        if (record != null) {
+            TextNifRepository.get().deleteDocument(fileId,
+                    record.documentUri + "#context", record.corpusId, record.corpusUri);
+            if (record.corpusId != null) {
+                CorpusManager.get().removeDocument(
+                        record.corpusId, fileId, record.documentUri);
+            }
+        } else if (graphExisted) {
+            TextNifRepository.get().deleteDocument(fileId,
+                    writerDocumentUri(fileId) + "#context", null, null);
+        }
         jobs.remove(fileId);
         futures.remove(fileId);
         records.remove(fileId);
         uploads.remove(fileId);
         boolean existed = Files.exists(documentRoot.resolve(fileId))
-                || Files.exists(uploadRoot.resolve(fileId));
+                || Files.exists(uploadRoot.resolve(fileId)) || graphExisted;
         deleteRecursively(documentRoot.resolve(fileId));
         deleteRecursively(uploadRoot.resolve(fileId));
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(workRoot, fileId + "-*")) {
@@ -429,6 +458,66 @@ public final class TextJobManager {
             }
         }
         return existed;
+    }
+
+    public void detachCorpus(String corpusId, List<String> documentIds) throws IOException {
+        for (String fileId : documentIds) {
+            TextRecord record = getRecord(fileId);
+            if (record == null || !corpusId.equals(record.corpusId)) {
+                continue;
+            }
+            synchronized (record) {
+                String oldCorpusId = record.corpusId;
+                String oldCorpusUri = record.corpusUri;
+                record.corpusId = null;
+                record.corpusUri = null;
+                try {
+                    rewriteRecord(record);
+                } catch (IOException e) {
+                    record.corpusId = oldCorpusId;
+                    record.corpusUri = oldCorpusUri;
+                    throw e;
+                }
+            }
+        }
+    }
+
+    private boolean ensureNif(TextRecord record) {
+        if (TextNifRepository.get().containsDocument(record.fileId)) {
+            return true;
+        }
+        if (record.nifPath == null) {
+            return false;
+        }
+        Path legacy = resolveRelative(record.nifPath);
+        if (!Files.exists(legacy)) {
+            return false;
+        }
+        try {
+            TextNifRepository.get().importLegacyDocument(record.fileId, legacy);
+            record.nifGraph = TextNifRepository.get().documentGraphUri(record.fileId);
+            rewriteRecord(record);
+            Files.deleteIfExists(legacy);
+            return true;
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot migrate text NIF " + record.fileId, e);
+        }
+    }
+
+    private void rewriteRecord(TextRecord record) throws IOException {
+        Path metadata = documentRoot.resolve(record.fileId).resolve("metadata.json");
+        Path temporary = metadata.resolveSibling(".metadata." + UUID.randomUUID() + ".json");
+        try {
+            mapper.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), record);
+            try {
+                Files.move(temporary, metadata, StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporary, metadata, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 
     public void cleanupUpload(String fileId) {
