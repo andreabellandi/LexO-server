@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.eclipse.rdf4j.model.IRI;
@@ -72,7 +73,7 @@ public final class NifModelWriter {
         IRI source = iri(document + "/source");
         IRI conllu = iri(document + "/conllu");
         IRI context = iri(document + "#context");
-        String language = safeLanguageTag(doc.metadata.get("language"));
+        String language = firstSafeLanguageTag(doc);
 
         addType(model, source, DCMITYPE_NS + "Text");
         addLiteral(model, source, DCTERMS_NS + "identifier", originalFileName, null);
@@ -97,7 +98,7 @@ public final class NifModelWriter {
         addLiteral(model, context, structureNamespace + "segmentationMethod", doc.segmentationMethod, null);
         model.add(context, iri(structureNamespace + "frontMatterPresent"),
                 vf.createLiteral(doc.frontMatterPresent));
-        writeMetadata(model, context, doc.metadata, language);
+        writeMetadata(model, context, doc, language);
         addLiteral(model, context, NIF_NS + "isString", doc.cleanText, language);
         addNonNegativeInteger(model, context, NIF_NS + "beginIndex", 0);
         addNonNegativeInteger(model, context, NIF_NS + "endIndex",
@@ -118,26 +119,39 @@ public final class NifModelWriter {
         return model;
     }
 
-    private void writeMetadata(Model model, Resource context, Map<String, String> metadata,
+    private void writeMetadata(Model model, Resource context, ParsedTextDocument doc,
                                String language) {
-        for (Map.Entry<String, String> entry : metadata.entrySet()) {
-            String key = entry.getKey().toLowerCase(Locale.ROOT);
-            String value = entry.getValue();
-            if ("id".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "identifier", value);
-            } else if ("title".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "title", value, language);
-            } else if ("author".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "creator", value);
-            } else if ("date".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "created", value, null);
-            } else if ("language".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "language", value);
-            } else if ("format".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "format", value, null);
-            } else if ("corpus".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "isPartOf", value);
+        if (!doc.metadataValues.isEmpty()) {
+            for (Map.Entry<String, List<String>> entry : doc.metadataValues.entrySet()) {
+                String key = entry.getKey().toLowerCase(Locale.ROOT);
+                for (String value : entry.getValue()) {
+                    writeMetadataValue(model, context, key, value, language);
+                }
             }
+        } else {
+            for (Map.Entry<String, String> entry : doc.metadata.entrySet()) {
+                writeMetadataValue(model, context,
+                        entry.getKey().toLowerCase(Locale.ROOT), entry.getValue(), language);
+            }
+        }
+    }
+
+    private void writeMetadataValue(Model model, Resource context, String key, String value,
+                                    String language) {
+        if ("id".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "identifier", value, null);
+        } else if ("title".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "title", value, language);
+        } else if ("author".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "creator", value, null);
+        } else if ("date".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "created", value, null);
+        } else if ("language".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "language", value, null);
+        } else if ("format".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "format", value, null);
+        } else if ("corpus".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "isPartOf", value, null);
         }
     }
 
@@ -317,11 +331,12 @@ public final class NifModelWriter {
                 vf.createLiteral(Integer.toString(value), XSD.NON_NEGATIVE_INTEGER));
     }
 
-    private void addIriOrLiteral(Model model, Resource subject, String predicateIri, String value) {
+    private void addIriOrLiteral(Model model, Resource subject, String predicateIri, String value,
+                                 String language) {
         if (looksLikeAbsoluteIri(value)) {
             addIri(model, subject, predicateIri, iri(value));
         } else {
-            addLiteral(model, subject, predicateIri, value, null);
+            addLiteral(model, subject, predicateIri, value, language);
         }
     }
 
@@ -339,6 +354,19 @@ public final class NifModelWriter {
         }
         String tag = value.trim().replace('_', '-');
         return tag.matches("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*") ? tag : null;
+    }
+
+    private static String firstSafeLanguageTag(ParsedTextDocument doc) {
+        List<String> values = doc.metadataValues.get("language");
+        if (values != null) {
+            for (String value : values) {
+                String tag = safeLanguageTag(value);
+                if (tag != null) {
+                    return tag;
+                }
+            }
+        }
+        return safeLanguageTag(doc.metadata.get("language"));
     }
 
     private static boolean looksLikeAbsoluteIri(String value) {
