@@ -28,6 +28,7 @@ public final class ControlledCommonMarkParser {
     private static final Pattern HEADING = Pattern.compile(
             "^(#{1,6})\\s+\\[id=([A-Za-z][A-Za-z0-9._-]*)(?:;\\s*n=([^\\]]+))?\\]\\s+(.+?)\\s*$");
     private static final Pattern META = Pattern.compile("^([A-Za-z][A-Za-z0-9_.-]*)\\s*:\\s*(.*)$");
+    private static final Pattern META_LIST_ITEM = Pattern.compile("^\\s*-\\s+(.+?)\\s*$");
     private static final Pattern ORDERED_LIST = Pattern.compile("^\\s*\\d+[.)]\\s+.*$");
 
     public ParsedTextDocument parse(String rawText) throws ControlledCommonMarkException {
@@ -343,6 +344,8 @@ public final class ControlledCommonMarkParser {
 
         doc.frontMatterPresent = true;
         boolean closed = false;
+        String activeListKey = null;
+        boolean ignoredList = false;
         int i;
         for (i = 1; i < lines.length; i++) {
             String line = lines[i];
@@ -354,6 +357,16 @@ public final class ControlledCommonMarkParser {
             if (line.trim().isEmpty()) {
                 continue;
             }
+            Matcher listItem = META_LIST_ITEM.matcher(line);
+            if (listItem.matches()) {
+                if (activeListKey != null) {
+                    addMetadataValue(doc, activeListKey, listItem.group(1));
+                } else if (!ignoredList) {
+                    issues.add(new ValidationIssue(i + 1, 1, "INVALID_METADATA_LIST",
+                            "Valore di lista senza una chiave di metadato"));
+                }
+                continue;
+            }
             Matcher matcher = META.matcher(line);
             if (!matcher.matches()) {
                 issues.add(new ValidationIssue(i + 1, 1, "INVALID_METADATA",
@@ -363,17 +376,16 @@ public final class ControlledCommonMarkParser {
             String key = matcher.group(1).toLowerCase(Locale.ROOT);
             String value = matcher.group(2).trim();
             if (!isSupportedMetadataKey(key)) {
+                activeListKey = null;
+                ignoredList = value.isEmpty();
                 continue;
             }
+            ignoredList = false;
             if (value.isEmpty()) {
-                issues.add(new ValidationIssue(i + 1, line.indexOf(':') + 2,
-                        "EMPTY_METADATA_VALUE", "Il valore del metadato non può essere vuoto"));
-            }
-            if (doc.metadata.containsKey(key)) {
-                issues.add(new ValidationIssue(i + 1, 1, "DUPLICATE_METADATA",
-                        "Metadato duplicato: " + key));
+                activeListKey = key;
             } else {
-                doc.metadata.put(key, value);
+                activeListKey = null;
+                addMetadataValue(doc, key, value);
             }
         }
         if (!closed) {
@@ -382,6 +394,33 @@ public final class ControlledCommonMarkParser {
             return lines.length;
         }
         return i;
+    }
+
+    private static void addMetadataValue(ParsedTextDocument doc, String key, String rawValue) {
+        String value = unquoteMetadataValue(rawValue.trim());
+        if (value.isEmpty()) {
+            return;
+        }
+        List<String> values = doc.metadataValues.get(key);
+        if (values == null) {
+            values = new ArrayList<String>();
+            doc.metadataValues.put(key, values);
+        }
+        values.add(value);
+        if (!doc.metadata.containsKey(key)) {
+            doc.metadata.put(key, value);
+        }
+    }
+
+    private static String unquoteMetadataValue(String value) {
+        if (value.length() >= 2) {
+            char first = value.charAt(0);
+            char last = value.charAt(value.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return value.substring(1, value.length() - 1).trim();
+            }
+        }
+        return value;
     }
 
     private static boolean isSupportedMetadataKey(String key) {
