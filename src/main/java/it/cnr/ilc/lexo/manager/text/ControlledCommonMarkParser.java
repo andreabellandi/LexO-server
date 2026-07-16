@@ -66,11 +66,13 @@ public final class ControlledCommonMarkParser {
 
         String[] lines = source.split("\\n", -1);
         ParsedTextDocument doc = new ParsedTextDocument();
+        int contentStart = parseOptionalFrontMatter(lines, doc, issues);
         StringBuilder clean = new StringBuilder();
         List<String> paragraphLines = new ArrayList<String>();
         int paragraphOrdinal = 0;
 
-        for (String line : lines) {
+        for (int i = contentStart; i < lines.length; i++) {
+            String line = lines[i];
             if (line.trim().isEmpty()) {
                 paragraphOrdinal = flushPlainParagraph(paragraphLines, clean, doc,
                         paragraphOrdinal);
@@ -360,6 +362,9 @@ public final class ControlledCommonMarkParser {
             }
             String key = matcher.group(1).toLowerCase(Locale.ROOT);
             String value = matcher.group(2).trim();
+            if (!isSupportedMetadataKey(key)) {
+                continue;
+            }
             if (value.isEmpty()) {
                 issues.add(new ValidationIssue(i + 1, line.indexOf(':') + 2,
                         "EMPTY_METADATA_VALUE", "Il valore del metadato non può essere vuoto"));
@@ -377,6 +382,16 @@ public final class ControlledCommonMarkParser {
             return lines.length;
         }
         return i;
+    }
+
+    private static boolean isSupportedMetadataKey(String key) {
+        return "id".equals(key)
+                || "title".equals(key)
+                || "creator".equals(key)
+                || "created".equals(key)
+                || "language".equals(key)
+                || "format".equals(key)
+                || "corpus".equals(key);
     }
 
     private static int flushParagraph(List<String> lines, int sourceLine, Deque<Heading> stack,
