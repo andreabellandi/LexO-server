@@ -250,14 +250,36 @@ public class Texts extends Service {
                               @PathParam("corpusId") String corpusId) {
         try {
             checkKey(key);
-            Path path = CorpusManager.get().getNif(corpusId);
-            return path == null || !Files.exists(path)
+            CorpusManager manager = CorpusManager.get();
+            return !manager.hasNif(corpusId)
                     ? plain(Response.Status.NOT_FOUND, "Corpus NIF not found")
-                    : stream(path, "text/turtle; charset=UTF-8", corpusId + ".ttl");
+                    : streamNif(output -> manager.writeNif(corpusId, output),
+                            corpusId + ".ttl");
         } catch (IllegalArgumentException e) {
             return plain(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/corpora/{corpusId}/nif");
+        }
+    }
+
+    @DELETE
+    @javax.ws.rs.Path("/corpora/{corpusId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteCorpus(@HeaderParam("Authorization") String key,
+                                 @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("deleted", Boolean.valueOf(CorpusManager.get().delete(corpusId)));
+            return json(response);
+        } catch (IOException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            return plain(Response.Status.CONFLICT, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("DELETE /texts/corpora/{corpusId}");
         }
     }
 
@@ -394,10 +416,10 @@ public class Texts extends Service {
             String downloadName;
             switch (artifact) {
                 case NIF:
-                    path = manager.getNif(fileId);
-                    mediaType = "text/turtle; charset=UTF-8";
-                    downloadName = fileId + ".ttl";
-                    break;
+                    return !manager.hasNif(fileId)
+                            ? plain(Response.Status.NOT_FOUND, "Text NIF not found")
+                            : streamNif(output -> manager.writeNif(fileId, output),
+                                    fileId + ".ttl");
                 case ORIGINAL:
                     path = manager.getOriginal(fileId);
                     mediaType = originalMediaType(record.originalFileName);
@@ -428,6 +450,14 @@ public class Texts extends Service {
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/{fileId}/" + artifact.name().toLowerCase(Locale.ROOT));
         }
+    }
+
+    private static Response streamNif(StreamingOutput output, String downloadName) {
+        return Response.ok(output)
+                .type("text/turtle; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\""
+                        + safeHeaderFileName(downloadName) + "\"")
+                .build();
     }
 
     private static Response stream(Path path, String mediaType, String downloadName) {
