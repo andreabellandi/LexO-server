@@ -47,6 +47,44 @@ public final class ControlledCommonMarkParser {
         return doc;
     }
 
+    /** Parses a corpus descriptor made exclusively of a front-matter block. */
+    public ParsedTextDocument parseMetadataOnly(String rawText)
+            throws ControlledCommonMarkException {
+        List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
+        if (rawText == null) {
+            issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT", "Documento assente"));
+            throw new ControlledCommonMarkException(issues);
+        }
+        String source = normalizeText(rawText);
+        if (source.indexOf('\u0000') >= 0) {
+            issues.add(new ValidationIssue(1, 1, "NUL_CHARACTER",
+                    "Il file contiene un carattere NUL"));
+        }
+        String[] lines = source.split("\\n", -1);
+        ParsedTextDocument doc = new ParsedTextDocument();
+        int contentStart = parseOptionalFrontMatter(lines, doc, issues);
+        if (!doc.frontMatterPresent) {
+            issues.add(new ValidationIssue(1, 1, "MISSING_FRONT_MATTER",
+                    "Il corpus richiede un header di metadati delimitato da ---"));
+        }
+        for (int i = contentStart; i < lines.length; i++) {
+            if (!lines[i].trim().isEmpty()) {
+                issues.add(new ValidationIssue(i + 1, 1, "TEXT_IN_CORPUS_DESCRIPTOR",
+                        "Il file del corpus deve contenere solo metadati"));
+            }
+        }
+        if (doc.metadataValues.isEmpty()) {
+            issues.add(new ValidationIssue(1, 1, "MISSING_METADATA",
+                    "È richiesto almeno un metadato ammesso"));
+        }
+        if (!issues.isEmpty()) {
+            throw new ControlledCommonMarkException(issues);
+        }
+        doc.cleanText = "";
+        doc.segmentationMethod = "metadata-only";
+        return doc;
+    }
+
     /**
      * Parses only the paragraph structure of an unstructured text file.
      * Linguistic segmentation can then be supplied by an optional CoNLL-U file.
