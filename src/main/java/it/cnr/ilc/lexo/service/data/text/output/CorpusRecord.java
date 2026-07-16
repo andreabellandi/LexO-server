@@ -11,6 +11,7 @@ public class CorpusRecord {
     public String originalFileName;
     public String originalPath;
     public String nifPath;
+    public String nifGraph;
     public String metadataPath;
     public String createdAt;
     public String updatedAt;
