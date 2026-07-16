@@ -5,6 +5,7 @@ import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.eclipse.rdf4j.model.Model;
 
 /** Persistent corpus descriptors and their document membership. */
 public final class CorpusManager {
@@ -68,10 +70,11 @@ public final class CorpusManager {
         Object lock = lockFor(corpusId);
         synchronized (lock) {
             Path finalDir = corpusRoot.resolve(corpusId);
-            if (Files.exists(finalDir)) {
+            if (Files.exists(finalDir) || TextNifRepository.get().containsCorpus(corpusId)) {
                 throw new IllegalStateException("Corpus already exists: " + corpusId);
             }
             Path workDir = workRoot.resolve("corpus-" + corpusId + "-" + UUID.randomUUID());
+            boolean graphCommitted = false;
             try {
                 Path originalDir = workDir.resolve("original");
                 Files.createDirectories(originalDir);
@@ -85,22 +88,32 @@ public final class CorpusManager {
                 record.corpusUri = writer.corpusUri(corpusId);
                 record.originalFileName = safeName;
                 record.originalPath = relative(finalDir.resolve("original").resolve(safeName));
-                record.nifPath = relative(finalDir.resolve("corpus.ttl"));
+                record.nifGraph = TextNifRepository.get().corpusGraphUri(corpusId);
                 record.metadataPath = relative(finalDir.resolve("metadata.json"));
                 record.createdAt = Instant.now().toString();
                 record.updatedAt = record.createdAt;
                 record.metadata.putAll(metadata.metadata);
                 copyMetadataValues(metadata, record);
 
-                writer.writeCorpus(workDir.resolve("corpus.ttl"), corpusId, safeName,
-                        metadata, record.documentUris);
                 mapper.writerWithDefaultPrettyPrinter().writeValue(
                         workDir.resolve("metadata.json").toFile(), record);
                 moveDirectory(workDir, finalDir);
+                Model model = writer.buildCorpus(corpusId, safeName,
+                        metadata, record.documentUris);
+                TextNifRepository.get().saveCorpus(corpusId, model);
+                graphCommitted = true;
                 records.put(corpusId, record);
                 return record;
             } catch (IOException | RuntimeException | TextValidationException e) {
                 deleteRecursively(workDir);
+                deleteRecursively(finalDir);
+                if (graphCommitted) {
+                    try {
+                        TextNifRepository.get().deleteCorpus(corpusId,
+                                writer.corpusUri(corpusId));
+                    } catch (RuntimeException ignored) {
+                    }
+                }
                 throw e;
             }
         }
@@ -130,12 +143,21 @@ public final class CorpusManager {
         if (record == null) {
             throw new IllegalArgumentException("Corpus not found: " + corpusId);
         }
+        ensureNif(record);
         return record.corpusUri;
     }
 
-    public Path getNif(String corpusId) {
+    public boolean hasNif(String corpusId) {
         CorpusRecord record = getRecord(corpusId);
-        return record == null ? null : resolveRelative(record.nifPath);
+        return record != null && ensureNif(record);
+    }
+
+    public void writeNif(String corpusId, OutputStream output) {
+        CorpusRecord record = getRecord(corpusId);
+        if (record == null || !ensureNif(record)) {
+            throw new IllegalArgumentException("Corpus NIF not found: " + corpusId);
+        }
+        TextNifRepository.get().writeCorpus(corpusId, output);
     }
 
     public Path getOriginal(String corpusId) {
@@ -157,6 +179,9 @@ public final class CorpusManager {
         synchronized (lockFor(corpusId)) {
             CorpusRecord current = getRecord(corpusId);
             if (current == null) {
+                if (!add) {
+                    return;
+                }
                 throw new IllegalArgumentException("Corpus not found: " + corpusId);
             }
             CorpusRecord updated = copyRecord(current);
@@ -185,34 +210,61 @@ public final class CorpusManager {
 
     private void rewriteAtomically(CorpusRecord record) throws IOException {
         Path dir = corpusRoot.resolve(record.corpusId);
-        Path nif = dir.resolve("corpus.ttl");
         Path metadataPath = dir.resolve("metadata.json");
         String suffix = "." + UUID.randomUUID();
-        Path newNif = dir.resolve(".corpus" + suffix + ".ttl");
         Path newMetadata = dir.resolve(".metadata" + suffix + ".json");
-        Path oldNif = dir.resolve(".corpus" + suffix + ".bak");
         Path oldMetadata = dir.resolve(".metadata" + suffix + ".bak");
         try {
-            ParsedTextDocument parsed = new ControlledCommonMarkParser().parseMetadataOnly(
-                    readUtf8Strict(resolveRelative(record.originalPath)));
-            writer.writeCorpus(newNif, record.corpusId, record.originalFileName,
-                    parsed, record.documentUris);
             mapper.writerWithDefaultPrettyPrinter().writeValue(newMetadata.toFile(), record);
-            Files.copy(nif, oldNif, StandardCopyOption.REPLACE_EXISTING);
             Files.copy(metadataPath, oldMetadata, StandardCopyOption.REPLACE_EXISTING);
-            replaceFile(newNif, nif);
             replaceFile(newMetadata, metadataPath);
-        } catch (TextValidationException e) {
-            throw new IOException("Stored corpus descriptor is no longer valid", e);
         } catch (IOException e) {
-            restore(oldNif, nif);
             restore(oldMetadata, metadataPath);
             throw e;
         } finally {
-            Files.deleteIfExists(newNif);
             Files.deleteIfExists(newMetadata);
-            Files.deleteIfExists(oldNif);
             Files.deleteIfExists(oldMetadata);
+        }
+    }
+
+    public boolean delete(String corpusId) throws IOException {
+        requireSafeId(corpusId);
+        synchronized (lockFor(corpusId)) {
+            CorpusRecord record = getRecord(corpusId);
+            boolean graphExists = TextNifRepository.get().containsCorpus(corpusId);
+            if (record == null && !graphExists) {
+                return false;
+            }
+            String corpusUri = record == null ? writer.corpusUri(corpusId) : record.corpusUri;
+            List<String> documentIds = record == null
+                    ? new ArrayList<String>() : new ArrayList<String>(record.documentIds);
+            TextNifRepository.get().deleteCorpus(corpusId, corpusUri);
+            TextJobManager.get().detachCorpus(corpusId, documentIds);
+            records.remove(corpusId);
+            deleteRecursively(corpusRoot.resolve(corpusId));
+            return true;
+        }
+    }
+
+    private boolean ensureNif(CorpusRecord record) {
+        if (TextNifRepository.get().containsCorpus(record.corpusId)) {
+            return true;
+        }
+        if (record.nifPath == null) {
+            return false;
+        }
+        Path legacy = resolveRelative(record.nifPath);
+        if (!Files.exists(legacy)) {
+            return false;
+        }
+        try {
+            TextNifRepository.get().importLegacyCorpus(record.corpusId, legacy);
+            record.nifGraph = TextNifRepository.get().corpusGraphUri(record.corpusId);
+            rewriteAtomically(record);
+            Files.deleteIfExists(legacy);
+            return true;
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot migrate corpus NIF " + record.corpusId, e);
         }
     }
 
@@ -223,6 +275,7 @@ public final class CorpusManager {
         copy.originalFileName = source.originalFileName;
         copy.originalPath = source.originalPath;
         copy.nifPath = source.nifPath;
+        copy.nifGraph = source.nifGraph;
         copy.metadataPath = source.metadataPath;
         copy.createdAt = source.createdAt;
         copy.updatedAt = source.updatedAt;
