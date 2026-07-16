@@ -134,6 +134,12 @@ public class Texts extends Service {
         } catch (AuthorizationException | ServiceException e) {
             TextJobManager.get().cleanupUpload(fileId);
             return unauthorized("/texts/upload");
+        } catch (Throwable e) {
+            TextJobManager.get().cleanupUpload(fileId);
+            log(Level.ERROR, "/texts/upload: "
+                    + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         } finally {
             if (multiPart != null) {
                 try {
