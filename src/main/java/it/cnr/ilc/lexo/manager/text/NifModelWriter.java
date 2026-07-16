@@ -333,8 +333,9 @@ public final class NifModelWriter {
 
     private void addIriOrLiteral(Model model, Resource subject, String predicateIri, String value,
                                  String language) {
-        if (looksLikeAbsoluteIri(value)) {
-            addIri(model, subject, predicateIri, iri(value));
+        String iriValue = absoluteIriValue(value);
+        if (iriValue != null) {
+            addIri(model, subject, predicateIri, iri(iriValue));
         } else {
             addLiteral(model, subject, predicateIri, value, language);
         }
@@ -369,8 +370,15 @@ public final class NifModelWriter {
         return safeLanguageTag(doc.metadata.get("language"));
     }
 
-    private static boolean looksLikeAbsoluteIri(String value) {
-        return value != null && value.matches("[A-Za-z][A-Za-z0-9+.-]*:.*");
+    private static String absoluteIriValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String candidate = value.trim();
+        if (candidate.length() >= 2 && candidate.startsWith("<") && candidate.endsWith(">")) {
+            candidate = candidate.substring(1, candidate.length() - 1).trim();
+        }
+        return candidate.matches("[A-Za-z][A-Za-z0-9+.-]*:.*") ? candidate : null;
     }
 
     private static String mediaTypeFor(String fileName) {
