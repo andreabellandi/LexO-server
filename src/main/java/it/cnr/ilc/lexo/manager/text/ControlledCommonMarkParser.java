@@ -387,8 +387,8 @@ public final class ControlledCommonMarkParser {
     private static boolean isSupportedMetadataKey(String key) {
         return "id".equals(key)
                 || "title".equals(key)
-                || "creator".equals(key)
-                || "created".equals(key)
+                || "author".equals(key)
+                || "date".equals(key)
                 || "language".equals(key)
                 || "format".equals(key)
                 || "corpus".equals(key);
