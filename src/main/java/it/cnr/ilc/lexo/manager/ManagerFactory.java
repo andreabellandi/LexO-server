@@ -11,8 +11,6 @@ public class ManagerFactory {
 
     private static final Map<Class<? extends Manager>, Manager> MANAGERS = new HashMap<>();
 
-    private static final DomainManager DOMAIN_MANAGER = new DomainManager();
-
     public static <T extends Manager> T getManager(Class<T> clazz) {
         Manager manager = MANAGERS.get(clazz);
         if (manager == null) {
@@ -34,7 +32,4 @@ public class ManagerFactory {
         }
     }
 
-    static DomainManager getDomainManager() {
-        return DOMAIN_MANAGER;
-    }
 }

@@ -116,8 +116,6 @@ import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -180,10 +178,6 @@ public class LexiconData extends Service {
     @GET
     @Path("lexicalEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry",
             notes = "This method returns the data related to a specific module (morphology, syntax, ...) associated with a given lexical entry")
     public Response lexicalEntry(
@@ -237,10 +231,6 @@ public class LexiconData extends Service {
     @GET
     @Path("form")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "form",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form",
             notes = "This method returns the core data related to a given form")
     public Response form(
@@ -319,10 +309,6 @@ public class LexiconData extends Service {
     @GET
     @Path("lexicalSense")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalSense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical Sense",
             notes = "This method returns the core data related to given sense")
     public Response lexicalSense(
@@ -375,10 +361,6 @@ public class LexiconData extends Service {
     @GET
     @Path("formRestriction")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formRestriction",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form Restriction",
             notes = "This method returns the form restrictions of a given sense")
     public Response formRestriction(
@@ -409,10 +391,6 @@ public class LexiconData extends Service {
     @GET
     @Path("etymology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymology",
             notes = "This method returns the etymological data related to a given etymology")
     public Response etymology(
@@ -452,10 +430,6 @@ public class LexiconData extends Service {
     @GET
     @Path("lexicographicComponents")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicographicComponents",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicographic components",
             notes = "This method returns the elements belonging to a given lexicographic component")
     public Response lexicographicComponents(
@@ -492,10 +466,6 @@ public class LexiconData extends Service {
     @GET
     @Path("dictionaryEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionaryEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary Entry",
             notes = "This method returns the elements of a dictionary entry")
     public Response dictionaryEntry(
@@ -532,10 +502,6 @@ public class LexiconData extends Service {
     @GET
     @Path("dictionaryEntryByLexicalEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionaryEntryByLexicalEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary Entry associated to a lexical entry",
             notes = "This method returns the dictionary entries associated to a given lexical entry")
     public Response dictionaryEntryByLexicalEntry(
@@ -577,10 +543,6 @@ public class LexiconData extends Service {
     @GET
     @Path("component")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "component",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Component",
             notes = "This method returns the data of a miltiword Component")
     public Response component(
@@ -611,10 +573,6 @@ public class LexiconData extends Service {
     @GET
     @Path("collocations")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "collocations",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Collocations",
             notes = "This method returns the collocations of a lexical entity")
     public Response collocations(
@@ -645,10 +603,6 @@ public class LexiconData extends Service {
     @GET
     @Path("corpusFrequency")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "corpusFrequency",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Corpus Frequency",
             notes = "This method returns the corpus frequency of a lexical entity")
     public Response corpusFrequency(
@@ -679,10 +633,6 @@ public class LexiconData extends Service {
     @GET
     @Path("lexicalConcept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalConcept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical Concept",
             notes = "This method returns the data of a lexical concept")
     public Response lexicalConcept(
@@ -723,10 +673,6 @@ public class LexiconData extends Service {
     @Path("languages")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "languages",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicon languages list",
             notes = "This method returns a list of lexicon languages according to the input filter")
     public Response languages(@HeaderParam("Authorization") String key) throws HelperException {
@@ -751,10 +697,6 @@ public class LexiconData extends Service {
     @Path("filteredSenses")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "filteredSense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical senses list",
             notes = "This method returns a list of lexical senses according to the input filter")
     public Response sensesList(@HeaderParam("Authorization") String key, LexicalSenseFilter lsf) throws HelperException {
@@ -780,10 +722,6 @@ public class LexiconData extends Service {
     @Path("lexicalEntries")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "lexicalEntries",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entries list",
             notes = "This method returns a list of lexical entries according to the input filter")
     public Response entriesList(@HeaderParam("Authorization") String key, LexicalEntryFilter lef) throws HelperException {
@@ -815,10 +753,6 @@ public class LexiconData extends Service {
     @Path("dictionaryEntries")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "dictionaryEntries",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entries list",
             notes = "This method returns a list of dictionary entries according to the input filter")
     public Response dictionaryEntryList(@HeaderParam("Authorization") String key, DictionaryEntryFilter def) throws HelperException {
@@ -850,10 +784,6 @@ public class LexiconData extends Service {
     @Path("filteredForms")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "filteredForms",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Forms list",
             notes = "This method returns a list of forms according to the input filter")
     public Response forms(@HeaderParam("Authorization") String key, FormFilter ff) throws HelperException {
@@ -878,10 +808,6 @@ public class LexiconData extends Service {
     @GET
     @Path("forms")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "forms",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry forms",
             notes = "This method returns all the forms of a lexical entry")
     public Response forms(
@@ -914,10 +840,6 @@ public class LexiconData extends Service {
     @GET
     @Path("lexicalConcepts")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalConcepts",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical concept children",
             notes = "This method returns all the children of a lexical concept")
     public Response lexicalConcepts(
@@ -954,10 +876,6 @@ public class LexiconData extends Service {
     @Path("filteredLexicalConcepts")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "filteredLexicalConcepts",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical concepts list",
             notes = "This method returns a list of lexical concepts according to the input filter")
     public Response lexicalConceptsList(@HeaderParam("Authorization") String key, LexicalConceptFilter lcf) throws HelperException {
@@ -985,10 +903,6 @@ public class LexiconData extends Service {
     @GET
     @Path("conceptSets")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "conceptSets",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Concept Sets",
             notes = "This method returns all the concept sets")
     public Response conceptSets(
@@ -1014,10 +928,6 @@ public class LexiconData extends Service {
     @GET
     @Path("senses")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "senses",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical senses",
             notes = "This method returns all the senses of a lexical entry")
     public Response senses(
@@ -1049,10 +959,6 @@ public class LexiconData extends Service {
     @GET
     @Path("etymologies")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymologies",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymologies",
             notes = "This method returns all the etymologies of a lexical entry")
     public Response etymologies(
@@ -1083,10 +989,6 @@ public class LexiconData extends Service {
     @GET
     @Path("sensesByConcept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "sensesByConcept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical senses by concept",
             notes = "This method returns all the senses referred by a concept")
     public Response sensesByConcept(
@@ -1118,10 +1020,6 @@ public class LexiconData extends Service {
     @GET
     @Path("elements")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "elements",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry elements",
             notes = "This method returns the counting of all the elements of a lexical entry (forms, senses, frames, etc ...)")
     public Response elements(
@@ -1152,10 +1050,6 @@ public class LexiconData extends Service {
     @GET
     @Path("linguisticRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "linguisticRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entity linguistic relation",
             notes = "This method returns the input linguistic relation with other lexical entities, as well as the inferred ones")
     public Response linguisticRelation(
@@ -1200,10 +1094,6 @@ public class LexiconData extends Service {
     @GET
     @Path("genericRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "genericRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entity generic relation",
             notes = "This method returns the input generic relation with other lexical entities, as well as the inferred ones")
     public Response genericRelation(
@@ -1258,10 +1148,6 @@ public class LexiconData extends Service {
     @GET
     @Path("bibliography")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "bibliography",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entity bibliography",
             notes = "This method returns the bibliography of a given lexical entity (or the complete bibliography list)")
     public Response bibliography(
@@ -1300,10 +1186,6 @@ public class LexiconData extends Service {
     @GET
     @Path("entitiesByBibliography")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "entitiesByBibliography",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entities by bibliography",
             notes = "This method returns the lexical entities referenced by the given bibliography")
     public Response entitiesByBibliography(
@@ -1334,10 +1216,6 @@ public class LexiconData extends Service {
     @GET
     @Path("subTerms")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "subTerms",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Sub term of a lexical entry",
             notes = "This method returns all the sub terms of a lexical entry")
     public Response subTerms(
@@ -1369,10 +1247,6 @@ public class LexiconData extends Service {
     @GET
     @Path("correspondsTo")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "correspondsTo",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry corresponding to a component",
             notes = "This method returns the lexical entry corresponding to a multiword component")
     public Response correspondsTo(
@@ -1406,10 +1280,6 @@ public class LexiconData extends Service {
     @GET
     @Path("constituents")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "constituents",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Components of a lexical entry or a component",
             notes = "This method returns all the components of a lexical entry or a component")
     public Response constituents(
@@ -1454,10 +1324,6 @@ public class LexiconData extends Service {
     @GET
     @Path("image/metadata")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "image/metadata",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Image(s) of lexical entity",
             notes = "This method returns all the metadata of the images associated to a lexical entity")
     public Response imageDetail(
@@ -1488,10 +1354,6 @@ public class LexiconData extends Service {
     @GET
     @Path("image/content")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "image/content",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Image(s) of lexical entity",
             notes = "This method returns the image content associated to an image id")
     public Response imageContent(
@@ -1527,10 +1389,6 @@ public class LexiconData extends Service {
     @GET
     @Path("metadata")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "/metadata",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entity metadata",
             notes = "This method returns the lexical entity metadata")
 

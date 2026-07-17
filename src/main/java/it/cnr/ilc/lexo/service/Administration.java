@@ -24,8 +24,6 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.GraphQueryResult;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -43,10 +41,6 @@ public class Administration extends Service {
     @GET
     @Path("systemInfo")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "systemInfo",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "System information",
             notes = "This method returns some basic information system e.g., GraphDB version, disk space, attached repo")
     public Response nodeSummary(@HeaderParam("Authorization") String key) {

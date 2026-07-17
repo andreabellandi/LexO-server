@@ -28,8 +28,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.query.UpdateExecutionException;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -45,10 +43,6 @@ public class SKOSService extends Service {
     @GET
     @Path("createConcept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "createConcept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "SKOS Concept creation",
             notes = "This method returns the skos concept created")
     public Response createConcept(
@@ -81,10 +75,6 @@ public class SKOSService extends Service {
     @GET
     @Path("createConceptScheme")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "createConceptScheme",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "SKOS Concept scheme creation",
             notes = "This method returns the skos concept scheme created")
     public Response createConceptScheme(
@@ -117,10 +107,6 @@ public class SKOSService extends Service {
     @GET
     @Path("createCollection")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "createCollection",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "SKOS Concept collection creation",
             notes = "This method returns the skos collection created")
     public Response createCollection(
@@ -147,10 +133,6 @@ public class SKOSService extends Service {
     @POST
     @Path("delete")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "delete",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Skos entity/relation deletion",
             notes = "This method deletes a skos entity or a skos relation depending on the input")
     public Response delete(
@@ -177,10 +159,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateSemanticRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateSemanticRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos semantic relation (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#semantic-relations)",
             notes = "This method update semanitc relation according to the input")
     public Response updateSemanticRelation(
@@ -208,10 +186,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateLexicalLabel")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateLexicalLabel",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos lexical labels (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#labels)",
             notes = "This method update labels according to the input")
     public Response updateLexicalLabel(
@@ -239,10 +213,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateNotation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateNotation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos notation (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#notations)",
             notes = "This method update skos notation according to the input")
     public Response updateNotation(
@@ -269,10 +239,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateSchemeProperty")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateSchemeProperty",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos scheme properties (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#schemes)",
             notes = "This method update scheme properties according to the input")
     public Response updateSchemeProperty(
@@ -299,10 +265,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateNoteProperty")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateNoteProperty",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos note relation (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#notes)",
             notes = "This method update note relation according to the input")
     public Response updateNoteProperty(
@@ -329,10 +291,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateMappingProperty")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateMappingProperty",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos mapping relation (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#mapping)",
             notes = "This method update mapping relation according to the input")
     public Response updateMappingProperty(
@@ -360,10 +318,6 @@ public class SKOSService extends Service {
     @POST
     @Path("updateCollection")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "updateCollection",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Update skos collection properties (see https://www.w3.org/TR/2009/REC-skos-reference-20090818/#collections)",
             notes = "This method update skos collections according to the input")
     public Response updateCollection(
@@ -378,10 +332,6 @@ public class SKOSService extends Service {
     @GET
     @Path("{id}/concept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "concept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "SKOS Concept deletion",
             notes = "This method deletes a SKOS concept")
     public Response concept(
@@ -401,10 +351,6 @@ public class SKOSService extends Service {
     @GET
     @Path("{id}/entity")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "entity",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "SKOS entity deletion",
             notes = "This method deletes a SKOS entity (Concept, ConceptSchema or Collection)")
     public Response entity(
@@ -424,10 +370,6 @@ public class SKOSService extends Service {
     @POST
     @Path("conceptSchemes")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "conceptSchemes",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "List of Concept Scheme",
             notes = "This method return the list of Concept Schemes and their metadata")
     public Response conceptSchemes(

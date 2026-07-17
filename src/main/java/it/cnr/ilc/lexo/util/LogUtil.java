@@ -1,6 +1,5 @@
 package it.cnr.ilc.lexo.util;
 
-import it.cnr.ilc.lexo.service.data.RepositoryData;
 import it.cnr.ilc.lexo.service.data.lexicon.input.DictionaryEntryFilter;
 import it.cnr.ilc.lexo.service.data.lexicon.input.ExportSetting;
 import it.cnr.ilc.lexo.service.data.lexicon.input.FormFilter;
@@ -33,9 +32,6 @@ public class LogUtil {
         } else if (payload.getClass().getName().contains("ExportSetting")) {
             ExportSetting es = (ExportSetting) payload;
             log = getLog(es);
-        } else if (payload.getClass().getName().contains("RepositoryData")) {
-            RepositoryData rd = (RepositoryData) payload;
-            log = getLog(rd);
         } else if (payload.getClass().getName().contains("DictionaryEntryFilter")) {
             DictionaryEntryFilter def = (DictionaryEntryFilter) payload;
             log = getLog(def);
@@ -118,15 +114,6 @@ public class LogUtil {
                 + "   predicate: " + es.getPredicate() + "\n"
                 + "   object: " + es.getObject() + "\n"
                 + "   context: " + Arrays.toString(es.getContext().toArray()) + "\n"
-                + "}";
-    }
-
-    private static String getLog(RepositoryData rd) {
-        return "{\n"
-//                + "   repo ID: " + rd.getRepoID() + "\n"
-                + "   description: " + rd.getLabelID() + "\n"
-                + "   base url: " + rd.getBaseUrl() + "\n"
-                + "   ruleset name: " + rd.getRuleset() + "\n"
                 + "}";
     }
 

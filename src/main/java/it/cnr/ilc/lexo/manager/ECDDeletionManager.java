@@ -5,7 +5,6 @@
  */
 package it.cnr.ilc.lexo.manager;
 
-import static com.ontotext.trree.plugin.sparqltemplate.SparqlTemplatePlugin.VF;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.sparql.SparqlDeleteData;
@@ -34,6 +33,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.query.MalformedQueryException;
@@ -48,6 +49,7 @@ import org.eclipse.rdf4j.repository.RepositoryResult;
  */
 public class ECDDeletionManager implements Manager, Cached {
 
+    private static final ValueFactory VF = SimpleValueFactory.getInstance();
     private static final SimpleDateFormat timestampFormat = new SimpleDateFormat(LexOProperties.getProperty("manager.operationTimestampFormat"));
 
     private enum ChildLevel {

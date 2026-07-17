@@ -21,11 +21,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
  *
@@ -50,12 +45,6 @@ public class DictionaryStatistics extends Service {
     @GET
     @Path("status")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "/status",
-            produces = "application/json; charset=UTF-8")
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
     @ApiOperation(value = "Dictionary entry status",
             notes = "This method returns dictionary entry status (verified or not)")
     public Response status(@HeaderParam("Authorization") String key) {
@@ -79,12 +68,6 @@ public class DictionaryStatistics extends Service {
     @GET
     @Path("authors")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "/authors",
-            produces = "application/json; charset=UTF-8")
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
     @ApiOperation(value = "Lexical entry author",
             notes = "This method returns the authors of each dictionary entry")
     public Response authors(@HeaderParam("Authorization") String key) {
@@ -108,12 +91,6 @@ public class DictionaryStatistics extends Service {
     @GET
     @Path("languages")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "/languages",
-            produces = "application/json; charset=UTF-8")
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
     @ApiOperation(value = "Dictionary language(s)",
             notes = "This method returns the language(s) of the ditionary")
     public Response languages(@HeaderParam("Authorization") String key) {
@@ -137,12 +114,6 @@ public class DictionaryStatistics extends Service {
     @GET
     @Path("pos")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "/pos",
-            produces = "application/json; charset=UTF-8")
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
     @ApiOperation(value = "Part of Speech tags",
             notes = "This method returns pos and their counting")
     public Response pos(@HeaderParam("Authorization") String key) {

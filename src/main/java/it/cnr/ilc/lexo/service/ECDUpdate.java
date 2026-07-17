@@ -32,8 +32,6 @@ import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.UpdateExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -58,10 +56,6 @@ public class ECDUpdate extends Service {
     @POST
     @Path("ECDEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD entry update",
             notes = "This method updates the ECD entry according to the input updater")
     public Response ECDEntry(
@@ -102,10 +96,6 @@ public class ECDUpdate extends Service {
     @POST
     @Path("ECDForm")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDForm",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD form update",
             notes = "This method updates the ECD form according to the input updater")
     public Response ECDForm(
@@ -142,10 +132,6 @@ public class ECDUpdate extends Service {
     @POST
     @Path("ECDMeaning")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDMeaning",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD meaning update",
             notes = "This method updates the ECD meaning according to the input updater")
     public Response ECDMeaning(
@@ -187,10 +173,6 @@ public class ECDUpdate extends Service {
     @POST
     @Path("ECDMeaningOrdering")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDMeaningOrdering",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD meaning ordering update",
             notes = "This method updates the ECD meaning ordering according to the input updater")
     public Response ECDMeaningOrdering(

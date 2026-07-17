@@ -39,8 +39,6 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -64,10 +62,6 @@ public class QueryExpansion extends Service {
     @Path("referencedLinguisticObject")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/referencedLinguisticObject",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Linguistic objects list",
             notes = "This method returns a list of linguistic objects starting from a list of concepts")
     public Response lemmaByConcept(@QueryParam("key") String key, ConceptList cl) throws HelperException, ManagerException {
@@ -87,10 +81,6 @@ public class QueryExpansion extends Service {
     @Path("referencedLinguisticObject2")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/referencedLinguisticObject2",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Linguistic objects list",
             notes = "This service is not valid. It is for test purposes only")
     public Response lemmaByConcept2(@QueryParam("key") String key, ConceptTraitList ctl) throws HelperException, ManagerException {
@@ -108,10 +98,6 @@ public class QueryExpansion extends Service {
     @Path("forms")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/forms",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry forms",
             notes = "This method returns all the forms of a set of lexical entries according to the input")
     public Response forms(@QueryParam("key") String key, LexicalEntryList lel) throws ManagerException {
@@ -129,10 +115,6 @@ public class QueryExpansion extends Service {
     @Path("formsBySense")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/formsBySense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Forms list",
             notes = "This method returns a list of forms according to the form by sense input filter")
     public Response formsBySense(@QueryParam("key") String key, FormBySenseFilter ff) throws HelperException {
