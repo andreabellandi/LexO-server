@@ -67,14 +67,14 @@ La `baseUrl` deve terminare alla radice dei servizi Jersey, senza slash finale. 
 il WAR standard è normalmente simile a:
 
 ```text
-http://localhost:8080/LexO-backend/service
+http://localhost:8080/LexO-server/service
 ```
 
 Esecuzione:
 
 ```bash
 mvn verify \
-  -Dlexo.test.baseUrl=http://localhost:8080/LexO-backend/service \
+  -Dlexo.test.baseUrl=http://localhost:8080/LexO-server/service \
   -Dlexo.test.authorization='VALORE_COMPLETO_DELL_HEADER' \
   -Dlexo.test.storageDir=/percorso/assoluto/data/texts
 ```
@@ -105,7 +105,7 @@ eseguiti con controlli parziali.
 
 ```bash
 mvn verify \
-  -Dlexo.test.baseUrl=http://localhost:8080/LexO-backend/service \
+  -Dlexo.test.baseUrl=http://localhost:8080/LexO-server/service \
   -Dlexo.test.authorization='Bearer TOKEN_LEXO' \
   -Dlexo.test.graphdbUrl=http://localhost:7200 \
   -Dlexo.test.textRepository=LexOTexts \

@@ -35,10 +35,10 @@ LexO-server uses the following technology to work properly:
 2. Start MySQL locally and create the `lexo_server` database. The default JDBC
    connection is declared in `pom.xml` (`root` / `root`).
 3. Download the project and run `mvn clean package` without a Maven profile.
-4. Deploy `target/LexO-backend.war` to Tomcat.
+4. Deploy `target/LexO-server.war` to Tomcat.
 5. At webapp startup LexO-server creates, when missing, `LexOLexica` and
    `LexOTexts`, imports the schema resources and creates the lexical indexes.
-6. Open http://localhost:8080/LexO-backend/ to access Swagger.
+6. Open http://localhost:8080/LexO-server/ to access Swagger.
 
 The two GraphDB repositories are fixed in `src/main/resources/lexo-server.properties`:
 

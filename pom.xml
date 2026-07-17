@@ -200,7 +200,8 @@
     </dependencies>
     
     <build>
-        <finalName>${project.artifactId}</finalName>
+        <!-- Tomcat derives the default context path from the WAR filename. -->
+        <finalName>LexO-server</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
