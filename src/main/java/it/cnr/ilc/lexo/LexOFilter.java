@@ -1,6 +1,7 @@
 package it.cnr.ilc.lexo;
 
 import it.cnr.ilc.lexo.manager.converter.adapter.OntoLexToTBXConverterAdapter;
+import it.cnr.ilc.lexo.bootstrap.GraphDbBootstrap;
 import it.cnr.ilc.lexo.sparql.SparqlSelectData;
 import it.cnr.ilc.lexo.sparql.SparqlVariable;
 import it.cnr.ilc.lexo.util.ConverterRegistry;
@@ -62,7 +63,13 @@ public class LexOFilter implements Filter {
         logger.setLevel(Level.INFO);
         logger.addAppender(rollingAppender);
         logger.info(CONTEXT + " start");
-        setResourceModel();
+        try {
+            GraphDbBootstrap.initialize();
+            setResourceModel();
+        } catch (RuntimeException ex) {
+            logger.error("GraphDB bootstrap failed", ex);
+            throw new ServletException("Unable to initialize GraphDB repositories", ex);
+        }
     }
 
     private void setResourceModel() {

@@ -30,35 +30,33 @@ LexO-server uses the following technology to work properly:
 
 ## Installation
 
-1. [Install](https://graphdb.ontotext.com/documentation/free/quick-start-guide.html) GraphDB. 
-2. [Create](https://graphdb.ontotext.com/documentation/free/creating-a-repository.html) an empty GraphDB repository with default values.
-3. Download the project.
-4. Edit the pom.xml file, as follows:
+1. [Install](https://graphdb.ontotext.com/documentation/free/quick-start-guide.html)
+   and start GraphDB Free at `http://localhost:7200`.
+2. Start MySQL locally and create the `lexo_server` database. The default JDBC
+   connection is declared in `pom.xml` (`root` / `root`).
+3. Download the project and run `mvn clean package` without a Maven profile.
+4. Deploy `target/LexO-server.war` to Tomcat.
+5. At webapp startup LexO-server creates, when missing, `LexOLexica` and
+   `LexOTexts`, imports the schema resources and creates the lexical indexes.
+6. Open http://localhost:8080/LexO-server/ to access Swagger.
 
-```     
-    <profile>
-        <id>release</id>
-        <properties>
-            <db.jdbcUrl>leave_empty</db.jdbcUrl>
-            <db.user>leave_empty</db.user>
-            <db.password>leave_empty</db.password>
-            <graphdb.url>$graphdb_intallation_url$</graphdb.url>
-            <graphdb.repository>$repo_name$</graphdb.repository>
-            <graphdb.poolSize>5</graphdb.poolSize>
-        </properties>
-    </profile>
+The two GraphDB repositories are fixed in `src/main/resources/lexo-server.properties`:
 
+```properties
+GraphDb.url=http://localhost:7200
+GraphDb.repository=LexOLexica
+TextGraphDb.url=http://localhost:7200
+TextGraphDb.repository=LexOTexts
 ```
 
-   where _graphdb\_intallation\_url_ is the url of your GraphDB installation (typically on port 7200), and _repo\_name_ is the name of the repository to connect to.
+## Tests
 
-5. Compile the project with Maven.
-6. Run the build.
-7. Open the browser at http://localhost:8080/LexO-backend/, and the swagger sholud appear.
+Run the unit suite with `mvn test`. Tests for the text services, including the
+optional end-to-end tests for a deployed LexO-server and GraphDB Free, are
+documented in [docs/text-services-tests.md](docs/text-services-tests.md).
 
 ## License
 
 MIT
 
 **Free Software, Hell Yeah!**
-

@@ -1,0 +1,18 @@
+{
+  "namedGraph": "https://lexo.ilc.cnr.it/graphs/schema",
+  "files": [
+    "bootstrap/schema/lexinfo.owl",
+    "bootstrap/schema/decomp.rdf",
+    "bootstrap/schema/lexicog.rdf",
+    "bootstrap/schema/lime.rdf",
+    "bootstrap/schema/ontolex.rdf",
+    "bootstrap/schema/skos.rdf",
+    "bootstrap/schema/synsem.rdf",
+    "bootstrap/schema/vartrans.rdf",
+    "bootstrap/schema/lffamrdf-xml.owl",
+    "bootstrap/schema/lfrelrdf-xml.owl",
+    "bootstrap/schema/lfreprdf-xml.owl",
+    "bootstrap/schema/lfrlfrdf-xml.owl",
+    "bootstrap/schema/lfsemrdf-xml.owl"
+  ]
+}

@@ -8,21 +8,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Persistent metadata returned by the text corpus endpoints. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TextRecord implements Data {
-
     public String fileId;
     public String documentUri;
+    public String corpusId;
+    public String corpusUri;
     public String segmentationMethod;
     public Boolean frontMatterPresent;
     public String originalFileName;
     public String conlluFileName;
     public String originalPath;
     public String canonicalPath;
-    public String conlluPath;
     public String nifPath;
+    public String nifGraph;
     public String metadataPath;
+    public String conlluPath;
     public String createdAt;
     public String completedAt;
     public Integer headingCount;
@@ -30,6 +31,8 @@ public class TextRecord implements Data {
     public Integer sentenceCount;
     public Integer tokenCount;
     public Map<String, String> metadata = new LinkedHashMap<String, String>();
+    public Map<String, List<String>> metadataValues =
+            new LinkedHashMap<String, List<String>>();
     public List<ValidationIssue> warnings = new ArrayList<ValidationIssue>();
 
     public TextRecord() {

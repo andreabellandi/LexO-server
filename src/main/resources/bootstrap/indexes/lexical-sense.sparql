@@ -1,0 +1,77 @@
+PREFIX inst: <http://www.ontotext.com/connectors/lucene/instance#>
+PREFIX luc: <http://www.ontotext.com/connectors/lucene#>
+INSERT DATA {
+     inst:lexicalSenseIndex luc:createConnector '''
+ {
+   "types": [
+     "http://www.w3.org/ns/lemon/ontolex#LexicalSense"
+   ],
+   "fields": [
+     {   
+      "fieldName": "definition",
+      "propertyChain": [
+        "http://www.w3.org/2004/02/skos/core#definition"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+{   
+      "fieldName": "description",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#description"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+{   
+      "fieldName": "etymology",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#etymology"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+{   
+      "fieldName": "explanation",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#explanation"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+{   
+      "fieldName": "gloss",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#gloss"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+{   
+      "fieldName": "senseExample",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#senseExample"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+    {   
+      "fieldName": "senseTranslation",
+      "propertyChain": [
+        "http://www.lexinfo.net/ontology/3.0/lexinfo#senseTranslation"
+      ],
+      "multivalued": false,
+      "analyzed": false
+     },
+    {
+       "fieldName": "lexicalSenseIRI",
+       "propertyChain": [
+         "$self"
+       ],
+	"multivalued": false,
+    "analyzed": false
+    }
+   ]
+ }
+ ''' .
+ }

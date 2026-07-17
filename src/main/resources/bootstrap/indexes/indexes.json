@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    { "name": "lexicalEntryIndex", "resource": "bootstrap/indexes/lexical-entry.sparql" },
+    { "name": "dictionaryEntryIndex", "resource": "bootstrap/indexes/dictionary-entry.sparql" },
+    { "name": "formIndex", "resource": "bootstrap/indexes/form.sparql" },
+    { "name": "lexicalSenseIndex", "resource": "bootstrap/indexes/lexical-sense.sparql" },
+    { "name": "conceptReferenceIndex", "resource": "bootstrap/indexes/concept-reference.sparql" },
+    { "name": "etymologyIndex", "resource": "bootstrap/indexes/etymology.sparql" },
+    { "name": "componentIndex", "resource": "bootstrap/indexes/component.sparql" },
+    { "name": "lexicalConceptIndex", "resource": "bootstrap/indexes/lexical-concept.sparql" },
+    { "name": "conceptSetIndex", "resource": "bootstrap/indexes/concept-set.sparql" }
+  ]
+}

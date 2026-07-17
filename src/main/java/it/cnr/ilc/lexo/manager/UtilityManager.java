@@ -6,7 +6,7 @@
 package it.cnr.ilc.lexo.manager;
 
 import it.cnr.ilc.lexo.service.data.output.Entity;
-import it.cnr.ilc.lexo.sparql.SparqlIndex;
+import it.cnr.ilc.lexo.bootstrap.BootstrapResources;
 import it.cnr.ilc.lexo.sparql.SparqlQueryUtil;
 import it.cnr.ilc.lexo.sparql.SparqlVariable;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
@@ -63,7 +63,7 @@ public final class UtilityManager implements Manager, Cached {
     }
 
     public ArrayList<String> getConnectors() throws QueryEvaluationException {
-        String query = SparqlIndex.CONNECTORS;
+        String query = BootstrapResources.readUtf8("bootstrap/indexes/list-connectors.sparql");
         ArrayList<String> connectors = new ArrayList();
         try ( TupleQueryResult result = RDFQueryUtil.evaluateTQuery(query)) {
             while (result.hasNext()) {

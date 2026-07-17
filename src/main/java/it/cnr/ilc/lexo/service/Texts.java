@@ -3,10 +3,13 @@ package it.cnr.ilc.lexo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
+import it.cnr.ilc.lexo.manager.text.CorpusManager;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
+import it.cnr.ilc.lexo.manager.text.TextValidationException;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.UploadKind;
 import it.cnr.ilc.lexo.service.data.lexicon.input.converter.CancelRequest;
+import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +29,7 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -134,6 +138,12 @@ public class Texts extends Service {
         } catch (AuthorizationException | ServiceException e) {
             TextJobManager.get().cleanupUpload(fileId);
             return unauthorized("/texts/upload");
+        } catch (Throwable e) {
+            TextJobManager.get().cleanupUpload(fileId);
+            log(Level.ERROR, "/texts/upload: "
+                    + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         } finally {
             if (multiPart != null) {
                 try {
@@ -148,17 +158,146 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/{fileId}/convert")
     @Produces(MediaType.APPLICATION_JSON)
     public Response convert(@HeaderParam("Authorization") String key,
-                            @PathParam("fileId") String fileId) {
+                            @PathParam("fileId") String fileId,
+                            @QueryParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             log(Level.INFO, "/texts/{fileId}/convert: required for id " + fileId);
-            return json(TextJobManager.get().startConversion(fileId));
+            return json(TextJobManager.get().startConversion(fileId, corpusId));
         } catch (IllegalStateException e) {
             return plain(Response.Status.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             return plain(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/{fileId}/convert");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/corpora")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response createCorpus(@HeaderParam("Authorization") String key,
+                                 FormDataMultiPart multiPart) {
+        String corpusId = UUID.randomUUID().toString();
+        try {
+            checkKey(key);
+            if (multiPart == null) {
+                return plain(Response.Status.BAD_REQUEST, "Missing multipart request");
+            }
+            List<FormDataBodyPart> parts = multiPart.getFields("file");
+            if (parts == null || parts.size() != 1 || parts.get(0) == null) {
+                return plain(Response.Status.BAD_REQUEST,
+                        "Exactly one .txt corpus metadata file is required");
+            }
+            FormDataBodyPart part = parts.get(0);
+            FormDataContentDisposition disposition = part.getFormDataContentDisposition();
+            String name = disposition == null ? null : disposition.getFileName();
+            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".txt")) {
+                return plain(Response.Status.UNSUPPORTED_MEDIA_TYPE,
+                        "The corpus descriptor must be a .txt file");
+            }
+            try (InputStream input = part.getEntityAs(InputStream.class)) {
+                CorpusRecord record = CorpusManager.get().create(
+                        corpusId, input, name, MAX_TEXT_BYTES);
+                log(Level.INFO, "/texts/corpora: created corpusId=" + corpusId);
+                return json(record);
+            }
+        } catch (TextValidationException | IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            return plain(Response.Status.CONFLICT, e.getMessage());
+        } catch (IOException e) {
+            Response.Status status = e.getMessage() != null && e.getMessage().contains("exceeds")
+                    ? Response.Status.REQUEST_ENTITY_TOO_LARGE
+                    : Response.Status.INTERNAL_SERVER_ERROR;
+            return plain(status, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/corpora");
+        } finally {
+            if (multiPart != null) {
+                try {
+                    multiPart.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/corpora/{corpusId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response corpusRecord(@HeaderParam("Authorization") String key,
+                                 @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            CorpusRecord record = CorpusManager.get().getRecord(corpusId);
+            return record == null
+                    ? plain(Response.Status.NOT_FOUND, "Corpus not found") : json(record);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/corpora/{corpusId}");
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/corpora/{corpusId}/nif")
+    @Produces("text/turtle")
+    public Response corpusNif(@HeaderParam("Authorization") String key,
+                              @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            CorpusManager manager = CorpusManager.get();
+            return !manager.hasNif(corpusId)
+                    ? plain(Response.Status.NOT_FOUND, "Corpus NIF not found")
+                    : streamNif(output -> manager.writeNif(corpusId, output),
+                            corpusId + ".ttl");
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/corpora/{corpusId}/nif");
+        }
+    }
+
+    @DELETE
+    @javax.ws.rs.Path("/corpora/{corpusId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteCorpus(@HeaderParam("Authorization") String key,
+                                 @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("deleted", Boolean.valueOf(CorpusManager.get().delete(corpusId)));
+            return json(response);
+        } catch (IOException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            return plain(Response.Status.CONFLICT, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("DELETE /texts/corpora/{corpusId}");
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/corpora/{corpusId}/original")
+    public Response corpusOriginal(@HeaderParam("Authorization") String key,
+                                   @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            CorpusRecord record = CorpusManager.get().getRecord(corpusId);
+            Path path = record == null ? null : CorpusManager.get().getOriginal(corpusId);
+            return path == null || !Files.exists(path)
+                    ? plain(Response.Status.NOT_FOUND, "Corpus descriptor not found")
+                    : stream(path, "text/plain; charset=UTF-8", record.originalFileName);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/corpora/{corpusId}/original");
         }
     }
 
@@ -277,10 +416,10 @@ public class Texts extends Service {
             String downloadName;
             switch (artifact) {
                 case NIF:
-                    path = manager.getNif(fileId);
-                    mediaType = "text/turtle; charset=UTF-8";
-                    downloadName = fileId + ".ttl";
-                    break;
+                    return !manager.hasNif(fileId)
+                            ? plain(Response.Status.NOT_FOUND, "Text NIF not found")
+                            : streamNif(output -> manager.writeNif(fileId, output),
+                                    fileId + ".ttl");
                 case ORIGINAL:
                     path = manager.getOriginal(fileId);
                     mediaType = originalMediaType(record.originalFileName);
@@ -303,21 +442,7 @@ public class Texts extends Service {
                 return plain(Response.Status.NOT_FOUND,
                         artifact == Artifact.CONLLU ? "No CoNLL-U file for this text" : "Artifact not found");
             }
-            final Path served = path;
-            StreamingOutput stream = output -> {
-                try (InputStream input = Files.newInputStream(served)) {
-                    byte[] buffer = new byte[8192];
-                    int read;
-                    while ((read = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, read);
-                    }
-                    output.flush();
-                }
-            };
-            return Response.ok(stream)
-                    .type(mediaType)
-                    .header("Content-Disposition", "attachment; filename=\"" + safeHeaderFileName(downloadName) + "\"")
-                    .build();
+            return stream(path, mediaType, downloadName);
         } catch (IllegalArgumentException e) {
             return plain(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (IllegalStateException e) {
@@ -325,6 +450,33 @@ public class Texts extends Service {
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/{fileId}/" + artifact.name().toLowerCase(Locale.ROOT));
         }
+    }
+
+    private static Response streamNif(StreamingOutput output, String downloadName) {
+        return Response.ok(output)
+                .type("text/turtle; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\""
+                        + safeHeaderFileName(downloadName) + "\"")
+                .build();
+    }
+
+    private static Response stream(Path path, String mediaType, String downloadName) {
+        final Path served = path;
+        StreamingOutput output = stream -> {
+            try (InputStream input = Files.newInputStream(served)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    stream.write(buffer, 0, read);
+                }
+                stream.flush();
+            }
+        };
+        return Response.ok(output)
+                .type(mediaType)
+                .header("Content-Disposition", "attachment; filename=\""
+                        + safeHeaderFileName(downloadName) + "\"")
+                .build();
     }
 
     private Response unauthorized(String endpoint) {

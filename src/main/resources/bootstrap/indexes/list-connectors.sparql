@@ -1,0 +1,4 @@
+PREFIX luc: <http://www.ontotext.com/connectors/lucene#>
+SELECT ?connectorName {
+  ?connector luc:listConnectors ?connectorName .
+}

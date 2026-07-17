@@ -11,6 +11,8 @@ public class ParsedTextDocument {
     public boolean frontMatterPresent;
     public String conlluFileName;
     public final Map<String, String> metadata = new LinkedHashMap<String, String>();
+    public final Map<String, List<String>> metadataValues =
+            new LinkedHashMap<String, List<String>>();
     public final List<Heading> rootHeadings = new ArrayList<Heading>();
     public final List<Heading> allHeadings = new ArrayList<Heading>();
     public final List<Paragraph> paragraphs = new ArrayList<Paragraph>();

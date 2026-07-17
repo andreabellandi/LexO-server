@@ -5,11 +5,16 @@
     <artifactId>LexO-backend</artifactId>
     <version>1.0.0</version>
     <packaging>war</packaging>
-    <name>LexO-backend</name>
+    <name>LexO-server</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <postfix></postfix>
+        <!-- Single local runtime configuration: Maven profiles are not needed. -->
+        <db.jdbcDialect>org.hibernate.dialect.MySQLDialect</db.jdbcDialect>
+        <db.jdbcDriverClass>com.mysql.cj.jdbc.Driver</db.jdbcDriverClass>
+        <db.jdbcUrl>jdbc:mysql://localhost/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
+        <db.user>root</db.user>
+        <db.password>root</db.password>
     </properties>
     
     <dependencies>
@@ -107,6 +112,17 @@
             <version>1.13.1</version>
         </dependency>
         <dependency>
+            <groupId>org.jdom</groupId>
+            <artifactId>jdom2</artifactId>
+            <version>2.0.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>klab.ilc.cnr.it</groupId>
+            <artifactId>OntoApi</artifactId>
+            <version>1.0</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
             <version>5.0.0</version>
@@ -166,10 +182,26 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Test stack. JUnit 5 runs the executable specifications, while
+             AssertJ keeps RDF/model assertions readable and diagnostic. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.25.3</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
     
     <build>
-        <finalName>${project.artifactId}</finalName>
+        <!-- Tomcat derives the default context path from the WAR filename. -->
+        <finalName>LexO-server</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -183,21 +215,35 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <!-- End-to-end tests are deliberately separated because
+                         they require a running LexO-server and GraphDB. -->
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.3.1</version>
                 <configuration>
-                    <classifier>${envClassifier}</classifier>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
-                    <!-- https://stackoverflow.com/questions/21018252/not-getting-values-from-properties-files-in-context-xml-file -->
-                    <webResources>
-                        <resource>
-                            <filtering>true</filtering>
-                            <directory>src/main/webapp</directory>
-                            <includes>
-                                <include>**/META-INF/context.xml</include>
-                            </includes>
-                        </resource>
-                    </webResources>
                 </configuration>
             </plugin>
             <plugin>
@@ -221,196 +267,5 @@
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>devel-simone</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <envClassifier></envClassifier>
-                <postfix></postfix>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://lexo-datasets.ilc.cnr.it:7200</graphdb.url>
-                <graphdb.repository>Simple</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>
-        <profile>
-            <id>beta-release-simone</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <envClassifier>beta</envClassifier>
-                <postfix>-beta</postfix>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://lexo-datasets.ilc.cnr.it:7200</graphdb.url>
-                <graphdb.repository>Simple_beta</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>   
-        <profile>
-            <id>maia-release</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <envClassifier>maia</envClassifier>
-                <postfix>-maia</postfix>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://lexo-datasets.ilc.cnr.it:7200</graphdb.url>
-                <graphdb.repository>Ferrandi</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>     
-        <profile>
-            <id>maia-localhost</id>
-            <!-- compilazione di lexo-backend che punta repo di maia-repo in GraphDB sulla stessa macchina (localhost) -->
-            <dependencies>
-                <!-- https://mvnrepository.com/artifact/org.mariadb.jdbc/mariadb-java-client -->
-                <dependency>
-                    <groupId>org.mariadb.jdbc</groupId>
-                    <artifactId>mariadb-java-client</artifactId>
-                    <version>3.2.0</version>
-                </dependency>
-            </dependencies> 
-            <properties>
-                <db.jdbcDialect>org.hibernate.dialect.MariaDB103Dialect</db.jdbcDialect>
-                <db.jdbcDriverClass>org.mariadb.jdbc.Driver</db.jdbcDriverClass>
-                <db.jdbcUrl>jdbc:mariadb://localhost/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <envClassifier>-maia-repo-localhost</envClassifier> <!-- postfix del nome del war -->
-                <postfix>-maia-repo-localhost</postfix> <!-- postfix della webapp (parte finale della URL) -->
-                <graphdb.url>http://localhost:7200</graphdb.url>
-                <graphdb.repository>maia-repo</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile> 
-        <profile>
-            <id>maia-localhost-mysql</id>
-            <!-- compilazione di lexo-backend che punta repo di maia-repo in GraphDB sulla stessa macchina (localhost) -->
-            <properties>
-                <db.jdbcDialect>org.hibernate.dialect.MySQLDialect</db.jdbcDialect>
-                <db.jdbcDriverClass>com.mysql.cj.jdbc.Driver</db.jdbcDriverClass>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <envClassifier>-maia-repo-localhost</envClassifier> <!-- postfix del nome del war -->
-                <postfix>-maia-repo-localhost</postfix> <!-- postfix della webapp (parte finale della URL) -->
-                <graphdb.url>http://localhost:7200</graphdb.url>
-                <graphdb.repository>maia-repo</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>  
-        <profile>
-            <id>simone_test</id> 
-            <dependencies>
-                <!-- https://mvnrepository.com/artifact/org.mariadb.jdbc/mariadb-java-client -->
-                <dependency>
-                    <groupId>org.mariadb.jdbc</groupId>
-                    <artifactId>mariadb-java-client</artifactId>
-                    <version>3.2.0</version>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies> 
-            <properties>
-                <db.jdbcDialect>org.hibernate.dialect.MySQLDialect</db.jdbcDialect>
-                <db.jdbcDriverClass>com.mysql.cj.jdbc.Driver</db.jdbcDriverClass>
-                <db.jdbcUrl>jdbc:mysql://146.48.93.207/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <envClassifier>-maia-repo-localhost</envClassifier> <!-- postfix del nome del war -->
-                <postfix>-maia-repo-localhost</postfix> <!-- postfix della webapp (parte finale della URL) -->
-                <graphdb.url>http://146.48.93.207:7200</graphdb.url>
-                <graphdb.repository>maia-repo</graphdb.repository>
 
-                <!--                <db.jdbcUrl>jdbc:mysql://licodemo/lexo_server</db.jdbcUrl>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <envClassifier>simone_test</envClassifier>  postfix del nome del war 
-                <postfix>-simone_test</postfix>  postfix della webapp (parte finale della URL) 
-                <graphdb.url>http://localhost:7200</graphdb.url>
-                <graphdb.repository>CompL-it</graphdb.repository>-->
-                <graphdb.poolSize>2</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>     
-        <profile>
-            <id>devel-andrea</id> 
-            <properties>
-                
-                              <db.jdbcDialect>org.hibernate.dialect.MySQLDialect</db.jdbcDialect>
-                <db.jdbcDriverClass>com.mysql.cj.jdbc.Driver</db.jdbcDriverClass>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
-                
-                
-                <!--<db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>-->
-                <db.user>root</db.user>
-                <db.password>root</db.password>
-                <graphdb.url>http://localhost:7200</graphdb.url>
-                <graphdb.repository>ItAnt</graphdb.repository>
-                <!--<graphdb.repository>dictionary</graphdb.repository>-->
-                <!--<graphdb.repository>TEST_NEW_SERVICES</graphdb.repository>-->
-                <graphdb.poolSize>5</graphdb.poolSize>
-            </properties>
-        </profile>
-        <profile>
-            <id>devel-michele</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <db.user>root</db.user>
-                <db.password>root</db.password>
-                <envClassifier>itant</envClassifier>
-                <postfix>-itant</postfix>
-                <graphdb.url>http://localhost:7200</graphdb.url>
-                <graphdb.repository>ExportedItAnt</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph>http://itantLexicon</graphDb.namedGraph>
-            </properties>
-        </profile>
-        <profile>
-            <id>itant</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <envClassifier>itant</envClassifier>
-                <postfix>-itant</postfix>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://lari2.ilc.cnr.it/graphdb</graphdb.url>
-                <graphdb.repository>ExportedItAnt</graphdb.repository>
-                <graphdb.poolSize>2</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>
-        <profile>
-            <id>itant_demo_nuovo</id> 
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <envClassifier>itant</envClassifier>
-                <postfix>-itant</postfix>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://digitant.ilc.cnr.it/graphdb10_demo/</graphdb.url>
-                <graphdb.repository>ItAnt</graphdb.repository>
-                <graphdb.poolSize>2</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>
-        <profile>
-            <id>release</id>
-            <properties>
-                <db.jdbcUrl>jdbc:mysql://localhost/lexo_server</db.jdbcUrl>
-                <db.user>lexo</db.user>
-                <db.password>LexOServer12</db.password>
-                <graphdb.url>https://lexo-datasets.ilc.cnr.it:7200</graphdb.url>
-                <graphdb.repository>Simple</graphdb.repository>
-                <graphdb.poolSize>5</graphdb.poolSize>
-                <graphDb.namedGraph></graphDb.namedGraph>
-            </properties>
-        </profile>
-    </profiles>
 </project>

@@ -10,8 +10,11 @@ import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -26,6 +29,8 @@ import org.eclipse.rdf4j.rio.Rio;
 
 /** Builds and serializes the RDF/NIF model using the RDF4J already used by LexO-server. */
 public final class NifModelWriter {
+
+    private static final Pattern MARKDOWN_IRI = Pattern.compile("^\\[([^\\]]+)]\\(([^)]+)\\)$");
 
     private static final String NIF_NS = "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
     private static final String DCTERMS_NS = "http://purl.org/dc/terms/";
@@ -48,16 +53,30 @@ public final class NifModelWriter {
         return publicBaseUri + encode(fileId);
     }
 
+    public String corpusUri(String corpusId) {
+        return publicBaseUri + "corpora/" + encode(corpusId);
+    }
+
     public void write(Path output, String fileId, String originalFileName,
                       ParsedTextDocument doc) throws IOException {
+        write(output, fileId, originalFileName, doc, null);
+    }
+
+    public void write(Path output, String fileId, String originalFileName,
+                      ParsedTextDocument doc, String corpusUri) throws IOException {
         Files.createDirectories(output.getParent());
-        Model model = build(fileId, originalFileName, doc);
+        Model model = build(fileId, originalFileName, doc, corpusUri);
         try (OutputStream out = Files.newOutputStream(output)) {
             Rio.write(model, out, RDFFormat.TURTLE);
         }
     }
 
     public Model build(String fileId, String originalFileName, ParsedTextDocument doc) {
+        return build(fileId, originalFileName, doc, null);
+    }
+
+    public Model build(String fileId, String originalFileName, ParsedTextDocument doc,
+                       String corpusUri) {
         Model model = new LinkedHashModel();
         model.setNamespace("rdf", RDF.NAMESPACE);
         model.setNamespace("xsd", XSD.NAMESPACE);
@@ -72,7 +91,7 @@ public final class NifModelWriter {
         IRI source = iri(document + "/source");
         IRI conllu = iri(document + "/conllu");
         IRI context = iri(document + "#context");
-        String language = safeLanguageTag(doc.metadata.get("language"));
+        String language = firstSafeLanguageTag(doc);
 
         addType(model, source, DCMITYPE_NS + "Text");
         addLiteral(model, source, DCTERMS_NS + "identifier", originalFileName, null);
@@ -97,7 +116,10 @@ public final class NifModelWriter {
         addLiteral(model, context, structureNamespace + "segmentationMethod", doc.segmentationMethod, null);
         model.add(context, iri(structureNamespace + "frontMatterPresent"),
                 vf.createLiteral(doc.frontMatterPresent));
-        writeMetadata(model, context, doc.metadata, language);
+        writeMetadata(model, context, doc, language);
+        if (corpusUri != null) {
+            addIri(model, context, DCTERMS_NS + "isPartOf", iri(corpusUri));
+        }
         addLiteral(model, context, NIF_NS + "isString", doc.cleanText, language);
         addNonNegativeInteger(model, context, NIF_NS + "beginIndex", 0);
         addNonNegativeInteger(model, context, NIF_NS + "endIndex",
@@ -118,29 +140,77 @@ public final class NifModelWriter {
         return model;
     }
 
-    private void writeMetadata(Model model, Resource context, Map<String, String> metadata,
-                               String language) {
-        for (Map.Entry<String, String> entry : metadata.entrySet()) {
-            String key = entry.getKey().toLowerCase(Locale.ROOT);
-            String value = entry.getValue();
-            if ("title".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "title", value, language);
-            } else if ("creator".equals(key) || "author".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "creator", value, null);
-            } else if ("language".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "language", value, null);
-            } else if ("date".equals(key) || "issued".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "issued", value, null);
-            } else if ("license".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "license", value);
-            } else if ("source".equals(key)) {
-                addIriOrLiteral(model, context, DCTERMS_NS + "source", value);
-            } else if ("id".equals(key)) {
-                addLiteral(model, context, DCTERMS_NS + "identifier", value, null);
-            } else {
-                addLiteral(model, context, structureNamespace + "metadataValue",
-                        key + "=" + value, null);
+    public void writeCorpus(Path output, String corpusId, String originalFileName,
+                            ParsedTextDocument metadata, List<String> memberContextUris)
+            throws IOException {
+        Files.createDirectories(output.getParent());
+        try (OutputStream out = Files.newOutputStream(output)) {
+            Rio.write(buildCorpus(corpusId, originalFileName, metadata, memberContextUris),
+                    out, RDFFormat.TURTLE);
+        }
+    }
+
+    public Model buildCorpus(String corpusId, String originalFileName,
+                             ParsedTextDocument metadata, List<String> memberContextUris) {
+        Model model = new LinkedHashModel();
+        model.setNamespace("rdf", RDF.NAMESPACE);
+        model.setNamespace("dcterms", DCTERMS_NS);
+        model.setNamespace("dcmitype", DCMITYPE_NS);
+        model.setNamespace("nif", NIF_NS);
+        model.setNamespace("prov", PROV_NS);
+        model.setNamespace("nifs", structureNamespace);
+
+        IRI corpus = iri(corpusUri(corpusId));
+        IRI source = iri(corpus.stringValue() + "/source");
+        addType(model, corpus, DCMITYPE_NS + "Collection");
+        addType(model, corpus, NIF_NS + "ContextCollection");
+        addLiteral(model, corpus, structureNamespace + "corpusId", corpusId, null);
+        writeMetadata(model, corpus, metadata, firstSafeLanguageTag(metadata));
+        addType(model, source, DCMITYPE_NS + "Text");
+        addLiteral(model, source, DCTERMS_NS + "identifier", originalFileName, null);
+        addLiteral(model, source, DCTERMS_NS + "format", "text/plain", null);
+        addIri(model, corpus, PROV_NS + "wasDerivedFrom", source);
+        if (memberContextUris != null) {
+            for (String member : memberContextUris) {
+                addIri(model, corpus, DCTERMS_NS + "hasPart", iri(member));
             }
+        }
+        return model;
+    }
+
+    private void writeMetadata(Model model, Resource context, ParsedTextDocument doc,
+                               String language) {
+        if (!doc.metadataValues.isEmpty()) {
+            for (Map.Entry<String, List<String>> entry : doc.metadataValues.entrySet()) {
+                String key = entry.getKey().toLowerCase(Locale.ROOT);
+                for (String value : entry.getValue()) {
+                    writeMetadataValue(model, context, key, value, language);
+                }
+            }
+        } else {
+            for (Map.Entry<String, String> entry : doc.metadata.entrySet()) {
+                writeMetadataValue(model, context,
+                        entry.getKey().toLowerCase(Locale.ROOT), entry.getValue(), language);
+            }
+        }
+    }
+
+    private void writeMetadataValue(Model model, Resource context, String key, String value,
+                                    String language) {
+        if ("id".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "identifier", value, null);
+        } else if ("title".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "title", value, language);
+        } else if ("author".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "creator", value, null);
+        } else if ("date".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "created", value, null);
+        } else if ("language".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "language", value, null);
+        } else if ("format".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "format", value, null);
+        } else if ("corpus".equals(key)) {
+            addIriOrLiteral(model, context, DCTERMS_NS + "isPartOf", value, null);
         }
     }
 
@@ -320,11 +390,13 @@ public final class NifModelWriter {
                 vf.createLiteral(Integer.toString(value), XSD.NON_NEGATIVE_INTEGER));
     }
 
-    private void addIriOrLiteral(Model model, Resource subject, String predicateIri, String value) {
-        if (looksLikeAbsoluteIri(value)) {
-            addIri(model, subject, predicateIri, iri(value));
+    private void addIriOrLiteral(Model model, Resource subject, String predicateIri, String value,
+                                 String language) {
+        String iriValue = absoluteIriValue(value);
+        if (iriValue != null) {
+            addIri(model, subject, predicateIri, iri(iriValue));
         } else {
-            addLiteral(model, subject, predicateIri, value, null);
+            addLiteral(model, subject, predicateIri, value, language);
         }
     }
 
@@ -344,8 +416,35 @@ public final class NifModelWriter {
         return tag.matches("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*") ? tag : null;
     }
 
-    private static boolean looksLikeAbsoluteIri(String value) {
-        return value != null && value.matches("[A-Za-z][A-Za-z0-9+.-]*:.*");
+    private static String firstSafeLanguageTag(ParsedTextDocument doc) {
+        List<String> values = doc.metadataValues.get("language");
+        if (values != null) {
+            for (String value : values) {
+                String tag = safeLanguageTag(value);
+                if (tag != null) {
+                    return tag;
+                }
+            }
+        }
+        return safeLanguageTag(doc.metadata.get("language"));
+    }
+
+    private static String absoluteIriValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String candidate = value.trim();
+        if (candidate.length() >= 2 && candidate.startsWith("<") && candidate.endsWith(">")) {
+            candidate = candidate.substring(1, candidate.length() - 1).trim();
+        }
+        // Metadata exported by Markdown editors may preserve an URI as
+        // [URI](URI), optionally surrounded by angle brackets. It represents
+        // the same RDF IRI only when label and target are identical.
+        Matcher markdown = MARKDOWN_IRI.matcher(candidate);
+        if (markdown.matches() && markdown.group(1).equals(markdown.group(2))) {
+            candidate = markdown.group(2).trim();
+        }
+        return candidate.matches("[A-Za-z][A-Za-z0-9+.-]*:.*") ? candidate : null;
     }
 
     private static String mediaTypeFor(String fileName) {
