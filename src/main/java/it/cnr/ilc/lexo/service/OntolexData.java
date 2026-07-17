@@ -15,8 +15,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -32,10 +30,6 @@ public class OntolexData extends Service {
     @GET
     @Path("lexicalEntryType")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalEntryType",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry types from the OntoLex vocabulary",
             notes = "This method returns the lexical entry types from the OntoLex vocabulary")
     public Response lexicalEntryType() {
@@ -51,10 +45,6 @@ public class OntolexData extends Service {
     @GET
     @Path("etymologicalEntryType")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymologicalEntryType",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymological entry types from the LemonEty module of the OntoLex vocabulary",
             notes = "This method returns the etymological entry types from the LemonEty module of the OntoLex vocabulary")
     public Response etymologicalEntryType() {
@@ -70,10 +60,6 @@ public class OntolexData extends Service {
     @GET
     @Path("formType")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formType",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form types from the OntoLex vocabulary",
             notes = "This method returns the form types from the OntoLex vocabulary")
     public Response formType() {
@@ -89,10 +75,6 @@ public class OntolexData extends Service {
     @GET
     @Path("translationType")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "translationType",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Translation types from the OntoLex vocabulary",
             notes = "This method returns the translation types from the OntoLex vocabulary")
     public Response translationType() {
@@ -107,10 +89,6 @@ public class OntolexData extends Service {
     @GET
     @Path("representation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "representation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Forms represenation properties from the OntoLex vocabulary",
             notes = "This method returns the forms represenatation properties from the OntoLex vocabulary")
     public Response representation() {

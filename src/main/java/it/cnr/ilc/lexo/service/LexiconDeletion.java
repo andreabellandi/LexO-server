@@ -33,9 +33,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.apache.log4j.Level;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -54,10 +52,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("language")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "language",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicon language deletion",
             notes = "This method deletes a lexicon language, if it has no entries")
     public Response language(
@@ -97,10 +91,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("dictionary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary deletion",
             notes = "This method deletes a dictionary, if it has no entries")
     public Response dictionary(
@@ -140,10 +130,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("lexicalEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry deletion",
             notes = "This method deletes a lexical entry")
     public Response lexicalEntry(
@@ -179,10 +165,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("dictionaryEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionaryEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entry deletion",
             notes = "This method deletes a dictionary entry")
     public Response dictionaryEntry(
@@ -218,10 +200,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("lexicographicComponent")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicographicComponent",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicographic component deletion",
             notes = "This method deletes a lexicographic component")
     public Response lexicographicComponent(
@@ -259,10 +237,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("form")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "form",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form deletion",
             notes = "This method deletes a form")
     public Response form(
@@ -299,10 +273,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("lexicalSense")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalSense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical sense deletion",
             notes = "This method deletes a sense")
     public Response lexicalSense(
@@ -356,10 +326,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("etymologicalLink")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymologicalLink",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymological link deletion",
             notes = "This method deletes an etymological Link")
     public Response etymologicalLink(
@@ -394,10 +360,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("etymology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymology deletion",
             notes = "This method deletes an etymology")
     public Response etymology(
@@ -438,10 +400,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("bibliography")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "bibliography",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Bibliography deletion",
             notes = "This method deletes a bibliography")
     public Response bibliography(
@@ -473,10 +431,6 @@ public class LexiconDeletion extends Service {
     @POST
     @Path("relation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "relation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Relation deletion",
             notes = "This method deletes a relation")
     public Response relation(
@@ -509,10 +463,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("component")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "component",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Multiword component deletion",
             notes = "This method deletes a component of a multiword")
     public Response component(
@@ -549,10 +499,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("collocation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "collocation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Collocation deletion",
             notes = "This method deletes a collocation")
     public Response collocation(
@@ -588,10 +534,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("corpusFrequency")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "corpusFrequency",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Corpus Frequency deletion",
             notes = "This method deletes a corpus frequency")
     public Response corpusFrequency(
@@ -627,10 +569,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("formRestriction")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formRestriction",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form Restriction deletion",
             notes = "This method deletes a form restriction")
     public Response formRestriction(
@@ -666,10 +604,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("lexicoSemanticRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicoSemanticRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexico semantic relation deletion",
             notes = "This method deletes a lexico semntic relation according to the vartrans module")
     public Response lexicoSemanticRelation(
@@ -705,10 +639,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("translationSet")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "translationSet",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Translation set deletion",
             notes = "This method deletes a translation set according to the vartrans module")
     public Response translationSet(
@@ -744,10 +674,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("lexicalConcept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalConcept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical Concept deletion",
             notes = "This method deletes a lexical concept")
     public Response lexicalConcept(
@@ -788,10 +714,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("conceptSet")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "conceptSet",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Concept Set deletion",
             notes = "This method deletes a concept set")
     public Response conceptSet(
@@ -828,10 +750,6 @@ public class LexiconDeletion extends Service {
     @GET
     @Path("image")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "image",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Image deletion",
             notes = "This method deletes an image associated to a lexical entity")
     public Response image(

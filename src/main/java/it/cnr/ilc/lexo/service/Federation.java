@@ -22,8 +22,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -43,10 +41,6 @@ public class Federation extends Service {
     @Path("fedx")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "search",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Search on external endpoints",
             notes = "This method runs a query on a specific external sparql endpoint")
     public Response search(

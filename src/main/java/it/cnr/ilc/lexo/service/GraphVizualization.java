@@ -44,8 +44,6 @@ import javax.ws.rs.core.Response;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -67,10 +65,6 @@ public class GraphVizualization extends Service {
     @GET
     @Path("nodeSummary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "nodeSummary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Node Summary of lexical senses",
             notes = "This method returns the summary data related to a specific sense node")
     public Response nodeSummary(
@@ -107,10 +101,6 @@ public class GraphVizualization extends Service {
     @Path("nodeGraph")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "nodeGraph",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Graph of a node",
             notes = "This method returns the incoming and outgoing edges of a node")
     public Response nodeGraph(@ApiParam(
@@ -161,10 +151,6 @@ public class GraphVizualization extends Service {
     @Path("edgeGraph")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "edgeGraph",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Edge details",
             notes = "This method returns the details of an eadge")
     public Response edgeGraph(@ApiParam(
@@ -190,10 +176,6 @@ public class GraphVizualization extends Service {
     @Path("hopsByRel")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/hopsByRel",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Hops by relation",
             notes = "This method returns all the possible hops starting from a node by a specific relation")
     public Response hopsByRel(@ApiParam(
@@ -241,10 +223,6 @@ public class GraphVizualization extends Service {
     @Path("minPath")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/minPath",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Minimum path between two nodes",
             notes = "This method returns the minimum path between two nodes according to the input parameters")
     public Response minPath(@ApiParam(
@@ -299,10 +277,6 @@ public class GraphVizualization extends Service {
     @Path("allPaths")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/allPaths",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "All paths between two nodes",
             notes = "This method returns all the paths between two nodes according to the input parameters")
     public Response allPaths(@ApiParam(

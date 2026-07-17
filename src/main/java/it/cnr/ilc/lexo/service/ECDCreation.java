@@ -48,8 +48,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -71,10 +69,6 @@ public class ECDCreation extends Service {
     @GET
     @Path("ECDictionary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDictionary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Explanatory Combinatorial Dictionary creation",
             notes = "This method creates a new EC Dictionary according to Melchuck theory")
     public Response ECDictionary(
@@ -135,10 +129,6 @@ public class ECDCreation extends Service {
     @Path("lexicalFunction")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "lexicalFunction",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical function instance creation",
             notes = "This method creates a new lexical function instance and returns it")
     public Response lexicalFunction(
@@ -215,10 +205,6 @@ public class ECDCreation extends Service {
     @Path("ECDEntry")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD entry creation",
             notes = "This method creates a new dictionary entry and returns it")
     public Response ECDEntry(
@@ -292,10 +278,6 @@ public class ECDCreation extends Service {
     @Path("ECDForm")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDForm",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD form creation",
             notes = "This method creates a new form of a ECD entry and returns it")
     public Response ECDForm(
@@ -377,10 +359,6 @@ public class ECDCreation extends Service {
     @Path("ECDMeaning")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDMeaning",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD meaning creation",
             notes = "This method creates a new dictionary entry meaning and returns it")
     public Response ECDMeaning(
@@ -465,10 +443,6 @@ public class ECDCreation extends Service {
     @Path("ECDGovPat")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDGovPat",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD Government Pattern creation",
             notes = "This method creates a new government pattern of a ECD entry and returns it")
     public Response ECDGovPat() {return null;}
@@ -477,10 +451,6 @@ public class ECDCreation extends Service {
     @Path("ECDSemanticMapping")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDSemanticMapping",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD semantic mapping creation",
             notes = "This method creates a semantic mapping for a specific government pattern")
     public Response ECDSemanticMapping() {return null;}

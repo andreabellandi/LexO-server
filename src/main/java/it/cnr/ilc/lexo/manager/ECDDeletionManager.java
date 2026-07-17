@@ -5,7 +5,6 @@
  */
 package it.cnr.ilc.lexo.manager;
 
-import static com.ontotext.trree.plugin.sparqltemplate.SparqlTemplatePlugin.VF;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.sparql.SparqlDeleteData;
@@ -15,6 +14,7 @@ import it.cnr.ilc.lexo.sparql.SparqlSelectData;
 import it.cnr.ilc.lexo.sparql.SparqlUpdateData;
 import it.cnr.ilc.lexo.sparql.SparqlVariable;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import it.cnr.ilc.lexo.util.StringUtil;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -34,6 +34,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.query.MalformedQueryException;
@@ -48,6 +50,7 @@ import org.eclipse.rdf4j.repository.RepositoryResult;
  */
 public class ECDDeletionManager implements Manager, Cached {
 
+    private static final ValueFactory VF = SimpleValueFactory.getInstance();
     private static final SimpleDateFormat timestampFormat = new SimpleDateFormat(LexOProperties.getProperty("manager.operationTimestampFormat"));
 
     private enum ChildLevel {
@@ -182,8 +185,9 @@ public class ECDDeletionManager implements Manager, Cached {
     }
 
     private static void deleteAllTriplesAbout(RepositoryConnection conn, Resource res) {
-        conn.remove(res, null, null);
-        conn.remove((Resource) null, null, res);
+        IRI lexicalGraph = lexicalGraph();
+        conn.remove(res, null, null, lexicalGraph);
+        conn.remove((Resource) null, null, res, lexicalGraph);
     }
 
     /**
@@ -206,7 +210,7 @@ public class ECDDeletionManager implements Manager, Cached {
         Resource parent = parentLink.parent;
 
         // 4. Remove the parent -> comp ordinal link
-        conn.remove(parent, parentLink.ordinalPred, comp);
+        conn.remove(parent, parentLink.ordinalPred, comp, lexicalGraph());
 
         // 5. Collect remaining children of this parent (after removing comp)
         List<ChildInfo> children = getChildren(conn, parent);
@@ -321,6 +325,8 @@ public class ECDDeletionManager implements Manager, Cached {
             List<ChildInfo> children,
             ChildLevel level) {
 
+        IRI lexicalGraph = lexicalGraph();
+
         String parentLabel = null;
         if (level == ChildLevel.LEVEL2 || level == ChildLevel.LEVEL3) {
             try ( RepositoryResult<Statement> lbls
@@ -338,9 +344,10 @@ public class ECDDeletionManager implements Manager, Cached {
             IRI child = c.child;
 
             // remove old ordinal and label
-            conn.remove(parent, c.oldPred, child);
+            conn.remove(parent, c.oldPred, child, lexicalGraph);
             if (c.oldLabel != null) {
-                conn.remove(child, RDFS.LABEL, VF.createLiteral(c.oldLabel));
+                conn.remove(child, RDFS.LABEL, VF.createLiteral(c.oldLabel),
+                        lexicalGraph);
             }
 
             IRI newPred = VF.createIRI(RDF.NAMESPACE + "_" + newIndex);
@@ -360,8 +367,8 @@ public class ECDDeletionManager implements Manager, Cached {
                     newLabel = c.oldLabel != null ? c.oldLabel : "";
             }
 
-            conn.add(parent, newPred, child);
-            conn.add(child, RDFS.LABEL, VF.createLiteral(newLabel));
+            conn.add(parent, newPred, child, lexicalGraph);
+            conn.add(child, RDFS.LABEL, VF.createLiteral(newLabel), lexicalGraph);
 
             newIndex++;
         }
@@ -381,6 +388,10 @@ public class ECDDeletionManager implements Manager, Cached {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    private static IRI lexicalGraph() {
+        return VF.createIRI(LexicalNamedGraphs.lexiconGraphUri());
     }
 
     private static int parseOrdinalIndex(IRI pred) {

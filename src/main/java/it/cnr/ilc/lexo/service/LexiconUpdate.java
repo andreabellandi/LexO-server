@@ -45,8 +45,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.UpdateExecutionException;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -63,10 +61,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("lexicon/language")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "language",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicon language update",
             notes = "This method updates the lexicon language according to the input updater")
     public Response lexiconLanguage(
@@ -98,10 +92,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("lexicalEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "lexicalEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry update",
             notes = "This method updates the lexical entry according to the input updater")
     public Response lexicalEntry(
@@ -137,10 +127,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("dictionaryEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "dictionaryEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entry update",
             notes = "This method updates the dictionary entry according to the input updater")
     public Response dictionaryEntry(
@@ -175,10 +161,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("form")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "form",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form update",
             notes = "This method updates the form according to the input updater")
     public Response form(@HeaderParam("Authorization") String key, @QueryParam("id") String id, FormUpdater fu) {
@@ -205,10 +187,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("lexicalSense")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "lexicalSense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical Sense update",
             notes = "This method updates the sense according to the input updater")
     public Response lexicalSense(@HeaderParam("Authorization") String key, @QueryParam("id") String id, LexicalSenseUpdater lsu) {
@@ -235,10 +213,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("etymology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "etymology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymology update",
             notes = "This method updates the etymology according to the input updater")
     public Response etymology(@HeaderParam("Authorization") String key, @QueryParam("id") String id, EtymologyUpdater eu) {
@@ -269,10 +243,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("etymologicalLink")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "etymologicalLink",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etymological link update",
             notes = "This method updates the etymological link according to the input updater")
     public Response etymologicalLink(@HeaderParam("Authorization") String key,
@@ -304,10 +274,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("linguisticRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "linguisticRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Linguistic relation update",
             notes = "This method updates a linguistic relation according to the input updater")
     public Response linguisticRelation(@HeaderParam("Authorization") String key, @QueryParam("id") String id, LinguisticRelationUpdater lru) {
@@ -352,10 +318,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("genericRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "genericRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Generic relation update",
             notes = "This method updates a generic relation according to the input updater")
     public Response genericRelation(@HeaderParam("Authorization") String key, @QueryParam("id") String id, GenericRelationUpdater gru) {
@@ -382,10 +344,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("multiwordComponentPosition")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "multiwordComponentPosition",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Multiword component position update",
             notes = "This method updates the position of a multiword component according to the input updater")
     public Response multiwordComponentPosition(@HeaderParam("Authorization") String key, @QueryParam("id") String id, MultiwordComponentPositionUpdater mcpu) {
@@ -412,10 +370,6 @@ public class LexiconUpdate extends Service {
     @POST
     @Path("lexicographicComponentPosition")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "lexicographicComponentPosition",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicographic Component position update",
             notes = "This method updates the position of a lexicographic component according to the input updater")
     public Response lexicographicComponentPosition(@HeaderParam("Authorization") String key, @QueryParam("id") String id, String _lcpu) {
@@ -447,10 +401,6 @@ public class LexiconUpdate extends Service {
     @Path("synchronizeBibliography")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "synchronizeBibliography",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Bibliography synchronization with Zotero",
             notes = "This method synchronized author, date, and title fields of the local repository with the corresponding Zotero values")
     public Response synchronizeBibliography(

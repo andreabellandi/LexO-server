@@ -24,8 +24,6 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -44,10 +42,6 @@ public class Export extends Service {
     @Path("lexicon")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/lexicon",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicon export",
             notes = "This method exports the lexicon according to the input settings")
     public Response export(@QueryParam("key") String key, ExportSetting set) throws HelperException {

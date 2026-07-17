@@ -69,8 +69,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -107,10 +105,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("dictionary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary creation",
             notes = "This method creates a new dictionary according to lexicog module")
     public Response dictionary(
@@ -174,10 +168,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicon")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicon",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicon language creation",
             notes = "This method creates a new lexicon language and returns its id and some metadata")
     public Response lexicon(
@@ -242,10 +232,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicalEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical entry creation",
             notes = "This method creates a new lexical entry and returns its id and some metadata")
     public Response lexicalEntry(
@@ -299,10 +285,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("dictionaryEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "dictionaryEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entry creation",
             notes = "This method creates a new dictionary entry according to lexicog module, and returns its id and some metadata")
     public Response dictionaryEntry(
@@ -356,10 +338,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("form")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "form",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form creation",
             notes = "This method creates a new form and returns its id and some metadata")
     public Response form(
@@ -437,10 +415,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicalSense")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalSense",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical sense creation",
             notes = "This method creates a new lexical sense and returns its id and some metadata")
     public Response lexicalSense(
@@ -517,10 +491,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("component")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "component",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Multiword component creation",
             notes = "This method creates a new component of a multiword and returns its id and some metadata")
     public Response component(
@@ -589,10 +559,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("collocation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "collocation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Collocation creation",
             notes = "This method creates a new collocation by using the frac module of ontolex")
     public Response collocation(
@@ -661,10 +627,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("corpusFrequency")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "corpusFrequency",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Corpus frequency creation",
             notes = "This method creates a new corpus frequency by using the frac module of ontolex")
     public Response corpusFrequency(
@@ -733,10 +695,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("etymology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etimology creation",
             notes = "This method creates a new etymology and returns its id and some metadata")
     public Response etymology(
@@ -811,10 +769,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("etymologicalLink")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "etymologicalLink",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Etimological link creation",
             notes = "This method creates a new etymological link")
     public Response etymologicalLink(
@@ -900,10 +854,6 @@ public class LexiconCreation extends Service {
     @Path("bibliography")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "bibliography",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Bibliographic reference creation",
             notes = "This method creates a new bibliography for a lexical entity and returns it")
     public Response bibliography(
@@ -975,10 +925,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicalConcept")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalConcept",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical Concept creation",
             notes = "This method creates a new lexical concept and returns its id and some metadata")
     public Response lexicalConcept(
@@ -1032,10 +978,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("conceptSet")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "conceptSet",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Concept Set creation",
             notes = "This method creates a new concept set and returns its id and some metadata")
     public Response conceptSet(
@@ -1089,10 +1031,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicoSemanticRelation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicoSemanticRelation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Creation of a reified Lexico-Semantic Relation",
             notes = "This method creates a reified Lexico-Semantic Relation according to the vartrans ontolex module")
     public Response lexicoSemanticRelation(
@@ -1164,10 +1102,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("translationSet")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "translationSet",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Creation of a translation set",
             notes = "This method creates a translation set according to the vartrans ontolex module")
     public Response translationSet(
@@ -1221,10 +1155,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("formRestriction")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formRestriction",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Creation of a form restriction",
             notes = "This method creates a form restriction according to the lexicog ontolex module")
     public Response formRestriction(
@@ -1291,10 +1221,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicographicComponent")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicographicComponent",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicographic component creation",
             notes = "This method creates a new component of a dictionary entry according to lexcog module, and returns its id and some metadata")
     public Response lexicographicComponent(
@@ -1349,10 +1275,6 @@ public class LexiconCreation extends Service {
     @GET
     @Path("lexicographicAssociation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicographicAssociation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexicographic association creation",
             notes = "This method associates a lexical entry to a dictionary entry and it returns the lexicographic component that represents the association")
     public Response lexicographicAssociation(

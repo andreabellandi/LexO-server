@@ -26,19 +26,19 @@ LexO-server uses the following technology to work properly:
 - Java 15 or later
 - Apache Tomcat 9 or later
 - [GraphDB Free](https://graphdb.ontotext.com/) - Semantic Graph Database, compliant with W3C Standards.
-- [MySql](https://www.mysql.com/) - Open-source relational database management system (RDBMS)
+
+LexO-server persists lexical and textual data in GraphDB. It does not require
+MySQL or another relational database.
 
 ## Installation
 
 1. [Install](https://graphdb.ontotext.com/documentation/free/quick-start-guide.html)
    and start GraphDB Free at `http://localhost:7200`.
-2. Start MySQL locally and create the `lexo_server` database. The default JDBC
-   connection is declared in `pom.xml` (`root` / `root`).
-3. Download the project and run `mvn clean package` without a Maven profile.
-4. Deploy `target/LexO-server.war` to Tomcat.
-5. At webapp startup LexO-server creates, when missing, `LexOLexica` and
+2. Download the project and run `mvn clean package` without a Maven profile.
+3. Deploy `target/LexO-server.war` to Tomcat.
+4. At webapp startup LexO-server creates, when missing, `LexOLexica` and
    `LexOTexts`, imports the schema resources and creates the lexical indexes.
-6. Open http://localhost:8080/LexO-server/ to access Swagger.
+5. Open http://localhost:8080/LexO-server/ to access Swagger.
 
 The two GraphDB repositories are fixed in `src/main/resources/lexo-server.properties`:
 

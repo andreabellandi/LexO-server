@@ -17,8 +17,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -36,10 +34,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("morphology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "morphology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Morphological traits and their values",
             notes = "This method returns the morphological traits with their values defined in the Lexinfo vocabulary")
     public Response morpho() {
@@ -54,10 +48,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("representation")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "representation",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Representation properties for forms",
             notes = "This method returns all the representation properties (segmentation, romanization, transliterations")
     public Response representation() {
@@ -72,10 +62,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("senseDefinition")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "senseDefinition",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Definition properties for senses",
             notes = "This method returns all the definition properties for sense (example, translation, gloss")
     public Response senseDefinition() {
@@ -90,10 +76,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("lexicalRelations")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalRelations",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical relations",
             notes = "This method returns the lexical relations definied in the Lexinfo vocabulary")
     public Response lexicalRel() {
@@ -108,10 +90,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("senseRelations")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "senseRelations",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Sense relations",
             notes = "This method returns the sense relations definied in the Lexinfo vocabulary")
     public Response senseRel() {
@@ -126,10 +104,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("formRelations")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formRelations",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form relations",
             notes = "This method returns the form relations definied in the Lexinfo vocabulary")
     public Response formRel() {
@@ -144,10 +118,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("usage")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "usage",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Usage relations",
             notes = "This method returns the usage relations to be associated with senses")
     public Response usageRel() {
@@ -162,10 +132,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("lexicalCategories")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalCategories",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical categories",
             notes = "This method returns some categories for lexical entries")
     public Response lexicalCategories() {
@@ -180,10 +146,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("semanticCategories")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "semanticCategories",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Semantic categories",
             notes = "This method returns some categories for lexical senses")
     public Response semanticCategories() {
@@ -198,10 +160,6 @@ public class LexinfoData extends Service {
     @GET
     @Path("formCategories")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "formCategories",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Form categories",
             notes = "This method returns some categories for forms")
     public Response formCategories() {

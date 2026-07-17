@@ -50,8 +50,6 @@ import org.apache.log4j.Level;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -84,10 +82,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDComponents")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDComponents",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entry components",
             notes = "This method returns the elements belonging to a given dictionary entry component")
     public Response ECDComponents(
@@ -118,10 +112,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDEntrySemantics")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDEntrySemantics",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Semantics of an entry",
             notes = "This method returns the hierarchical structure of the senses belonging to a given dictionary entry")
     public Response ECDEntrySemantics(
@@ -164,10 +154,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDEntryMorphology")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDEntryMorphology",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Morphology of an entry",
             notes = "This method returns the morphological forms of a dictionary entry")
     public Response ECDEntryMorphology(
@@ -198,10 +184,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD entry details",
             notes = "This method returns the details of a dictionary entry")
     public Response ECDEntry(
@@ -232,10 +214,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDictionaries")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDictionaries",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "EC Dictionaries list",
             notes = "This method returns the list of existant dictionaries")
     public Response ECDictionaries(@HeaderParam("Authorization") String key) throws HelperException {
@@ -260,10 +238,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDictionary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDictionary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "EC ECDictionary detail",
             notes = "This method returns the deatils of a specific ECDictionary")
     public Response ECDictionary(@HeaderParam("Authorization") String key,
@@ -295,10 +269,6 @@ public class ECDData extends Service {
     @Path("ECDEntries")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "ECDEntries",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Dictionary entries list",
             notes = "This method returns a list of dictionary entries according to the input filter")
     public Response ECDEntryList(@HeaderParam("Authorization") String key, ECDEntryFilter def) throws HelperException {
@@ -329,10 +299,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDLexicaFunctions")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDLexicalFunctions",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical functions of a sense",
             notes = "This method returns the lexical functions in which a sense is involved in")
     public Response ECDLexicaFunctions(
@@ -368,10 +334,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDMeaning")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDMeaning",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD meaning details",
             notes = "This method returns the details of meaning EDC entry")
     public Response ECDMeaning(
@@ -404,10 +366,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDGovPat")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDGovPat",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD Government Pattern",
             notes = "This method returns the details of a specific government pattern")
     public Response ECDGovPat(){ return null ;}
@@ -415,10 +373,6 @@ public class ECDData extends Service {
     @GET
     @Path("ECDGovPats")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDGovPats",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD Government Patterns of a dictionary entry",
             notes = "This method returns the details of the government patterns of a specific entry")
     public Response ECDGovPats(){ return null ;}

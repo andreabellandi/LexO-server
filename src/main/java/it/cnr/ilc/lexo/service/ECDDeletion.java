@@ -27,8 +27,6 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -53,10 +51,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("lexicalFunction")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "lexicalFunction",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Lexical function deletion",
             notes = "This method deletes a lexical function relation")
     public Response lexicalFunction(
@@ -85,10 +79,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDForm")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDForm",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD form deletion",
             notes = "This method deletes a form of a ECD entry")
     public Response ECDForm(
@@ -117,10 +107,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDEntry")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDEntry",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD entry deletion",
             notes = "This method deletes an ECD entry")
     public Response ECDEntry(
@@ -161,10 +147,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDEntryPoS")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDEntryPoS",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD entry pos deletion",
             notes = "This method deletes an ECD entry pos")
     public Response ECDEntryPoS(
@@ -208,10 +190,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDictionary")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDictionary",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "EC Dictionary deletion",
             notes = "This method deletes an EC Dictionary")
     public Response ECDictionary(
@@ -245,10 +223,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDMeaning")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDMeaning",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD meaning deletion",
             notes = "This method deletes an ECD meaning")
     public Response ECDMeaning(
@@ -284,10 +258,6 @@ public class ECDDeletion extends Service {
     @GET
     @Path("ECDGovPatt")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDGovPatt",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD government pattern deletion",
             notes = "This method deletes a government pattern")
     public Response ECDGovPatt() {return null;}
@@ -295,10 +265,6 @@ public class ECDDeletion extends Service {
         @GET
     @Path("ECDSemanticMapping")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "ECDSemanticMapping",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "ECD semantic mapping deletion",
             notes = "This method deletes a semantic mapping")
     public Response ECDSemanticMapping() {return null;}

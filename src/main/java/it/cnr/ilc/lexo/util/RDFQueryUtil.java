@@ -33,6 +33,7 @@ import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs.Kind;
 
 /**
  *
@@ -126,11 +127,23 @@ public class RDFQueryUtil {
 
     public static void update(String query) {
 
+        update(query, Kind.LEXICON);
+    }
+
+    /** Executes an update in the dedicated attestation named graph. */
+    public static void updateAttestation(String query) {
+
+        update(query, Kind.ATTESTATION);
+    }
+
+    public static void update(String query, Kind graphKind) {
+
         RepositoryConnection conn = GraphDbUtil.getConnection();
         try {
             if (null != conn) {
                 Update updateOperation = conn.prepareUpdate(QueryLanguage.SPARQL,
                         query);
+                LexicalNamedGraphs.configure(updateOperation, graphKind);
                 updateOperation.execute();
             }
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {

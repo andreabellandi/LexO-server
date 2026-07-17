@@ -29,8 +29,6 @@ import org.apache.log4j.Level;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  *
@@ -51,10 +49,6 @@ public class OntologyData extends Service {
     @GET
     @Path("info")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "info",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Info",
             notes = "This method returns some ontology information such as name, version, imports, annotations, and reasoner info")
     public Response classes(
@@ -78,10 +72,6 @@ public class OntologyData extends Service {
     @GET
     @Path("classes")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "classes",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Classes",
             notes = "This method returns the direct subclasses of a given class (null for root classes)")
     public Response classes(
@@ -120,10 +110,6 @@ public class OntologyData extends Service {
     @GET
     @Path("properties")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "properties",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Properties",
             notes = "This method returns the direct subproperties of a given property (null for root properties)")
     public Response properties(
@@ -175,10 +161,6 @@ public class OntologyData extends Service {
     @GET
     @Path("individuals")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "individuals",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "Individuals",
             notes = "This method returns the individuals belonging to a given class (null for all individuals)")
     public Response individuals(
@@ -231,10 +213,6 @@ public class OntologyData extends Service {
     @GET
     @Path("restore")
     @Produces(MediaType.APPLICATION_JSON)
-    @RequestMapping(
-            method = RequestMethod.GET,
-            value = "restore",
-            produces = "application/json; charset=UTF-8")
     @ApiOperation(value = "restore",
             notes = "This method loads the ontology placed at java.io.tmpdir/ontoapi/, if it exists")
     public Response restore() throws IOException {

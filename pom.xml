@@ -9,12 +9,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Single local runtime configuration: Maven profiles are not needed. -->
-        <db.jdbcDialect>org.hibernate.dialect.MySQLDialect</db.jdbcDialect>
-        <db.jdbcDriverClass>com.mysql.cj.jdbc.Driver</db.jdbcDriverClass>
-        <db.jdbcUrl>jdbc:mysql://localhost/lexo_server?characterEncoding=UTF-8&amp;amp;serverTimezone=Europe/Rome</db.jdbcUrl>
-        <db.user>root</db.user>
-        <db.password>root</db.password>
     </properties>
     
     <dependencies>
@@ -65,21 +59,6 @@
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <version>1.2.17</version>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.23</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>5.4.27.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-c3p0</artifactId>
-            <version>5.4.27.Final</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
@@ -153,10 +132,57 @@
             <artifactId>swagger-models</artifactId>
             <version>1.6.2</version>
         </dependency> 
+        <!-- LexO-server is a remote GraphDB client, not an embedded GraphDB
+             server. Keep only the RDF4J modules used by the application. -->
         <dependency>
-            <groupId>com.ontotext.graphdb</groupId>
-            <artifactId>graphdb-free-runtime</artifactId>
-            <version>9.11.1</version>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-repository-manager</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-repository-sail</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-sail-memory</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-tools-federation</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-rdfxml</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-jsonld</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-n3</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-nquads</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-trig</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-turtle</artifactId>
+            <version>3.7.6</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.auth0/java-jwt -->
         <dependency>
@@ -203,6 +229,35 @@
         <!-- Tomcat derives the default context path from the WAR filename. -->
         <finalName>LexO-server</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>ban-removed-runtime-stacks</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>mysql:mysql-connector-java</exclude>
+                                        <exclude>com.mysql:mysql-connector-j</exclude>
+                                        <exclude>org.hibernate:*</exclude>
+                                        <exclude>com.mchange:*</exclude>
+                                        <exclude>org.springframework:*</exclude>
+                                        <exclude>com.ontotext.graphdb:graphdb-free-runtime</exclude>
+                                    </excludes>
+                                    <message>LexO-server uses GraphDB through RDF4J and must not package the removed MySQL/Hibernate/Spring or embedded GraphDB runtimes.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
