@@ -73,7 +73,7 @@ http://localhost:8080/LexO-backend/service
 Esecuzione:
 
 ```bash
-mvn verify -Ptext-e2e \
+mvn verify \
   -Dlexo.test.baseUrl=http://localhost:8080/LexO-backend/service \
   -Dlexo.test.authorization='VALORE_COMPLETO_DELL_HEADER' \
   -Dlexo.test.storageDir=/percorso/assoluto/data/texts
@@ -93,7 +93,7 @@ verificano direttamente che non rimangano directory in `uploads`, `documents` e
 
 I report end-to-end vengono scritti in `target/failsafe-reports`.
 
-Se il profilo viene attivato senza `lexo.test.baseUrl` o senza autorizzazione, i
+Se `mvn verify` viene eseguito senza `lexo.test.baseUrl` o senza autorizzazione, i
 test end-to-end risultano *skipped* anziché tentare accidentalmente una connessione.
 
 ## Esecuzione dei workflow completi
@@ -104,7 +104,7 @@ una di queste configurazioni manca, i quattro workflow vengono saltati: non veng
 eseguiti con controlli parziali.
 
 ```bash
-mvn verify -Ptext-e2e \
+mvn verify \
   -Dlexo.test.baseUrl=http://localhost:8080/LexO-backend/service \
   -Dlexo.test.authorization='Bearer TOKEN_LEXO' \
   -Dlexo.test.graphdbUrl=http://localhost:7200 \

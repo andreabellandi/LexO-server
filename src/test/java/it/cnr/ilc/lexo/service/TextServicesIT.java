@@ -35,9 +35,9 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Black-box tests for a deployed LexO-server backed by a real GraphDB.
  *
- * <p>The class is named {@code *IT}: Surefire excludes it from normal builds,
- * while the Maven {@code text-e2e} profile executes it with Failsafe. Every
- * test creates unique data and removes it in a finally block.</p>
+ * <p>The class is named {@code *IT}: Surefire excludes it from {@code mvn test},
+ * while Failsafe executes it during {@code mvn verify}. Every test creates
+ * unique data and removes it in a finally block.</p>
  */
 class TextServicesIT {
 
