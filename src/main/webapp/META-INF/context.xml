@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Context path="/LexO-server">
+<!--
+  The context path is derived from LexO-server.war (or assigned by the
+  deployment tool). Tomcat context.xml files must contain one Context only;
+  nesting another Context here makes deployment fail.
+-->
+<Context antiResourceLocking="true">
   <Manager pathname=""/>
-  <Context antiResourceLocking="true"/>
 </Context>

@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.InputStream;
+import java.net.URI;
 import java.util.Properties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,9 @@ class GraphDbRuntimeConfigurationTest {
                 .isEqualTo("LexOTexts");
         assertThat(properties.getProperty("Bootstrap.enabled")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.required")).isEqualTo("true");
+        assertThat(URI.create(properties.getProperty("Bootstrap.schema.baseIri")).isAbsolute())
+                .as("RDF4J requires an absolute base IRI for schema imports")
+                .isTrue();
 
         assertThat(properties.stringPropertyNames())
                 .allSatisfy(key -> assertThat(properties.getProperty(key))

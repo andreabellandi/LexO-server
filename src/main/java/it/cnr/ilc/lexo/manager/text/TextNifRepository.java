@@ -25,8 +25,8 @@ import org.slf4j.LoggerFactory;
 /** RDF/NIF persistence isolated from LexO's lexical GraphDB repository. */
 public final class TextNifRepository {
 
-    private static final TextNifRepository INSTANCE = new TextNifRepository();
     private static final Logger LOGGER = LoggerFactory.getLogger(TextNifRepository.class);
+    private static final TextNifRepository INSTANCE = new TextNifRepository();
 
     public static TextNifRepository get() {
         return INSTANCE;

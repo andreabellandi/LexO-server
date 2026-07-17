@@ -116,13 +116,14 @@ public final class GraphDbBootstrap {
             String baseUrl, String templateResource) {
         String endpoint = trimSlash(serverUrl) + "/rest/repositories/"
                 + urlEncode(repositoryId);
-        int status = request("GET", endpoint, null, null);
-        if (status >= 200 && status < 300) {
+        HttpResult check = request("GET", endpoint, null, null);
+        if (check.isSuccessful()) {
             LOGGER.info("GraphDB repository already exists: {}", repositoryId);
             return;
         }
-        if (status != HttpURLConnection.HTTP_NOT_FOUND) {
-            throw new IllegalStateException("Unable to check GraphDB repository " + repositoryId + ": HTTP " + status);
+        if (check.status != HttpURLConnection.HTTP_NOT_FOUND) {
+            throw new IllegalStateException("Unable to check GraphDB repository "
+                    + repositoryId + ": " + check.describe());
         }
 
         String config = BootstrapResources.readUtf8(templateResource)
@@ -131,10 +132,12 @@ public final class GraphDbBootstrap {
                 .replace("__BASE_URL__", escapeTurtle(baseUrl));
         byte[] body = multipartConfig(config);
         String boundary = MULTIPART_BOUNDARY;
-        status = request("POST", trimSlash(serverUrl) + "/rest/repositories", body,
+        HttpResult creation = request("POST", trimSlash(serverUrl) + "/rest/repositories", body,
                 "multipart/form-data; boundary=" + boundary);
-        if ((status < 200 || status >= 300) && status != HttpURLConnection.HTTP_CONFLICT) {
-            throw new IllegalStateException("Unable to create GraphDB repository " + repositoryId + ": HTTP " + status);
+        if (!creation.isSuccessful()
+                && creation.status != HttpURLConnection.HTTP_CONFLICT) {
+            throw new IllegalStateException("Unable to create GraphDB repository "
+                    + repositoryId + ": " + creation.describe());
         }
         LOGGER.info("Created GraphDB Free repository: {}", repositoryId);
     }
@@ -165,7 +168,7 @@ public final class GraphDbBootstrap {
                 for (String resource : resources) {
                     byte[] bytes = BootstrapResources.readBytes(resource);
                     try (InputStream input = new ByteArrayInputStream(bytes)) {
-                        connection.add(input, resource, RDFFormat.RDFXML, graph);
+                        connection.add(input, schemaBaseIri(resource), RDFFormat.RDFXML, graph);
                     }
                 }
                 writeChecksum(connection, marker, checksum, metadataGraph);
@@ -277,6 +280,12 @@ public final class GraphDbBootstrap {
         return VF.createIRI("https://lexo.ilc.cnr.it/vocabulary/bootstrap/checksum");
     }
 
+    private static String schemaBaseIri(String resource) {
+        String base = LexOProperties.getProperty("Bootstrap.schema.baseIri",
+                "https://lexo.ilc.cnr.it/resources/");
+        return trimSlash(base) + "/" + resource;
+    }
+
     private static JsonNode parseJson(String resource) {
         try {
             return JSON.readTree(BootstrapResources.readBytes(resource));
@@ -331,7 +340,8 @@ public final class GraphDbBootstrap {
         }
     }
 
-    private static int request(String method, String endpoint, byte[] body, String contentType) {
+    private static HttpResult request(String method, String endpoint, byte[] body,
+                                      String contentType) {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -347,8 +357,9 @@ public final class GraphDbBootstrap {
                 }
             }
             int status = connection.getResponseCode();
-            consume(status >= 400 ? connection.getErrorStream() : connection.getInputStream());
-            return status;
+            String responseBody = readResponse(
+                    status >= 400 ? connection.getErrorStream() : connection.getInputStream());
+            return new HttpResult(status, responseBody);
         } catch (IOException ex) {
             throw new IllegalStateException("GraphDB REST request failed: " + method + " " + endpoint, ex);
         } finally {
@@ -358,15 +369,42 @@ public final class GraphDbBootstrap {
         }
     }
 
-    private static void consume(InputStream input) throws IOException {
+    private static String readResponse(InputStream input) throws IOException {
         if (input == null) {
-            return;
+            return "";
         }
         try (InputStream stream = input) {
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
-            while (stream.read(buffer) >= 0) {
-                // Consume the response so the HTTP connection can be released.
+            int read;
+            int remaining = 16384;
+            while ((read = stream.read(buffer)) >= 0) {
+                if (remaining > 0) {
+                    int copy = Math.min(read, remaining);
+                    captured.write(buffer, 0, copy);
+                    remaining -= copy;
+                }
             }
+            String value = new String(captured.toByteArray(), StandardCharsets.UTF_8).trim();
+            return remaining == 0 ? value + "…" : value;
+        }
+    }
+
+    private static final class HttpResult {
+        private final int status;
+        private final String body;
+
+        private HttpResult(int status, String body) {
+            this.status = status;
+            this.body = body == null ? "" : body;
+        }
+
+        private boolean isSuccessful() {
+            return status >= 200 && status < 300;
+        }
+
+        private String describe() {
+            return "HTTP " + status + (body.isEmpty() ? "" : " — " + body);
         }
     }
 

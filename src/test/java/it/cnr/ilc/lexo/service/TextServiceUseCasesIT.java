@@ -133,8 +133,10 @@ class TextServiceUseCasesIT {
 
             JsonNode firstDetached = workflow.getJson("texts/" + firstId, 200);
             JsonNode secondDetached = workflow.getJson("texts/" + secondId, 200);
-            assertThat(firstDetached.path("corpusId").isNull()).isTrue();
-            assertThat(secondDetached.path("corpusId").isNull()).isTrue();
+            // TextRecord omette intenzionalmente i campi null (NON_NULL): dopo
+            // il detach corpusId deve quindi essere assente oppure JSON null.
+            assertThat(isNullOrMissing(firstDetached, "corpusId")).isTrue();
+            assertThat(isNullOrMissing(secondDetached, "corpusId")).isTrue();
             assertThat(workflow.ask(isPartOf(workflow.documentGraph(firstId),
                     firstContext, corpusUri))).isFalse();
             assertThat(workflow.ask(isPartOf(workflow.documentGraph(secondId),
@@ -156,6 +158,11 @@ class TextServiceUseCasesIT {
             workflow.deleteTextQuietly(secondId);
             workflow.deleteCorpusQuietly(corpusId);
         }
+    }
+
+    private static boolean isNullOrMissing(JsonNode object, String field) {
+        JsonNode value = object.get(field);
+        return value == null || value.isNull();
     }
 
     @Test
