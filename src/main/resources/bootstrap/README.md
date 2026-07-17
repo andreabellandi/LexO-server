@@ -21,3 +21,21 @@ to resolve relative IRIs in resources that do not declare their own XML base.
 Schema and index checksums are stored in
 `https://lexo.ilc.cnr.it/graphs/bootstrap`. A resource change causes the related
 bootstrap phase to run again; unchanged resources are skipped.
+
+## Application named graphs
+
+`LexOLexica` keeps application data separate from schema and bootstrap data:
+
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexica` contains lexical data;
+- `https://lexo.ilc.cnr.it/graphs/lexical/attestations` contains FRAC
+  attestations;
+- `https://lexo.ilc.cnr.it/graphs/schema` contains the imported vocabularies;
+- `https://lexo.ilc.cnr.it/graphs/bootstrap` contains bootstrap checksums.
+
+The lexical graph URIs can be changed with `GraphDb.namedGraphBase`,
+`GraphDb.lexiconNamedGraph`, and `GraphDb.attestationNamedGraph` in
+`lexo-server.properties`. Existing SPARQL updates use the lexical graph by
+default; attestation writers use `RDFQueryUtil.updateAttestation`.
+
+`LexOTexts` continues to create one graph per document and one graph per corpus
+below `TextGraphDb.namedGraphBase`.
