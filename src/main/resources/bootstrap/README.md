@@ -11,7 +11,7 @@ and the text repository is `LexOTexts`. No Maven environment profile is used.
   from `lexo-server.properties`; the lexicon uses `owl-horst-optimized`, while
   texts use `empty`.
 - `schema/schema-imports.json`: ordered list of RDF/XML resources imported into
-  `https://lexo.ilc.cnr.it/graphs/schema` in the lexical repository.
+  `https://lexo.ilc.cnr.it/graphs/lexical/schema` in the lexical repository.
 - `indexes/indexes.json`: ordered list of GraphDB Lucene connector definitions.
 
 Schema resources are parsed with the absolute base IRI configured by
@@ -29,13 +29,16 @@ bootstrap phase to run again; unchanged resources are skipped.
 - `https://lexo.ilc.cnr.it/graphs/lexical/lexica` contains lexical data;
 - `https://lexo.ilc.cnr.it/graphs/lexical/attestations` contains FRAC
   attestations;
-- `https://lexo.ilc.cnr.it/graphs/schema` contains the imported vocabularies;
+- `https://lexo.ilc.cnr.it/graphs/lexical/annotations` contains Web Annotations;
+- `https://lexo.ilc.cnr.it/graphs/lexical/schema` contains the imported vocabularies;
 - `https://lexo.ilc.cnr.it/graphs/bootstrap` contains bootstrap checksums.
 
 The lexical graph URIs can be changed with `GraphDb.namedGraphBase`,
-`GraphDb.lexiconNamedGraph`, and `GraphDb.attestationNamedGraph` in
+`GraphDb.lexiconNamedGraph`, `GraphDb.attestationNamedGraph`,
+`GraphDb.annotationNamedGraph`, and `GraphDb.schemaNamedGraph` in
 `lexo-server.properties`. Existing SPARQL updates use the lexical graph by
-default; attestation writers use `RDFQueryUtil.updateAttestation`.
+default; attestation writers use `RDFQueryUtil.updateAttestation`, while
+annotation writers use `RDFQueryUtil.updateAnnotation`.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.

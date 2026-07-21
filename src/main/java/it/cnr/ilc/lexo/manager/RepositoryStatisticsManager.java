@@ -1,15 +1,26 @@
 package it.cnr.ilc.lexo.manager;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cnr.ilc.lexo.LexOProperties;
+import it.cnr.ilc.lexo.bootstrap.BootstrapResources;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.AnnotationGraph;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.AttestationGraph;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.Corpus;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.LexicaGraph;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.LexicalRepository;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.LexicalResource;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.NamedGraphSummary;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.RdfValue;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.RepositorySummary;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.SchemaFile;
+import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.SchemaGraph;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.Text;
 import it.cnr.ilc.lexo.service.data.administration.output.RepositoryStatistics.TextRepository;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -23,12 +34,14 @@ import java.util.Map;
 import java.util.Set;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
+import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryLanguage;
@@ -38,6 +51,8 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
+import org.eclipse.rdf4j.rio.RDFFormat;
+import org.eclipse.rdf4j.rio.Rio;
 
 /** Reads administration statistics directly from the two configured repositories. */
 public class RepositoryStatisticsManager implements Manager {
@@ -48,11 +63,13 @@ public class RepositoryStatisticsManager implements Manager {
     private static final String ONTOLEX_NS = "http://www.w3.org/ns/lemon/ontolex#";
     private static final String LEXICOG_NS = "http://www.w3.org/ns/lemon/lexicog#";
     private static final String FRAC_NS = "http://www.w3.org/ns/lemon/frac#";
+    private static final String OA_NS = "http://www.w3.org/ns/oa#";
     private static final String NIF_NS =
             "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
 
     private static final List<IRI> TEXT_METADATA_PREDICATES;
     private static final ValueFactory VF = SimpleValueFactory.getInstance();
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     static {
         TEXT_METADATA_PREDICATES = Collections.unmodifiableList(Arrays.asList(
@@ -106,24 +123,52 @@ public class RepositoryStatisticsManager implements Manager {
     private LexicalRepository lexicalStatistics(RepositoryConnection connection,
                                                 String name) {
         LexicalRepository statistics = new LexicalRepository();
+        statistics.name = name;
         IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
         IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri());
-        fillSummary(connection, name, statistics);
-        statistics.lexicons = lexicalResources(connection, LIME_NS + "Lexicon",
+        IRI annotationGraph = iri(LexicalNamedGraphs.annotationGraphUri());
+        IRI schemaGraph = iri(LexicalNamedGraphs.schemaGraphUri());
+
+        LexicaGraph lexica = new LexicaGraph();
+        fillGraphSummary(connection, "lexica", lexicalGraph, lexica);
+        lexica.lexicons = lexicalResources(connection, LIME_NS + "Lexicon",
                 DCTERMS.DESCRIPTION, iri(LIME_NS + "language"), lexicalGraph);
-        statistics.lexiconCount = statistics.lexicons.size();
-        statistics.lexicalEntryCount = countInstances(connection,
+        lexica.lexiconCount = lexica.lexicons.size();
+        lexica.lexicalEntryCount = countInstances(connection,
                 ONTOLEX_NS + "LexicalEntry", lexicalGraph);
-        statistics.lexicalSenseCount = countInstances(connection,
+        lexica.lexicalSenseCount = countInstances(connection,
                 ONTOLEX_NS + "LexicalSense", lexicalGraph);
-        statistics.dictionaries = lexicalResources(connection,
+        lexica.dictionaries = lexicalResources(connection,
                 LEXICOG_NS + "LexicographicResource", DCTERMS.DESCRIPTION,
                 DCTERMS.LANGUAGE, lexicalGraph);
-        statistics.dictionaryCount = statistics.dictionaries.size();
-        statistics.dictionaryEntryCount = countInstances(connection,
+        lexica.dictionaryCount = lexica.dictionaries.size();
+        lexica.dictionaryEntryCount = countInstances(connection,
                 LEXICOG_NS + "Entry", lexicalGraph);
-        statistics.attestationCount = countInstances(connection,
+
+        AttestationGraph attestations = new AttestationGraph();
+        fillGraphSummary(connection, "attestations", attestationGraph, attestations);
+        attestations.attestationCount = countInstances(connection,
                 FRAC_NS + "Attestation", attestationGraph);
+        attestations.frequencyCount = countInstances(connection,
+                FRAC_NS + "Frequency", attestationGraph);
+        attestations.collocationCount = countInstances(connection,
+                FRAC_NS + "Collocation", attestationGraph);
+
+        AnnotationGraph annotations = new AnnotationGraph();
+        fillGraphSummary(connection, "annotations", annotationGraph, annotations);
+        annotations.annotationCount = countInstances(connection,
+                OA_NS + "Annotation", annotationGraph);
+
+        SchemaGraph schema = new SchemaGraph();
+        fillGraphSummary(connection, "schema", schemaGraph, schema);
+        if (schema.explicitStatements > 0) {
+            schema.files = schemaFiles(connection, schemaGraph);
+        }
+
+        statistics.lexica = lexica;
+        statistics.attestations = attestations;
+        statistics.annotations = annotations;
+        statistics.schema = schema;
         return statistics;
     }
 
@@ -184,6 +229,21 @@ public class RepositoryStatisticsManager implements Manager {
         summary.explicitStatements = connection.size();
         summary.totalStatements = count(connection,
                 "SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }");
+        completeSummary(summary);
+    }
+
+    private void fillGraphSummary(RepositoryConnection connection, String name,
+                                  IRI graph, NamedGraphSummary summary) {
+        summary.name = name;
+        summary.iri = graph.stringValue();
+        String query = "SELECT (COUNT(*) AS ?count) WHERE { GRAPH <"
+                + graph.stringValue() + "> { ?s ?p ?o } }";
+        summary.explicitStatements = count(connection, query, false);
+        summary.totalStatements = count(connection, query, true);
+        completeSummary(summary);
+    }
+
+    private void completeSummary(RepositorySummary summary) {
         summary.inferredStatements = Math.max(0,
                 summary.totalStatements - summary.explicitStatements);
         if (summary.explicitStatements > 0) {
@@ -192,6 +252,106 @@ public class RepositoryStatisticsManager implements Manager {
                             RoundingMode.HALF_UP)
                     .doubleValue();
         }
+    }
+
+    private List<SchemaFile> schemaFiles(RepositoryConnection connection, IRI graph) {
+        String manifestResource = configured("Bootstrap.schema.manifest",
+                "bootstrap/schema/schema-imports.json");
+        JsonNode manifest;
+        try {
+            manifest = JSON.readTree(BootstrapResources.readBytes(manifestResource));
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to read schema manifest: "
+                    + manifestResource, e);
+        }
+        List<SchemaFile> files = new ArrayList<SchemaFile>();
+        for (JsonNode item : manifest.path("files")) {
+            if (!item.isTextual() || item.asText().trim().isEmpty()) {
+                continue;
+            }
+            files.add(schemaFile(connection, graph, item.asText().trim()));
+        }
+        return files;
+    }
+
+    private SchemaFile schemaFile(RepositoryConnection connection, IRI graph,
+                                  String resource) {
+        byte[] bytes = BootstrapResources.readBytes(resource);
+        Model model;
+        try (ByteArrayInputStream input = new ByteArrayInputStream(bytes)) {
+            model = Rio.parse(input, schemaBaseIri(resource), RDFFormat.RDFXML);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to parse schema resource: " + resource, e);
+        }
+
+        SchemaFile file = new SchemaFile();
+        int separator = resource.lastIndexOf('/');
+        file.name = separator < 0 ? resource : resource.substring(separator + 1);
+        file.explicitStatements = model.size();
+
+        Set<Resource> ontologyResources = model.filter(null, RDF.TYPE, OWL.ONTOLOGY).subjects();
+        Set<String> ontologyIris = new LinkedHashSet<String>();
+        Set<String> versions = new LinkedHashSet<String>();
+        for (Resource ontology : ontologyResources) {
+            if (ontology instanceof IRI) {
+                ontologyIris.add(ontology.stringValue());
+            }
+            addValues(model, ontology, OWL.VERSIONINFO, versions);
+            addValues(model, ontology, OWL.VERSIONIRI, versions);
+        }
+        file.ontologyIris.addAll(ontologyIris);
+        file.versions.addAll(versions);
+
+        Set<IRI> subjects = new LinkedHashSet<IRI>();
+        for (Resource subject : model.subjects()) {
+            if (subject instanceof IRI) {
+                subjects.add((IRI) subject);
+            }
+        }
+        long inferred = inferredStatementsForSubjects(connection, graph, subjects);
+        file.inferredStatements = inferred;
+        file.totalStatements = file.explicitStatements + inferred;
+        completeSummary(file);
+        return file;
+    }
+
+    private long inferredStatementsForSubjects(RepositoryConnection connection, IRI graph,
+                                               Set<IRI> subjects) {
+        if (subjects.isEmpty()) {
+            return 0;
+        }
+        List<IRI> ordered = new ArrayList<IRI>(subjects);
+        long inferred = 0;
+        final int batchSize = 100;
+        for (int start = 0; start < ordered.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, ordered.size());
+            StringBuilder values = new StringBuilder();
+            for (int index = start; index < end; index++) {
+                values.append('<').append(ordered.get(index).stringValue()).append("> ");
+            }
+            String query = "SELECT (COUNT(*) AS ?count) WHERE { VALUES ?subject { "
+                    + values + " } GRAPH <" + graph.stringValue()
+                    + "> { ?subject ?predicate ?object } }";
+            inferred += Math.max(0,
+                    count(connection, query, true) - count(connection, query, false));
+        }
+        return inferred;
+    }
+
+    private static void addValues(Model model, Resource subject, IRI predicate,
+                                  Set<String> target) {
+        for (Value value : model.filter(subject, predicate, null).objects()) {
+            target.add(value.stringValue());
+        }
+    }
+
+    private static String schemaBaseIri(String resource) {
+        String base = configured("Bootstrap.schema.baseIri",
+                "https://lexo.ilc.cnr.it/resources/");
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/" + resource;
     }
 
     private long countInstances(RepositoryConnection connection, String classIri) {
@@ -209,8 +369,13 @@ public class RepositoryStatisticsManager implements Manager {
     }
 
     private long count(RepositoryConnection connection, String sparql) {
+        return count(connection, sparql, true);
+    }
+
+    private long count(RepositoryConnection connection, String sparql,
+                       boolean includeInferred) {
         TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, sparql);
-        query.setIncludeInferred(true);
+        query.setIncludeInferred(includeInferred);
         try (TupleQueryResult result = query.evaluate()) {
             if (!result.hasNext()) {
                 return 0;

@@ -32,6 +32,8 @@ class LexicalNamedGraphsTest {
                     VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isTrue();
             assertThat(connection.hasStatement(subject, predicate, null, false,
                     VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isFalse();
+            assertThat(connection.hasStatement(subject, predicate, null, false,
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isFalse();
             assertDefaultGraphEmpty(connection);
         } finally {
             repository.shutDown();
@@ -91,6 +93,33 @@ class LexicalNamedGraphsTest {
                     VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isTrue();
             assertThat(connection.hasStatement(subject, rdfType, null, false,
                     VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isFalse();
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isFalse();
+            assertDefaultGraphEmpty(connection);
+        } finally {
+            repository.shutDown();
+        }
+    }
+
+    @Test
+    void writesAnnotationsOnlyToAnnotationGraph() {
+        IRI subject = VF.createIRI("https://example.org/annotation/one");
+        IRI rdfType = VF.createIRI(
+                "http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
+
+        SailRepository repository = new SailRepository(new MemoryStore());
+        repository.init();
+        try (RepositoryConnection connection = repository.getConnection()) {
+            execute(connection, "INSERT DATA { <" + subject + "> a "
+                    + "<http://www.w3.org/ns/oa#Annotation> }",
+                    LexicalNamedGraphs.Kind.ANNOTATION);
+
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isTrue();
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isFalse();
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isFalse();
             assertDefaultGraphEmpty(connection);
         } finally {
             repository.shutDown();

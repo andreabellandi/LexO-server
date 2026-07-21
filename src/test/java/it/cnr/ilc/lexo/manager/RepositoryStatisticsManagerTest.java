@@ -27,6 +27,7 @@ class RepositoryStatisticsManagerTest {
     private static final String ONTOLEX = "http://www.w3.org/ns/lemon/ontolex#";
     private static final String LEXICOG = "http://www.w3.org/ns/lemon/lexicog#";
     private static final String FRAC = "http://www.w3.org/ns/lemon/frac#";
+    private static final String OA = "http://www.w3.org/ns/oa#";
     private static final String NIF =
             "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
 
@@ -58,22 +59,35 @@ class RepositoryStatisticsManagerTest {
                 lexicalRepository, "LexOLexica", textRepository, "LexOTexts");
 
         assertThat(result.lexicalRepository.name).isEqualTo("LexOLexica");
-        assertThat(result.lexicalRepository.totalStatements)
-                .isEqualTo(result.lexicalRepository.explicitStatements);
-        assertThat(result.lexicalRepository.inferredStatements).isZero();
-        assertThat(result.lexicalRepository.expansionRatio).isEqualTo(1.0d);
-        assertThat(result.lexicalRepository.lexiconCount).isEqualTo(1);
-        assertThat(result.lexicalRepository.lexicons.get(0).descriptions)
+        assertThat(result.lexicalRepository.lexica.iri)
+                .isEqualTo(LexicalNamedGraphs.lexiconGraphUri());
+        assertThat(result.lexicalRepository.lexica.totalStatements)
+                .isEqualTo(result.lexicalRepository.lexica.explicitStatements);
+        assertThat(result.lexicalRepository.lexica.inferredStatements).isZero();
+        assertThat(result.lexicalRepository.lexica.expansionRatio).isEqualTo(1.0d);
+        assertThat(result.lexicalRepository.lexica.lexiconCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.lexica.lexicons.get(0).descriptions)
                 .extracting(value -> value.value)
                 .containsExactly("Lessico di prova");
-        assertThat(result.lexicalRepository.lexicons.get(0).languages)
+        assertThat(result.lexicalRepository.lexica.lexicons.get(0).languages)
                 .extracting(value -> value.value)
                 .containsExactly("it");
-        assertThat(result.lexicalRepository.lexicalEntryCount).isEqualTo(2);
-        assertThat(result.lexicalRepository.lexicalSenseCount).isEqualTo(1);
-        assertThat(result.lexicalRepository.dictionaryCount).isEqualTo(1);
-        assertThat(result.lexicalRepository.dictionaryEntryCount).isEqualTo(1);
-        assertThat(result.lexicalRepository.attestationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.lexica.lexicalEntryCount).isEqualTo(2);
+        assertThat(result.lexicalRepository.lexica.lexicalSenseCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.lexica.dictionaryCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.lexica.dictionaryEntryCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.attestations.attestationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.attestations.frequencyCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.attestations.collocationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.annotations.annotationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.schema.iri)
+                .isEqualTo(LexicalNamedGraphs.schemaGraphUri());
+        assertThat(result.lexicalRepository.schema.files)
+                .extracting(file -> file.name)
+                .contains("lexinfo.owl", "ontolex.rdf", "lexicog.rdf");
+        assertThat(result.lexicalRepository.schema.files.stream()
+                .filter(file -> file.name.equals("lexinfo.owl"))
+                .findFirst().get().versions).contains("3.0");
 
         assertThat(result.textRepository.name).isEqualTo("LexOTexts");
         assertThat(result.textRepository.corpusCount).isEqualTo(1);
@@ -103,8 +117,9 @@ class RepositoryStatisticsManagerTest {
         RepositoryStatistics result = new RepositoryStatisticsManager().getStatistics(
                 lexicalRepository, "LexOLexica", textRepository, "LexOTexts");
 
-        assertThat(result.lexicalRepository.totalStatements).isZero();
-        assertThat(result.lexicalRepository.expansionRatio).isNull();
+        assertThat(result.lexicalRepository.lexica.totalStatements).isZero();
+        assertThat(result.lexicalRepository.lexica.expansionRatio).isNull();
+        assertThat(result.lexicalRepository.schema.files).isEmpty();
         assertThat(result.textRepository.corpusCount).isZero();
         assertThat(result.textRepository.textCount).isZero();
     }
@@ -113,6 +128,8 @@ class RepositoryStatisticsManagerTest {
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
             IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri());
+            IRI annotationGraph = iri(LexicalNamedGraphs.annotationGraphUri());
+            IRI schemaGraph = iri(LexicalNamedGraphs.schemaGraphUri());
             IRI unrelatedGraph = iri("https://example.org/graphs/unrelated");
             IRI lexicon = iri("https://example.org/lexicon");
             connection.add(lexicon, RDF.TYPE, iri(LIME + "Lexicon"), lexicalGraph);
@@ -138,6 +155,17 @@ class RepositoryStatisticsManagerTest {
                     iri(LEXICOG + "Entry"), lexicalGraph);
             connection.add(iri("https://example.org/attestation"), RDF.TYPE,
                     iri(FRAC + "Attestation"), attestationGraph);
+            connection.add(iri("https://example.org/frequency"), RDF.TYPE,
+                    iri(FRAC + "Frequency"), attestationGraph);
+            connection.add(iri("https://example.org/collocation"), RDF.TYPE,
+                    iri(FRAC + "Collocation"), attestationGraph);
+            connection.add(iri("https://example.org/annotation"), RDF.TYPE,
+                    iri(OA + "Annotation"), annotationGraph);
+            IRI schema = iri("https://example.org/schema");
+            connection.add(schema, RDF.TYPE,
+                    iri("http://www.w3.org/2002/07/owl#Ontology"), schemaGraph);
+            connection.add(schema, iri("http://www.w3.org/2002/07/owl#versionInfo"),
+                    vf.createLiteral("test"), schemaGraph);
 
             // These resources must remain invisible to lexical statistics.
             connection.add(iri("https://example.org/default-entry"), RDF.TYPE,
@@ -150,6 +178,8 @@ class RepositoryStatisticsManagerTest {
                     iri(ONTOLEX + "LexicalEntry"), unrelatedGraph);
             connection.add(iri("https://example.org/unrelated-attestation"), RDF.TYPE,
                     iri(FRAC + "Attestation"), unrelatedGraph);
+            connection.add(iri("https://example.org/wrong-graph-annotation"), RDF.TYPE,
+                    iri(OA + "Annotation"), lexicalGraph);
             connection.add(lexicon, DCTERMS.DESCRIPTION,
                     vf.createLiteral("Descrizione da ignorare", "it"), unrelatedGraph);
         }

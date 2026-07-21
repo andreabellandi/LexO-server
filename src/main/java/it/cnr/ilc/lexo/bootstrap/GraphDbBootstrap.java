@@ -41,6 +41,7 @@ public final class GraphDbBootstrap {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final ValueFactory VF = SimpleValueFactory.getInstance();
     private static final String DEFAULT_METADATA_GRAPH = "https://lexo.ilc.cnr.it/graphs/bootstrap";
+    private static final String LEGACY_SCHEMA_GRAPH = "https://lexo.ilc.cnr.it/graphs/schema";
     private static volatile boolean initialized;
 
     private GraphDbBootstrap() {
@@ -146,7 +147,12 @@ public final class GraphDbBootstrap {
         String manifestResource = LexOProperties.getProperty("Bootstrap.schema.manifest",
                 "bootstrap/schema/schema-imports.json");
         JsonNode manifest = parseJson(manifestResource);
-        String namedGraph = manifest.path("namedGraph").asText();
+        String namedGraph = LexOProperties.getProperty("GraphDb.schemaNamedGraph");
+        if (namedGraph == null || namedGraph.trim().isEmpty() || namedGraph.contains("${")) {
+            namedGraph = manifest.path("namedGraph").asText();
+        } else {
+            namedGraph = namedGraph.trim();
+        }
         if (namedGraph.isEmpty()) {
             throw new IllegalStateException("Missing namedGraph in " + manifestResource);
         }
@@ -157,6 +163,12 @@ public final class GraphDbBootstrap {
         IRI marker = VF.createIRI(metadataGraph.stringValue() + "/schema");
 
         try (RepositoryConnection connection = repository.getConnection()) {
+            IRI legacyGraph = VF.createIRI(LEGACY_SCHEMA_GRAPH);
+            if (!legacyGraph.equals(graph)
+                    && connection.hasStatement(null, null, null, false, legacyGraph)) {
+                connection.clear(legacyGraph);
+                LOGGER.info("Removed legacy schema graph {}", LEGACY_SCHEMA_GRAPH);
+            }
             if (checksum.equals(readChecksum(connection, marker, metadataGraph))
                     && connection.hasStatement(null, null, null, false, graph)) {
                 LOGGER.info("Schema resources unchanged; import skipped");

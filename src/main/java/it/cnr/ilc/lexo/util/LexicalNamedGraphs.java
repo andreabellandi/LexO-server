@@ -20,7 +20,8 @@ public final class LexicalNamedGraphs {
 
     public enum Kind {
         LEXICON,
-        ATTESTATION
+        ATTESTATION,
+        ANNOTATION
     }
 
     private LexicalNamedGraphs() {
@@ -36,10 +37,26 @@ public final class LexicalNamedGraphs {
                 baseUri() + "attestations");
     }
 
+    public static String annotationGraphUri() {
+        return configured("GraphDb.annotationNamedGraph",
+                baseUri() + "annotations");
+    }
+
+    public static String schemaGraphUri() {
+        return configured("GraphDb.schemaNamedGraph",
+                baseUri() + "schema");
+    }
+
     public static String graphUri(Kind kind) {
-        return kind == Kind.ATTESTATION
-                ? attestationGraphUri()
-                : lexiconGraphUri();
+        switch (kind) {
+            case ATTESTATION:
+                return attestationGraphUri();
+            case ANNOTATION:
+                return annotationGraphUri();
+            case LEXICON:
+            default:
+                return lexiconGraphUri();
+        }
     }
 
     /**

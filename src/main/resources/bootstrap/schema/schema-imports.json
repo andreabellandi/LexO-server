@@ -1,5 +1,5 @@
 {
-  "namedGraph": "https://lexo.ilc.cnr.it/graphs/schema",
+  "namedGraph": "https://lexo.ilc.cnr.it/graphs/lexical/schema",
   "files": [
     "bootstrap/schema/lexinfo.owl",
     "bootstrap/schema/decomp.rdf",

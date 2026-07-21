@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The context path is derived from LexO-server.war (or assigned by the
-  deployment tool). Tomcat context.xml files must contain one Context only;
-  nesting another Context here makes deployment fail.
+  Keep a single Context element. The explicit path is required by the
+  NetBeans 12.2 Tomcat deployer when it deploys the exploded web application.
 -->
-<Context antiResourceLocking="true">
+<Context path="/LexO-server">
   <Manager pathname=""/>
 </Context>

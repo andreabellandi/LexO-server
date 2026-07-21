@@ -136,6 +136,12 @@ public class RDFQueryUtil {
         update(query, Kind.ATTESTATION);
     }
 
+    /** Executes an update in the dedicated annotation named graph. */
+    public static void updateAnnotation(String query) {
+
+        update(query, Kind.ANNOTATION);
+    }
+
     public static void update(String query, Kind graphKind) {
 
         RepositoryConnection conn = GraphDbUtil.getConnection();

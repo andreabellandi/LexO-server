@@ -22,7 +22,19 @@ public class RepositoryStatistics implements Data {
         public Double expansionRatio;
     }
 
-    public static class LexicalRepository extends RepositorySummary {
+    public static class LexicalRepository {
+        public String name;
+        public LexicaGraph lexica;
+        public AttestationGraph attestations;
+        public AnnotationGraph annotations;
+        public SchemaGraph schema;
+    }
+
+    public static class NamedGraphSummary extends RepositorySummary {
+        public String iri;
+    }
+
+    public static class LexicaGraph extends NamedGraphSummary {
         public long lexiconCount;
         public List<LexicalResource> lexicons = new ArrayList<LexicalResource>();
         public long lexicalEntryCount;
@@ -30,7 +42,25 @@ public class RepositoryStatistics implements Data {
         public long dictionaryCount;
         public List<LexicalResource> dictionaries = new ArrayList<LexicalResource>();
         public long dictionaryEntryCount;
+    }
+
+    public static class AttestationGraph extends NamedGraphSummary {
         public long attestationCount;
+        public long frequencyCount;
+        public long collocationCount;
+    }
+
+    public static class AnnotationGraph extends NamedGraphSummary {
+        public long annotationCount;
+    }
+
+    public static class SchemaGraph extends NamedGraphSummary {
+        public List<SchemaFile> files = new ArrayList<SchemaFile>();
+    }
+
+    public static class SchemaFile extends RepositorySummary {
+        public List<String> ontologyIris = new ArrayList<String>();
+        public List<String> versions = new ArrayList<String>();
     }
 
     public static class LexicalResource {

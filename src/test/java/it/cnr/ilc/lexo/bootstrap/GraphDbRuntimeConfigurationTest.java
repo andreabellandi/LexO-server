@@ -35,6 +35,10 @@ class GraphDbRuntimeConfigurationTest {
                 .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/lexica");
         assertThat(properties.getProperty("GraphDb.attestationNamedGraph"))
                 .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/attestations");
+        assertThat(properties.getProperty("GraphDb.annotationNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/annotations");
+        assertThat(properties.getProperty("GraphDb.schemaNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/schema");
         assertThat(properties.getProperty("TextGraphDb.url"))
                 .isEqualTo("http://localhost:7200");
         assertThat(properties.getProperty("TextGraphDb.repository"))
