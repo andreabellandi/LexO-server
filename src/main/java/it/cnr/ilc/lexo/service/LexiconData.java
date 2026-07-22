@@ -202,6 +202,12 @@ public class LexiconData extends Service {
                 TupleQueryResult lexicalEntry = lexiconManager.getLexicalEntry(_id);
                 List<LexicalEntryCore> _lec = lexicalEntryCoreHelper.newDataList(lexicalEntry);
                 LexicalEntryCore lec = lexiconManager.getLexicalEntityTypes(_lec);
+                if (lec == null) {
+                    return Response.status(Response.Status.NOT_FOUND)
+                            .type(MediaType.TEXT_PLAIN)
+                            .entity("Lexical entry not found: " + _id)
+                            .build();
+                }
                 TupleQueryResult lexicalEntityLinks = lexiconManager.getLexicalEntityLinks(_id, SparqlVariable.LEXICAL_ENTRY_INDEX);
                 LexicalEntityLinksItem links = lexicalEntityLinksItemHelper.newData(lexicalEntityLinks);
                 lexiconManager.addLexicalEntityLink(lec, links);

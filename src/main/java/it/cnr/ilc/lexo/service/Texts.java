@@ -3,6 +3,8 @@ package it.cnr.ilc.lexo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
@@ -53,7 +55,15 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response upload(@HeaderParam("Authorization") String key, FormDataMultiPart multiPart) {
+    @ApiOperation(value = "Text upload",
+            notes = "This method uploads one TXT or CommonMark file and an optional CoNLL-U file, and returns the generated file id")
+    public Response upload(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "file",
+                    value = "multipart request containing one TXT/CommonMark file in the file field and an optional CoNLL-U file in the conllu field",
+                    required = true)
+            FormDataMultiPart multiPart) {
         String fileId = UUID.randomUUID().toString();
         try {
             checkKey(key);
@@ -157,9 +167,22 @@ public class Texts extends Service {
     @POST
     @javax.ws.rs.Path("/{fileId}/convert")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response convert(@HeaderParam("Authorization") String key,
-                            @PathParam("fileId") String fileId,
-                            @QueryParam("corpusId") String corpusId) {
+    @ApiOperation(value = "Text NIF conversion",
+            notes = "This method starts the asynchronous conversion of an uploaded text to NIF and optionally adds it to a corpus")
+    public Response convert(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id returned by the text upload service",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "optional id of the corpus to which the converted text must be added",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = false)
+            @QueryParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             log(Level.INFO, "/texts/{fileId}/convert: required for id " + fileId);
@@ -177,8 +200,15 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/corpora")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createCorpus(@HeaderParam("Authorization") String key,
-                                 FormDataMultiPart multiPart) {
+    @ApiOperation(value = "Corpus creation",
+            notes = "This method creates an empty NIF corpus from a TXT file containing only the supported metadata header")
+    public Response createCorpus(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "file",
+                    value = "multipart request containing exactly one TXT corpus metadata file in the file field",
+                    required = true)
+            FormDataMultiPart multiPart) {
         String corpusId = UUID.randomUUID().toString();
         try {
             checkKey(key);
@@ -227,8 +257,16 @@ public class Texts extends Service {
     @GET
     @javax.ws.rs.Path("/corpora/{corpusId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response corpusRecord(@HeaderParam("Authorization") String key,
-                                 @PathParam("corpusId") String corpusId) {
+    @ApiOperation(value = "Corpus metadata retrieval",
+            notes = "This method returns the corpus record, its metadata and the texts currently assigned to it")
+    public Response corpusRecord(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "corpus id returned by the corpus creation service",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             CorpusRecord record = CorpusManager.get().getRecord(corpusId);
@@ -246,8 +284,16 @@ public class Texts extends Service {
     @GET
     @javax.ws.rs.Path("/corpora/{corpusId}/nif")
     @Produces("text/turtle")
-    public Response corpusNif(@HeaderParam("Authorization") String key,
-                              @PathParam("corpusId") String corpusId) {
+    @ApiOperation(value = "Corpus NIF download",
+            notes = "This method downloads the corpus NIF graph serialized as Turtle")
+    public Response corpusNif(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "id of the corpus whose NIF graph must be downloaded",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             CorpusManager manager = CorpusManager.get();
@@ -265,8 +311,16 @@ public class Texts extends Service {
     @DELETE
     @javax.ws.rs.Path("/corpora/{corpusId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response deleteCorpus(@HeaderParam("Authorization") String key,
-                                 @PathParam("corpusId") String corpusId) {
+    @ApiOperation(value = "Corpus deletion",
+            notes = "This method deletes a corpus NIF graph and its persisted descriptor without deleting the member text graphs")
+    public Response deleteCorpus(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "id of the corpus to delete",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
@@ -285,8 +339,16 @@ public class Texts extends Service {
 
     @GET
     @javax.ws.rs.Path("/corpora/{corpusId}/original")
-    public Response corpusOriginal(@HeaderParam("Authorization") String key,
-                                   @PathParam("corpusId") String corpusId) {
+    @ApiOperation(value = "Corpus descriptor download",
+            notes = "This method downloads the original TXT metadata descriptor used to create the corpus")
+    public Response corpusOriginal(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "id of the corpus whose original descriptor must be downloaded",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId) {
         try {
             checkKey(key);
             CorpusRecord record = CorpusManager.get().getRecord(corpusId);
@@ -304,8 +366,16 @@ public class Texts extends Service {
     @GET
     @javax.ws.rs.Path("/{fileId}/status")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response status(@HeaderParam("Authorization") String key,
-                           @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Text conversion status",
+            notes = "This method returns the current asynchronous conversion status for an uploaded text")
+    public Response status(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the uploaded text whose conversion status must be returned",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         try {
             checkKey(key);
             Collection<TextJobInfo> jobs = TextJobManager.get().getAllJobsFor(fileId);
@@ -319,9 +389,21 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/{fileId}/cancel")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response cancel(@HeaderParam("Authorization") String key,
-                           @PathParam("fileId") String fileId,
-                           CancelRequest request) {
+    @ApiOperation(value = "Text conversion cancellation",
+            notes = "This method requests cancellation of the asynchronous NIF conversion for an uploaded text")
+    public Response cancel(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the uploaded text whose conversion must be cancelled",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId,
+            @ApiParam(
+                    name = "request",
+                    value = "optional cancellation request; when supplied, type must be CONVERT",
+                    required = false)
+            CancelRequest request) {
         try {
             checkKey(key);
             if (request != null && request.type != null
@@ -340,8 +422,16 @@ public class Texts extends Service {
     @GET
     @javax.ws.rs.Path("/{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response record(@HeaderParam("Authorization") String key,
-                           @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Text metadata retrieval",
+            notes = "This method returns the persisted record and metadata for a converted text")
+    public Response record(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text whose record must be returned",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         try {
             checkKey(key);
             TextRecord record = TextJobManager.get().getRecord(fileId);
@@ -356,39 +446,79 @@ public class Texts extends Service {
     @GET
     @javax.ws.rs.Path("/{fileId}/nif")
     @Produces("text/turtle")
-    public Response nif(@HeaderParam("Authorization") String key,
-                        @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Text NIF download",
+            notes = "This method downloads the converted text NIF graph serialized as Turtle")
+    public Response nif(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text whose NIF graph must be downloaded",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         return artifact(key, fileId, Artifact.NIF);
     }
 
     @GET
     @javax.ws.rs.Path("/{fileId}/original")
-    public Response original(@HeaderParam("Authorization") String key,
-                             @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Original text download",
+            notes = "This method downloads the original TXT or CommonMark file supplied during upload")
+    public Response original(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text whose original file must be downloaded",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         return artifact(key, fileId, Artifact.ORIGINAL);
     }
 
     @GET
     @javax.ws.rs.Path("/{fileId}/canonical")
     @Produces(MediaType.TEXT_PLAIN)
-    public Response canonical(@HeaderParam("Authorization") String key,
-                              @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Canonical text download",
+            notes = "This method downloads the normalized plain text used to generate NIF character offsets")
+    public Response canonical(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text whose canonical representation must be downloaded",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         return artifact(key, fileId, Artifact.CANONICAL);
     }
 
     @GET
     @javax.ws.rs.Path("/{fileId}/conllu")
     @Produces("text/x-conllu")
-    public Response conllu(@HeaderParam("Authorization") String key,
-                           @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "CoNLL-U download",
+            notes = "This method downloads the optional CoNLL-U file associated with the converted text")
+    public Response conllu(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text whose CoNLL-U file must be downloaded",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         return artifact(key, fileId, Artifact.CONLLU);
     }
 
     @DELETE
     @javax.ws.rs.Path("/{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response delete(@HeaderParam("Authorization") String key,
-                           @PathParam("fileId") String fileId) {
+    @ApiOperation(value = "Text deletion",
+            notes = "This method deletes the text NIF graph, detaches it from its corpus and removes all persisted files")
+    public Response delete(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "fileId",
+                    value = "id of the text to delete",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId) {
         try {
             checkKey(key);
             Map<String, Object> response = new LinkedHashMap<String, Object>();

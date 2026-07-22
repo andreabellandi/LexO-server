@@ -43,6 +43,8 @@ import it.cnr.ilc.lexo.util.StringUtil;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -378,7 +380,8 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getLexicalEntry(String lexicalEntryID) throws ManagerException {
-        String query = SparqlSelectData.DATA_LEXICAL_ENTRY_CORE.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"");
+        String query = SparqlSelectData.DATA_LEXICAL_ENTRY_CORE.replace(
+                "[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -466,18 +469,31 @@ public class LexiconDataManager implements Manager, Cached {
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getLexicalEntityLinks(String lexicalEntryID, String entityType) {
-        String query = SparqlSelectData.DATA_LEXICAL_ENTITY_LINKS.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"")
-                .replace("[INDEX]", entityType)
-                .replace("[FIELD]", entityType.replace("Index", "IRI"));
+    public TupleQueryResult getLexicalEntityLinks(String lexicalEntryID, String entityType) throws ManagerException {
+        String query = SparqlSelectData.DATA_LEXICAL_ENTITY_LINKS.replace(
+                "[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
+    private String toSparqlIri(String value) throws ManagerException {
+        try {
+            return NTriplesUtil.toNTriplesString(
+                    SimpleValueFactory.getInstance().createIRI(value));
+        } catch (IllegalArgumentException ex) {
+            throw new ManagerException("Invalid IRI: " + value, ex);
+        }
+    }
+
     public LexicalEntryCore getLexicalEntityTypes(List<LexicalEntryCore> lecs) {
+        if (lecs == null || lecs.isEmpty()) {
+            return null;
+        }
         if (lecs.size() > 1) {
             ArrayList<String> types = new ArrayList();
             for (LexicalEntryCore lec : lecs) {
-                types.add(lec.getType().get(0));
+                if (lec.getType() != null && !lec.getType().isEmpty()) {
+                    types.add(lec.getType().get(0));
+                }
             }
             lecs.get(0).setType(types);
         }
