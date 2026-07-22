@@ -347,7 +347,7 @@ public class ECDData extends Service {
             userCheck(key);
             String _id = URLDecoder.decode(id, StandardCharsets.UTF_8.name());
             log(Level.INFO, "ecd/data/ECDMeaning: <" + _id + ">");
-            TupleQueryResult entry = ecdManager.getECDMeaning(id);
+            TupleQueryResult entry = ecdManager.getECDMeaning(_id);
             ECDMeaning mean = ECDMeaningHelper.newData(entry);
             String json = ECDMeaningHelper.toJson(mean);
             return Response.ok(json)

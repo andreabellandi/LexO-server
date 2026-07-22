@@ -13,11 +13,10 @@ public class SparqlGraphViz {
 
     public static final String GRAPH_VIZ_SENSE_SUMMARY
             = SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
-            + SparqlPrefix.INST.getSparqlPrefix() + "\n"
+            + SparqlPrefix.ONTO.getSparqlPrefix() + "\n"
             + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
             + SparqlPrefix.SKOS.getSparqlPrefix() + "\n"
             + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
-            + SparqlPrefix.LUC.getSparqlPrefix() + "\n"
             + "SELECT"
             + " ?" + SparqlVariable.LEXICAL_ENTRY
             + " ?" + SparqlVariable.SENSE_DEFINITION
@@ -25,10 +24,9 @@ public class SparqlGraphViz {
             + " ?" + SparqlVariable.LABEL
             + " ?" + SparqlVariable.SENSE
             + "\n"
+            + "FROM onto:explicit\n"
             + "WHERE { \n"
-            + "    ?search a inst:" + SparqlVariable.LEXICAL_SENSE_INDEX + " ;\n"
-            + "      luc:query \"lexicalSenseIRI:[IRI]\" ;\n"
-            + "      luc:entities ?" + SparqlVariable.SENSE + " .\n"
+            + "    VALUES ?" + SparqlVariable.SENSE + " { [IRI] }\n"
             + "    ?" + SparqlVariable.SENSE + " skos:definition ?" + SparqlVariable.SENSE_DEFINITION + " ; \n"
             + "        ontolex:isSenseOf ?" + SparqlVariable.LEXICAL_ENTRY + " .\n"
             + "    ?" + SparqlVariable.LEXICAL_ENTRY + " lexinfo:partOfSpeech ?" + SparqlVariable.LEXICAL_ENTRY_POS + " ;\n"
@@ -36,9 +34,7 @@ public class SparqlGraphViz {
             + "} ";
 
     public static final String GRAPH_VIZ_SENSE_LINKS
-            = SparqlPrefix.INST.getSparqlPrefix() + "\n"
-            + SparqlPrefix.ONTO.getSparqlPrefix() + "\n"
-            + SparqlPrefix.LUC.getSparqlPrefix() + "\n"
+            = SparqlPrefix.ONTO.getSparqlPrefix() + "\n"
             + SparqlPrefix.LEXINFO.getSparqlPrefix() + "\n"
             + SparqlPrefix.SKOS.getSparqlPrefix() + "\n"
             + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
@@ -57,9 +53,7 @@ public class SparqlGraphViz {
             + "FROM NAMED onto:explicit\n"
             + "FROM NAMED onto:implicit\n"
             + "WHERE {\n"
-            + "  ?search a inst:lexicalSenseIndex ;\n"
-            + "      luc:query \"lexicalSenseIRI:[IRI]\" ;\n"
-            + "      luc:entities ?sense .\n"
+            + "  VALUES ?sense { [IRI] }\n"
             + "    { GRAPH ?" + SparqlVariable.GRAPH + " { ?sense lexinfo:hypernym ?outhypernym . } \n"
             + "    	?outhypernym ontolex:isSenseOf [ rdfs:label ?outhypernymWr ] \n"
             + "    }\n"

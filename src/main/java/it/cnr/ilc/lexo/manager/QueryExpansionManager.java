@@ -18,7 +18,9 @@ import it.cnr.ilc.lexo.util.EnumUtil;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
 import java.util.ArrayList;
 import java.util.List;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +81,7 @@ public class QueryExpansionManager implements Manager, Cached {
     }
 
     public TupleQueryResult getForms(LexicalEntryList lel) throws ManagerException {
-        String lexicalEntryList = "";
+        StringBuilder lexicalEntryList = new StringBuilder();
         if (lel.getLexicalEntryList() == null) {
             throw new ManagerException("lexical entries list cannot be empty");
         } else {
@@ -87,17 +89,21 @@ public class QueryExpansionManager implements Manager, Cached {
                 throw new ManagerException("lexical entries list cannot be empty");
             } else {
                 for (String le : lel.getLexicalEntryList()) {
-                    lexicalEntryList = lexicalEntryList + "\\\"" + le + "\\\"" + " OR ";
+                    lexicalEntryList.append(toSparqlIri(le)).append(' ');
                 }
             }
         }
         String query = SparqlQueryExpansion.QUERY_EXPANSION_FORMS.
-                replace("[LEXICAL_ENTRY_LIST]", lexicalEntryList.substring(0, lexicalEntryList.length() - 3));
+                replace("[LEXICAL_ENTRY_LIST]", lexicalEntryList.toString());
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
     public TupleQueryResult getFilterdForms(String ids) throws ManagerException {
-        String query = SparqlQueryExpansion.DATA_FORMS_BY_LEXICAL_SENSE.replace("[IRI]", ids)
+        StringBuilder senseIris = new StringBuilder();
+        for (String id : ids.split("\\s+OR\\s+")) {
+            senseIris.append(toSparqlIri(id.replace("\\\"", "").trim())).append(' ');
+        }
+        String query = SparqlQueryExpansion.DATA_FORMS_BY_LEXICAL_SENSE.replace("[IRI]", senseIris.toString())
                 .replace("[FORM_CONSTRAINT]", "");
         return RDFQueryUtil.evaluateTQuery(query);
     }
@@ -107,14 +113,23 @@ public class QueryExpansionManager implements Manager, Cached {
         Manager.validateWithEnum("acceptedSearchFormExtendTo", EnumUtil.AcceptedSearchFormExtendTo.class, ff.getExtendTo());
         Manager.validateWithEnum("acceptedSearchFormExtensionDegree", EnumUtil.AcceptedSearchFormExtensionDegree.class, String.valueOf(ff.getExtensionDegree()));
         String query = (ff.getFormType().equals(EnumUtil.SearchFormTypes.Lemma.toString()))
-                ? SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", "\\\"" + ff.getLexicalEntry() + "\\\"")
+                ? SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", toSparqlIri(ff.getLexicalEntry()))
                         .replace("[FORM_CONSTRAINT]", "")
                 : ff.getExtensionDegree() == 0
-                ? SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", "\\\"" + ff.getLexicalEntry() + "\\\"")
+                ? SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", toSparqlIri(ff.getLexicalEntry()))
                         .replace("[FORM_CONSTRAINT]", "FILTER(regex(str(?" + SparqlVariable.WRITTEN_REPRESENTATION + "), \"^" + ff.getForm().trim() + "$\"))\n")
-                : SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", "\\\"" + ff.getLexicalEntry() + "\\\"")
+                : SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", toSparqlIri(ff.getLexicalEntry()))
                         .replace("[FORM_CONSTRAINT]", "");
         return RDFQueryUtil.evaluateTQuery(query);
+    }
+
+    private String toSparqlIri(String value) throws ManagerException {
+        try {
+            return NTriplesUtil.toNTriplesString(
+                    SimpleValueFactory.getInstance().createIRI(value));
+        } catch (IllegalArgumentException ex) {
+            throw new ManagerException("Invalid IRI: " + value, ex);
+        }
     }
 
     public TupleQueryResult getRelationByLenght(String relation, String startNode) {

@@ -25,8 +25,10 @@ import java.util.HashMap;
 import java.util.List;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,14 +45,22 @@ public class GraphVizManager implements Manager, Cached {
 
     }
 
-    public TupleQueryResult getNode(String id) {
-        String query = SparqlGraphViz.GRAPH_VIZ_SENSE_SUMMARY.replace("[IRI]", "\\\"" + id + "\\\"");
+    public TupleQueryResult getNode(String id) throws ManagerException {
+        String query = SparqlGraphViz.GRAPH_VIZ_SENSE_SUMMARY.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getLinks(String id) {
-        String query = SparqlGraphViz.GRAPH_VIZ_SENSE_LINKS.replace("[IRI]", "\\\"" + id + "\\\"");
+    public TupleQueryResult getLinks(String id) throws ManagerException {
+        String query = SparqlGraphViz.GRAPH_VIZ_SENSE_LINKS.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
+    }
+
+    private String toSparqlIri(String value) throws ManagerException {
+        try {
+            return NTriplesUtil.toNTriplesString(SimpleValueFactory.getInstance().createIRI(value));
+        } catch (IllegalArgumentException ex) {
+            throw new ManagerException("Invalid IRI: " + value, ex);
+        }
     }
 
     public TupleQueryResult getNodeGraph(String id, NodeGraphFilter ngf, String direction) {

@@ -12,7 +12,9 @@ import it.cnr.ilc.lexo.sparql.SparqlSelectData;
 import it.cnr.ilc.lexo.util.EnumUtil;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
 import it.cnr.ilc.lexo.util.StringUtil;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,8 +116,16 @@ public class ECDDataManager implements Manager, Cached {
     }
     
     public TupleQueryResult getECDMeaning(String id) throws ManagerException {
-        String query = SparqlSelectData.DATA_ECD_MEANING.replace("_ID_", id);
+        String query = SparqlSelectData.DATA_ECD_MEANING.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
+    }
+
+    private String toSparqlIri(String value) throws ManagerException {
+        try {
+            return NTriplesUtil.toNTriplesString(SimpleValueFactory.getInstance().createIRI(value));
+        } catch (IllegalArgumentException ex) {
+            throw new ManagerException("Invalid IRI: " + value, ex);
+        }
     }
     
 }

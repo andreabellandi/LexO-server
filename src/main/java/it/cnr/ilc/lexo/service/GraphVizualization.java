@@ -92,7 +92,7 @@ public class GraphVizualization extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException ex) {
+        } catch (UnsupportedEncodingException | ManagerException ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
     }
