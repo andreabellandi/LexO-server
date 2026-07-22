@@ -111,7 +111,7 @@ public class ECDDataManager implements Manager, Cached {
     }
     
     public TupleQueryResult getECDEntry(String id) throws ManagerException {
-        String query = SparqlSelectData.DATA_ECD_ENTRY.replace("_ID_", id);
+        String query = SparqlSelectData.DATA_ECD_ENTRY.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
     }
     

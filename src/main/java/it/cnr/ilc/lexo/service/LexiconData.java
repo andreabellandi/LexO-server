@@ -504,6 +504,12 @@ public class LexiconData extends Service {
                         + _id + "> iis not a dictionary entry").build();
             }
             TupleQueryResult comps = lexiconManager.getDictEntry(_id);
+            if (!comps.hasNext()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .type(MediaType.TEXT_PLAIN)
+                        .entity("Dictionary entry not found: " + _id)
+                        .build();
+            }
             DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
             String json = dictionaryEntryHelper.toJson(dict);
             return Response.ok(json)
@@ -543,8 +549,10 @@ public class LexiconData extends Service {
             ArrayList<DictionaryEntryCore> decs = new ArrayList();
             for (String de : des) {
                 TupleQueryResult comps = lexiconManager.getDictEntry(de);
-                DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
-                decs.add(dict);
+                if (comps.hasNext()) {
+                    DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
+                    decs.add(dict);
+                }
             }
             String json = dictionaryEntryHelper.toJson(decs);
             return Response.ok(json)

@@ -197,7 +197,13 @@ public class ECDData extends Service {
             userCheck(key);
             String _id = URLDecoder.decode(id, StandardCharsets.UTF_8.name());
             log(Level.INFO, "ecd/data/ECDEntry: <" + _id + ">");
-            TupleQueryResult entry = ecdManager.getECDEntry(id);
+            TupleQueryResult entry = ecdManager.getECDEntry(_id);
+            if (!entry.hasNext()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .type(MediaType.TEXT_PLAIN)
+                        .entity("Dictionary entry not found: " + _id)
+                        .build();
+            }
             DictionaryEntryCore dec = ECDDictionaryEntryHelper.newData(entry);
             String json = ECDDictionaryEntryHelper.toJson(dec);
             return Response.ok(json)

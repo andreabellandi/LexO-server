@@ -133,6 +133,24 @@ class LexiconDataManagerTest {
         }
     }
 
+    /** Dictionary-entry details bypass Lucene and provide a label fallback for unlabeled entries. */
+    @Test
+    void dictionaryEntryDetailQueriesUseTheEntryIriDirectly() {
+        String iri = "<http://lexica/mylexicon#dictionary_entry>";
+        List<String> queries = Arrays.asList(
+                SparqlSelectData.DATA_DICT_ENTRY.replace("[IRI]", iri),
+                SparqlSelectData.DATA_ECD_ENTRY.replace("[IRI]", iri));
+
+        for (String query : queries) {
+            org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+                    () -> QueryParserUtil.parseTupleQuery(QueryLanguage.SPARQL, query, null));
+            org.junit.jupiter.api.Assertions.assertFalse(query.contains("luc:query"), query);
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    query.contains("VALUES ?dictionaryEntry { " + iri + " }"), query);
+            org.junit.jupiter.api.Assertions.assertTrue(query.contains("COALESCE(?entryLabel"), query);
+        }
+    }
+
     private LexicalEntryCore entryWithType(String type) {
         LexicalEntryCore entry = new LexicalEntryCore();
         entry.setType(new ArrayList<>(Collections.singletonList(type)));

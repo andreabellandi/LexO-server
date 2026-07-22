@@ -574,7 +574,7 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getDictEntry(String id) throws ManagerException {
-        String query = SparqlSelectData.DATA_DICT_ENTRY.replace("_ID_", id);
+        String query = SparqlSelectData.DATA_DICT_ENTRY.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
