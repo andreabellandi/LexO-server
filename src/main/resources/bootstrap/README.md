@@ -27,18 +27,20 @@ bootstrap phase to run again; unchanged resources are skipped.
 `LexOLexica` keeps application data separate from schema and bootstrap data:
 
 - `https://lexo.ilc.cnr.it/graphs/lexical/lexica` contains lexical data;
-- `https://lexo.ilc.cnr.it/graphs/lexical/attestations` contains FRAC
-  attestations;
-- `https://lexo.ilc.cnr.it/graphs/lexical/annotations` contains Web Annotations;
+- `https://lexo.ilc.cnr.it/graphs/lexical/attestations/documents/{fileId}`
+  contains the FRAC attestations of one text;
+- `https://lexo.ilc.cnr.it/graphs/lexical/annotations/documents/{fileId}`
+  contains the Web Annotations of one text;
 - `https://lexo.ilc.cnr.it/graphs/lexical/schema` contains the imported vocabularies;
 - `https://lexo.ilc.cnr.it/graphs/bootstrap` contains bootstrap checksums.
 
 The lexical graph URIs can be changed with `GraphDb.namedGraphBase`,
-`GraphDb.lexiconNamedGraph`, `GraphDb.attestationNamedGraph`,
-`GraphDb.annotationNamedGraph`, and `GraphDb.schemaNamedGraph` in
-`lexo-server.properties`. Existing SPARQL updates use the lexical graph by
-default; attestation writers use `RDFQueryUtil.updateAttestation`, while
-annotation writers use `RDFQueryUtil.updateAnnotation`.
+`GraphDb.lexiconNamedGraph`, `GraphDb.attestationNamedGraphBase`,
+`GraphDb.annotationNamedGraphBase`, and `GraphDb.schemaNamedGraph` in
+`lexo-server.properties`. Existing lexical SPARQL updates use the lexical graph
+by default. Attestation and annotation writers must pass the text `fileId` to
+`RDFQueryUtil.updateAttestation` or `RDFQueryUtil.updateAnnotation`; omitting it
+is rejected. Deleting a text also clears both of its LexOLexica graphs.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.

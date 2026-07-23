@@ -92,6 +92,16 @@ class TextServicesIT {
             assertStatus(get("texts/" + fileId + "/original"), 200);
             assertStatus(get("texts/" + fileId + "/canonical"), 200);
 
+            JsonNode catalog = json(get("texts"));
+            JsonNode catalogItem = findText(catalog, fileId);
+            assertThat(catalogItem).isNotNull();
+            assertThat(catalogItem.path("name").asText()).isEqualTo(input.getFileName().toString());
+            assertThat(catalogItem.path("sizeBytes").asLong()).isPositive();
+            assertThat(catalogItem.path("sentenceCount").asInt()).isPositive();
+            assertThat(catalogItem.path("tokenCount").asInt()).isPositive();
+            assertThat(catalogItem.path("attestationCount").asLong()).isNotNegative();
+            assertThat(catalogItem.path("annotationCount").asLong()).isNotNegative();
+
             JsonNode deletion = json(delete("texts/" + fileId));
             assertThat(deletion.path("deleted").asBoolean()).isTrue();
             assertStatus(get("texts/" + fileId), 404);
@@ -180,6 +190,15 @@ class TextServicesIT {
         String fileId = response.path("fileId").asText();
         assertThat(fileId).isNotBlank();
         return fileId;
+    }
+
+    private static JsonNode findText(JsonNode catalog, String fileId) {
+        for (JsonNode item : catalog.path("texts")) {
+            if (fileId.equals(item.path("fileId").asText())) {
+                return item;
+            }
+        }
+        return null;
     }
 
     private static void assumeConfigured() {

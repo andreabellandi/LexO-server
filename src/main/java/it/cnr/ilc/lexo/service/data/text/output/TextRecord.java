@@ -19,11 +19,8 @@ public class TextRecord implements Data {
     public String originalFileName;
     public String conlluFileName;
     public String originalPath;
-    public String canonicalPath;
-    public String nifPath;
-    public String nifGraph;
-    public String metadataPath;
     public String conlluPath;
+    public String nifGraph;
     public String createdAt;
     public String completedAt;
     public Integer headingCount;

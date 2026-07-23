@@ -199,8 +199,10 @@ final class TextWorkflowTestSupport implements AutoCloseable {
                                       boolean hasConllu, String conlluName) {
         Path document = storageRoot.resolve("documents").resolve(fileId);
         assertThat(document.resolve("original").resolve(originalName)).isRegularFile();
-        assertThat(document.resolve("canonical.txt")).isRegularFile();
-        assertThat(document.resolve("metadata.json")).isRegularFile();
+        // Canonical text and operational metadata are authoritative in LexOTexts,
+        // so only uploaded source artifacts are retained on the filesystem.
+        assertThat(document.resolve("canonical.txt")).doesNotExist();
+        assertThat(document.resolve("metadata.json")).doesNotExist();
         if (hasConllu) {
             assertThat(document.resolve("conllu").resolve(conlluName)).isRegularFile();
         }
@@ -211,7 +213,7 @@ final class TextWorkflowTestSupport implements AutoCloseable {
     void assertCorpusFilesExist(String corpusId, String descriptorName) {
         Path corpus = storageRoot.resolve("corpora").resolve(corpusId);
         assertThat(corpus.resolve("original").resolve(descriptorName)).isRegularFile();
-        assertThat(corpus.resolve("metadata.json")).isRegularFile();
+        assertThat(corpus.resolve("metadata.json")).doesNotExist();
     }
 
     void assertNoDocumentArtifacts(String fileId) {

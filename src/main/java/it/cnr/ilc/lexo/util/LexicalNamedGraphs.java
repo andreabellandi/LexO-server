@@ -10,8 +10,8 @@ import org.eclipse.rdf4j.query.impl.SimpleDataset;
  * Named-graph configuration for data stored in the lexical repository.
  *
  * <p>The schema and bootstrap metadata use their own graphs. Application data
- * is split between the lexical graph and the attestation graph, following the
- * same base-URI convention used by {@code TextNifRepository}.</p>
+ * is split between the lexical graph and one attestation/annotation graph per
+ * text, following the same document-id convention used by the text repository.</p>
  */
 public final class LexicalNamedGraphs {
 
@@ -32,14 +32,22 @@ public final class LexicalNamedGraphs {
                 baseUri() + "lexica");
     }
 
-    public static String attestationGraphUri() {
-        return configured("GraphDb.attestationNamedGraph",
-                baseUri() + "attestations");
+    public static String attestationGraphBaseUri() {
+        return trailingSeparator(configured("GraphDb.attestationNamedGraphBase",
+                baseUri() + "attestations/documents/"));
     }
 
-    public static String annotationGraphUri() {
-        return configured("GraphDb.annotationNamedGraph",
-                baseUri() + "annotations");
+    public static String annotationGraphBaseUri() {
+        return trailingSeparator(configured("GraphDb.annotationNamedGraphBase",
+                baseUri() + "annotations/documents/"));
+    }
+
+    public static String attestationGraphUri(String fileId) {
+        return attestationGraphBaseUri() + requireFileId(fileId);
+    }
+
+    public static String annotationGraphUri(String fileId) {
+        return annotationGraphBaseUri() + requireFileId(fileId);
     }
 
     public static String schemaGraphUri() {
@@ -47,12 +55,12 @@ public final class LexicalNamedGraphs {
                 baseUri() + "schema");
     }
 
-    public static String graphUri(Kind kind) {
+    public static String graphUri(Kind kind, String fileId) {
         switch (kind) {
             case ATTESTATION:
-                return attestationGraphUri();
+                return attestationGraphUri(fileId);
             case ANNOTATION:
-                return annotationGraphUri();
+                return annotationGraphUri(fileId);
             case LEXICON:
             default:
                 return lexiconGraphUri();
@@ -65,7 +73,23 @@ public final class LexicalNamedGraphs {
      * default graph, preventing accidental updates to schema/bootstrap data.
      */
     public static void configure(Update update, Kind kind) {
-        IRI graph = SimpleValueFactory.getInstance().createIRI(graphUri(kind));
+        if (kind != Kind.LEXICON) {
+            throw new IllegalArgumentException("fileId is required for "
+                    + kind.name().toLowerCase() + " updates");
+        }
+        configure(update, kind, null);
+    }
+
+    /** Directs an update to the graph family member belonging to one text. */
+    public static void configure(Update update, Kind kind, String fileId) {
+        configure(update, graphUri(kind, fileId));
+    }
+
+    public static void configure(Update update, String graphUri) {
+        if (update == null) {
+            throw new IllegalArgumentException("SPARQL update is required");
+        }
+        IRI graph = SimpleValueFactory.getInstance().createIRI(graphUri);
         SimpleDataset dataset = new SimpleDataset();
         dataset.addDefaultGraph(graph);
         dataset.addDefaultRemoveGraph(graph);
@@ -87,5 +111,12 @@ public final class LexicalNamedGraphs {
 
     private static String trailingSeparator(String value) {
         return value.endsWith("/") || value.endsWith("#") ? value : value + "/";
+    }
+
+    private static String requireFileId(String fileId) {
+        if (fileId == null || !fileId.matches("[A-Za-z0-9._-]+")) {
+            throw new IllegalArgumentException("Invalid fileId");
+        }
+        return fileId;
     }
 }

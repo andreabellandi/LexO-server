@@ -45,12 +45,16 @@ public class RepositoryStatistics implements Data {
     }
 
     public static class AttestationGraph extends NamedGraphSummary {
+        public long graphCount;
+        public List<NamedGraphSummary> graphs = new ArrayList<NamedGraphSummary>();
         public long attestationCount;
         public long frequencyCount;
         public long collocationCount;
     }
 
     public static class AnnotationGraph extends NamedGraphSummary {
+        public long graphCount;
+        public List<NamedGraphSummary> graphs = new ArrayList<NamedGraphSummary>();
         public long annotationCount;
     }
 

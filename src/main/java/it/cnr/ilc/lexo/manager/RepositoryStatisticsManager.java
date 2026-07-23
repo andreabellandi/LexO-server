@@ -125,8 +125,8 @@ public class RepositoryStatisticsManager implements Manager {
         LexicalRepository statistics = new LexicalRepository();
         statistics.name = name;
         IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
-        IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri());
-        IRI annotationGraph = iri(LexicalNamedGraphs.annotationGraphUri());
+        String attestationGraphBase = LexicalNamedGraphs.attestationGraphBaseUri();
+        String annotationGraphBase = LexicalNamedGraphs.annotationGraphBaseUri();
         IRI schemaGraph = iri(LexicalNamedGraphs.schemaGraphUri());
 
         LexicaGraph lexica = new LexicaGraph();
@@ -146,18 +146,22 @@ public class RepositoryStatisticsManager implements Manager {
                 LEXICOG_NS + "Entry", lexicalGraph);
 
         AttestationGraph attestations = new AttestationGraph();
-        fillGraphSummary(connection, "attestations", attestationGraph, attestations);
-        attestations.attestationCount = countInstances(connection,
-                FRAC_NS + "Attestation", attestationGraph);
-        attestations.frequencyCount = countInstances(connection,
-                FRAC_NS + "Frequency", attestationGraph);
-        attestations.collocationCount = countInstances(connection,
-                FRAC_NS + "Collocation", attestationGraph);
+        fillGraphFamilySummary(connection, "attestations", attestationGraphBase,
+                attestations, attestations.graphs);
+        attestations.graphCount = attestations.graphs.size();
+        attestations.attestationCount = countInstancesInGraphFamily(connection,
+                FRAC_NS + "Attestation", attestationGraphBase);
+        attestations.frequencyCount = countInstancesInGraphFamily(connection,
+                FRAC_NS + "Frequency", attestationGraphBase);
+        attestations.collocationCount = countInstancesInGraphFamily(connection,
+                FRAC_NS + "Collocation", attestationGraphBase);
 
         AnnotationGraph annotations = new AnnotationGraph();
-        fillGraphSummary(connection, "annotations", annotationGraph, annotations);
-        annotations.annotationCount = countInstances(connection,
-                OA_NS + "Annotation", annotationGraph);
+        fillGraphFamilySummary(connection, "annotations", annotationGraphBase,
+                annotations, annotations.graphs);
+        annotations.graphCount = annotations.graphs.size();
+        annotations.annotationCount = countInstancesInGraphFamily(connection,
+                OA_NS + "Annotation", annotationGraphBase);
 
         SchemaGraph schema = new SchemaGraph();
         fillGraphSummary(connection, "schema", schemaGraph, schema);
@@ -241,6 +245,50 @@ public class RepositoryStatisticsManager implements Manager {
         summary.explicitStatements = count(connection, query, false);
         summary.totalStatements = count(connection, query, true);
         completeSummary(summary);
+    }
+
+    private void fillGraphFamilySummary(RepositoryConnection connection, String name,
+                                        String graphBase, NamedGraphSummary summary,
+                                        List<NamedGraphSummary> members) {
+        summary.name = name;
+        summary.iri = graphBase;
+        for (IRI graph : graphsWithPrefix(connection, graphBase)) {
+            NamedGraphSummary member = new NamedGraphSummary();
+            String graphName = graph.stringValue().substring(graphBase.length());
+            fillGraphSummary(connection, graphName, graph, member);
+            members.add(member);
+            summary.explicitStatements += member.explicitStatements;
+            summary.totalStatements += member.totalStatements;
+        }
+        completeSummary(summary);
+    }
+
+    private List<IRI> graphsWithPrefix(RepositoryConnection connection, String graphBase) {
+        List<IRI> graphs = new ArrayList<IRI>();
+        try (RepositoryResult<Resource> contexts = connection.getContextIDs()) {
+            while (contexts.hasNext()) {
+                Resource context = contexts.next();
+                if (context instanceof IRI
+                        && context.stringValue().startsWith(graphBase)) {
+                    graphs.add((IRI) context);
+                }
+            }
+        }
+        Collections.sort(graphs, new Comparator<IRI>() {
+            @Override
+            public int compare(IRI left, IRI right) {
+                return left.stringValue().compareTo(right.stringValue());
+            }
+        });
+        return graphs;
+    }
+
+    private long countInstancesInGraphFamily(RepositoryConnection connection,
+                                             String classIri, String graphBase) {
+        String query = "SELECT (COUNT(DISTINCT ?resource) AS ?count) WHERE { "
+                + "GRAPH ?graph { ?resource <" + RDF_TYPE + "> <" + classIri + "> } "
+                + "FILTER(STRSTARTS(STR(?graph), \"" + graphBase + "\")) }";
+        return count(connection, query);
     }
 
     private void completeSummary(RepositorySummary summary) {

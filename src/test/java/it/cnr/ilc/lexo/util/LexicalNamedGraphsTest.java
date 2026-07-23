@@ -1,6 +1,7 @@
 package it.cnr.ilc.lexo.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
@@ -31,9 +32,9 @@ class LexicalNamedGraphsTest {
             assertThat(connection.hasStatement(subject, predicate, null, false,
                     VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isTrue();
             assertThat(connection.hasStatement(subject, predicate, null, false,
-                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isFalse();
+                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri("file-a")))).isFalse();
             assertThat(connection.hasStatement(subject, predicate, null, false,
-                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isFalse();
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri("file-a")))).isFalse();
             assertDefaultGraphEmpty(connection);
         } finally {
             repository.shutDown();
@@ -87,14 +88,16 @@ class LexicalNamedGraphsTest {
         try (RepositoryConnection connection = repository.getConnection()) {
             execute(connection, "INSERT DATA { <" + subject + "> a "
                     + "<http://www.w3.org/ns/lemon/frac#Attestation> }",
-                    LexicalNamedGraphs.Kind.ATTESTATION);
+                    LexicalNamedGraphs.Kind.ATTESTATION, "file-a");
 
             assertThat(connection.hasStatement(subject, rdfType, null, false,
-                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isTrue();
+                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri("file-a")))).isTrue();
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri("file-b")))).isFalse();
             assertThat(connection.hasStatement(subject, rdfType, null, false,
                     VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isFalse();
             assertThat(connection.hasStatement(subject, rdfType, null, false,
-                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isFalse();
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri("file-a")))).isFalse();
             assertDefaultGraphEmpty(connection);
         } finally {
             repository.shutDown();
@@ -112,14 +115,39 @@ class LexicalNamedGraphsTest {
         try (RepositoryConnection connection = repository.getConnection()) {
             execute(connection, "INSERT DATA { <" + subject + "> a "
                     + "<http://www.w3.org/ns/oa#Annotation> }",
-                    LexicalNamedGraphs.Kind.ANNOTATION);
+                    LexicalNamedGraphs.Kind.ANNOTATION, "file-a");
 
             assertThat(connection.hasStatement(subject, rdfType, null, false,
-                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri()))).isTrue();
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri("file-a")))).isTrue();
+            assertThat(connection.hasStatement(subject, rdfType, null, false,
+                    VF.createIRI(LexicalNamedGraphs.annotationGraphUri("file-b")))).isFalse();
             assertThat(connection.hasStatement(subject, rdfType, null, false,
                     VF.createIRI(LexicalNamedGraphs.lexiconGraphUri()))).isFalse();
             assertThat(connection.hasStatement(subject, rdfType, null, false,
-                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri()))).isFalse();
+                    VF.createIRI(LexicalNamedGraphs.attestationGraphUri("file-a")))).isFalse();
+            assertDefaultGraphEmpty(connection);
+        } finally {
+            repository.shutDown();
+        }
+    }
+
+    @Test
+    void rejectsDocumentGraphUpdatesWithoutAFileId() {
+        SailRepository repository = new SailRepository(new MemoryStore());
+        repository.init();
+        try (RepositoryConnection connection = repository.getConnection()) {
+            Update update = connection.prepareUpdate(QueryLanguage.SPARQL,
+                    "INSERT DATA { <https://example.org/a> "
+                    + "<https://example.org/p> <https://example.org/o> }");
+
+            assertThatThrownBy(() -> LexicalNamedGraphs.configure(update,
+                    LexicalNamedGraphs.Kind.ATTESTATION))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("fileId");
+            assertThatThrownBy(() -> LexicalNamedGraphs.configure(update,
+                    LexicalNamedGraphs.Kind.ANNOTATION))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("fileId");
             assertDefaultGraphEmpty(connection);
         } finally {
             repository.shutDown();
@@ -128,8 +156,13 @@ class LexicalNamedGraphsTest {
 
     private void execute(RepositoryConnection connection, String sparql,
                          LexicalNamedGraphs.Kind kind) {
+        execute(connection, sparql, kind, null);
+    }
+
+    private void execute(RepositoryConnection connection, String sparql,
+                         LexicalNamedGraphs.Kind kind, String fileId) {
         Update update = connection.prepareUpdate(QueryLanguage.SPARQL, sparql);
-        LexicalNamedGraphs.configure(update, kind);
+        LexicalNamedGraphs.configure(update, kind, fileId);
         update.execute();
     }
 

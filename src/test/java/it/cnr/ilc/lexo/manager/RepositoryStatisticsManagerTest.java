@@ -77,9 +77,11 @@ class RepositoryStatisticsManagerTest {
         assertThat(result.lexicalRepository.lexica.dictionaryCount).isEqualTo(1);
         assertThat(result.lexicalRepository.lexica.dictionaryEntryCount).isEqualTo(1);
         assertThat(result.lexicalRepository.attestations.attestationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.attestations.graphCount).isEqualTo(1);
         assertThat(result.lexicalRepository.attestations.frequencyCount).isEqualTo(1);
         assertThat(result.lexicalRepository.attestations.collocationCount).isEqualTo(1);
         assertThat(result.lexicalRepository.annotations.annotationCount).isEqualTo(1);
+        assertThat(result.lexicalRepository.annotations.graphCount).isEqualTo(1);
         assertThat(result.lexicalRepository.schema.iri)
                 .isEqualTo(LexicalNamedGraphs.schemaGraphUri());
         assertThat(result.lexicalRepository.schema.files)
@@ -127,8 +129,8 @@ class RepositoryStatisticsManagerTest {
     private void populateLexicalRepository() {
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
-            IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri());
-            IRI annotationGraph = iri(LexicalNamedGraphs.annotationGraphUri());
+            IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+            IRI annotationGraph = iri(LexicalNamedGraphs.annotationGraphUri("file-a"));
             IRI schemaGraph = iri(LexicalNamedGraphs.schemaGraphUri());
             IRI unrelatedGraph = iri("https://example.org/graphs/unrelated");
             IRI lexicon = iri("https://example.org/lexicon");

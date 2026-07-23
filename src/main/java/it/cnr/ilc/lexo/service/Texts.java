@@ -6,6 +6,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
+import it.cnr.ilc.lexo.manager.text.TextCatalogManager;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
@@ -50,6 +51,35 @@ public class Texts extends Service {
             "lexo.text.maxTextBytes", TextJobManager.DEFAULT_MAX_TEXT_BYTES);
     private static final long MAX_CONLLU_BYTES = longProperty(
             "lexo.text.maxConlluBytes", TextJobManager.DEFAULT_MAX_CONLLU_BYTES);
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Text catalog",
+            notes = "This method returns all texts stored in LexOTexts, optionally filtered by corpus, with their size, linguistic counts, attestation and annotation counts, and available metadata")
+    public Response catalog(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "optional corpus id used to restrict the returned texts",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = false)
+            @QueryParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            log(Level.INFO, "/texts: catalog requested"
+                    + (corpusId == null || corpusId.trim().isEmpty()
+                            ? "" : " for corpusId=" + corpusId.trim()));
+            return json(TextCatalogManager.get().list(corpusId));
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/texts: "
+                    + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts");
+        }
+    }
 
     @POST
     @javax.ws.rs.Path("/upload")
@@ -308,6 +338,32 @@ public class Texts extends Service {
         }
     }
 
+    @GET
+    @javax.ws.rs.Path("/corpora/{corpusId}/original")
+    @ApiOperation(value = "Corpus descriptor download",
+            notes = "This method downloads the original TXT metadata descriptor used to create the corpus")
+    public Response corpusOriginal(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "id of the corpus whose original descriptor must be downloaded",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId) {
+        try {
+            checkKey(key);
+            CorpusRecord record = CorpusManager.get().getRecord(corpusId);
+            Path path = record == null ? null : CorpusManager.get().getOriginal(corpusId);
+            return path == null || !Files.exists(path)
+                    ? plain(Response.Status.NOT_FOUND, "Corpus descriptor not found")
+                    : stream(path, "text/plain; charset=UTF-8", record.originalFileName);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/corpora/{corpusId}/original");
+        }
+    }
+
     @DELETE
     @javax.ws.rs.Path("/corpora/{corpusId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -334,32 +390,6 @@ public class Texts extends Service {
             return plain(Response.Status.CONFLICT, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("DELETE /texts/corpora/{corpusId}");
-        }
-    }
-
-    @GET
-    @javax.ws.rs.Path("/corpora/{corpusId}/original")
-    @ApiOperation(value = "Corpus descriptor download",
-            notes = "This method downloads the original TXT metadata descriptor used to create the corpus")
-    public Response corpusOriginal(
-            @HeaderParam("Authorization") String key,
-            @ApiParam(
-                    name = "corpusId",
-                    value = "id of the corpus whose original descriptor must be downloaded",
-                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
-                    required = true)
-            @PathParam("corpusId") String corpusId) {
-        try {
-            checkKey(key);
-            CorpusRecord record = CorpusManager.get().getRecord(corpusId);
-            Path path = record == null ? null : CorpusManager.get().getOriginal(corpusId);
-            return path == null || !Files.exists(path)
-                    ? plain(Response.Status.NOT_FOUND, "Corpus descriptor not found")
-                    : stream(path, "text/plain; charset=UTF-8", record.originalFileName);
-        } catch (IllegalArgumentException e) {
-            return plain(Response.Status.BAD_REQUEST, e.getMessage());
-        } catch (AuthorizationException | ServiceException e) {
-            return unauthorized("/texts/corpora/{corpusId}/original");
         }
     }
 
@@ -510,7 +540,7 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text deletion",
-            notes = "This method deletes the text NIF graph, detaches it from its corpus and removes all persisted files")
+            notes = "This method deletes the text NIF graph, detaches it from its corpus, clears its attestation and annotation graphs in LexOLexica, and removes all persisted files")
     public Response delete(
             @HeaderParam("Authorization") String key,
             @ApiParam(
@@ -550,15 +580,19 @@ public class Texts extends Service {
                             ? plain(Response.Status.NOT_FOUND, "Text NIF not found")
                             : streamNif(output -> manager.writeNif(fileId, output),
                                     fileId + ".ttl");
+                case CANONICAL:
+                    String canonical = manager.getCanonical(fileId);
+                    return canonical == null
+                            ? plain(Response.Status.NOT_FOUND, "Canonical text not found")
+                            : Response.ok(canonical)
+                                    .type("text/plain; charset=UTF-8")
+                                    .header("Content-Disposition", "attachment; filename=\""
+                                            + safeHeaderFileName(fileId + "-canonical.txt") + "\"")
+                                    .build();
                 case ORIGINAL:
                     path = manager.getOriginal(fileId);
                     mediaType = originalMediaType(record.originalFileName);
                     downloadName = record.originalFileName;
-                    break;
-                case CANONICAL:
-                    path = manager.getCanonical(fileId);
-                    mediaType = "text/plain; charset=UTF-8";
-                    downloadName = fileId + "-canonical.txt";
                     break;
                 case CONLLU:
                     path = manager.getConllu(fileId);
@@ -570,7 +604,8 @@ public class Texts extends Service {
             }
             if (path == null || !Files.exists(path)) {
                 return plain(Response.Status.NOT_FOUND,
-                        artifact == Artifact.CONLLU ? "No CoNLL-U file for this text" : "Artifact not found");
+                        artifact == Artifact.CONLLU
+                                ? "No CoNLL-U file for this text" : "Artifact not found");
             }
             return stream(path, mediaType, downloadName);
         } catch (IllegalArgumentException e) {

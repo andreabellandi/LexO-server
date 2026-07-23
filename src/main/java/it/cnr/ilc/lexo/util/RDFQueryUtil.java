@@ -6,6 +6,7 @@
 package it.cnr.ilc.lexo.util;
 
 import it.cnr.ilc.lexo.GraphDbUtil;
+import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.ManagerException;
 import it.cnr.ilc.lexo.service.data.lexicon.input.ExportSetting;
 import java.io.File;
@@ -44,7 +45,11 @@ public class RDFQueryUtil {
     static final Logger logger = LoggerFactory.getLogger(RDFQueryUtil.class.getName());
 
     public static String getNamespace(String prefix) {
-        RepositoryConnection conn = GraphDbUtil.getConnection();
+        return getNamespace(RepositoryTarget.LEXICON, prefix);
+    }
+
+    public static String getNamespace(RepositoryTarget target, String prefix) {
+        RepositoryConnection conn = GraphDbUtil.getConnection(target);
         try {
             if (null != conn) {
                 return conn.getNamespace(prefix);
@@ -52,7 +57,7 @@ public class RDFQueryUtil {
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {
             logger.error("", e);
         } finally {
-            GraphDbUtil.releaseConnection(conn);
+            GraphDbUtil.releaseConnection(target, conn);
         }
         return null;
     }
@@ -72,9 +77,13 @@ public class RDFQueryUtil {
     }
 
     public static TupleQueryResult evaluateTQuery(String query) {
+        return evaluateTQuery(RepositoryTarget.LEXICON, query);
+    }
+
+    public static TupleQueryResult evaluateTQuery(RepositoryTarget target, String query) {
         TupleQueryResult tqr = null;
 
-        RepositoryConnection conn = GraphDbUtil.getConnection();
+        RepositoryConnection conn = GraphDbUtil.getConnection(target);
         try {
             if (null != conn) {
                 TupleQuery tupleQuery = conn.prepareTupleQuery(QueryLanguage.SPARQL,
@@ -84,15 +93,19 @@ public class RDFQueryUtil {
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {
             logger.error("", e);
         } finally {
-            GraphDbUtil.releaseConnection(conn);
+            GraphDbUtil.releaseConnection(target, conn);
         }
         return tqr;
     }
     
     public static GraphQueryResult evaluateGQuery(String query) {
+        return evaluateGQuery(RepositoryTarget.LEXICON, query);
+    }
+
+    public static GraphQueryResult evaluateGQuery(RepositoryTarget target, String query) {
         GraphQueryResult gqr = null;
 
-        RepositoryConnection conn = GraphDbUtil.getConnection();
+        RepositoryConnection conn = GraphDbUtil.getConnection(target);
         try {
             if (null != conn) {
                 GraphQuery graphQuery = conn.prepareGraphQuery(QueryLanguage.SPARQL,
@@ -102,15 +115,19 @@ public class RDFQueryUtil {
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {
             logger.error("", e);
         } finally {
-            GraphDbUtil.releaseConnection(conn);
+            GraphDbUtil.releaseConnection(target, conn);
         }
         return gqr;
     }
 
     public static boolean evaluateBQuery(String query) {
+        return evaluateBQuery(RepositoryTarget.LEXICON, query);
+    }
+
+    public static boolean evaluateBQuery(RepositoryTarget target, String query) {
         boolean res = false;
 
-        RepositoryConnection conn = GraphDbUtil.getConnection();
+        RepositoryConnection conn = GraphDbUtil.getConnection(target);
         try {
             if (null != conn) {
                 BooleanQuery bqr = conn.prepareBooleanQuery(QueryLanguage.SPARQL,
@@ -120,7 +137,7 @@ public class RDFQueryUtil {
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {
             logger.error("", e);
         } finally {
-            GraphDbUtil.releaseConnection(conn);
+            GraphDbUtil.releaseConnection(target, conn);
         }
         return res;
     }
@@ -130,32 +147,46 @@ public class RDFQueryUtil {
         update(query, Kind.LEXICON);
     }
 
-    /** Executes an update in the dedicated attestation named graph. */
-    public static void updateAttestation(String query) {
+    /** Executes an update in the attestation graph belonging to one text. */
+    public static void updateAttestation(String fileId, String query) {
 
-        update(query, Kind.ATTESTATION);
+        update(RepositoryTarget.LEXICON, query, Kind.ATTESTATION, fileId);
     }
 
-    /** Executes an update in the dedicated annotation named graph. */
-    public static void updateAnnotation(String query) {
+    /** Executes an update in the annotation graph belonging to one text. */
+    public static void updateAnnotation(String fileId, String query) {
 
-        update(query, Kind.ANNOTATION);
+        update(RepositoryTarget.LEXICON, query, Kind.ANNOTATION, fileId);
     }
 
     public static void update(String query, Kind graphKind) {
 
-        RepositoryConnection conn = GraphDbUtil.getConnection();
+        update(RepositoryTarget.LEXICON, query, graphKind, null);
+    }
+
+    /** Executes an update against the selected repository. */
+    public static void update(RepositoryTarget target, String query) {
+
+        update(target, query, null, null);
+    }
+
+    private static void update(RepositoryTarget target, String query, Kind graphKind,
+                               String fileId) {
+
+        RepositoryConnection conn = GraphDbUtil.getConnection(target);
         try {
             if (null != conn) {
                 Update updateOperation = conn.prepareUpdate(QueryLanguage.SPARQL,
                         query);
-                LexicalNamedGraphs.configure(updateOperation, graphKind);
+                if (target == RepositoryTarget.LEXICON && graphKind != null) {
+                    LexicalNamedGraphs.configure(updateOperation, graphKind, fileId);
+                }
                 updateOperation.execute();
             }
         } catch (MalformedQueryException | QueryEvaluationException | RepositoryException e) {
             logger.error("", e);
         } finally {
-            GraphDbUtil.releaseConnection(conn);
+            GraphDbUtil.releaseConnection(target, conn);
         }
     }
 
