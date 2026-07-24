@@ -185,7 +185,7 @@ cleanup del test.
 
 ### Metadati RDF
 
-- mapping di `id`, `title`, `author`, `date`, `language`, `format` e `corpus`;
+- mapping di `id`, `title`, `author`, `date`, `description`, `language`, `format` e `corpus`;
 - chiavi sconosciute e relative liste ignorate;
 - valori multipli;
 - liste miste di stringhe e URI;

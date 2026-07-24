@@ -80,6 +80,8 @@ class TextCatalogManagerTest {
                     .containsExactly("Intervista di prova");
             assertThat(interview.metadataValues.get("author"))
                     .containsExactly("Mario Rossi");
+            assertThat(interview.metadataValues.get("description"))
+                    .containsExactly("Conversazione di prova");
             assertThat(result.texts.get(1).attestationCount).isZero();
             assertThat(result.texts.get(1).annotationCount).isZero();
         }
@@ -122,7 +124,8 @@ class TextCatalogManagerTest {
                 corpusMetadata, null);
 
         ParsedTextDocument interview = parser.parsePlainText(
-                "---\ntitle: Intervista di prova\nauthor: Mario Rossi\nlanguage: it\n---\nUna frase.");
+                "---\ntitle: Intervista di prova\nauthor: Mario Rossi\n"
+                        + "description: Conversazione di prova\nlanguage: it\n---\nUna frase.");
         ParsedTextDocument second = parser.parsePlainText("Secondo documento.");
 
         try (RepositoryConnection connection = textRepository.getConnection()) {

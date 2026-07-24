@@ -74,8 +74,8 @@ public class RepositoryStatisticsManager implements Manager {
     static {
         TEXT_METADATA_PREDICATES = Collections.unmodifiableList(Arrays.asList(
                 DCTERMS.IDENTIFIER, DCTERMS.TITLE, DCTERMS.CREATOR,
-                DCTERMS.CREATED, DCTERMS.LANGUAGE, DCTERMS.FORMAT,
-                DCTERMS.IS_PART_OF));
+                DCTERMS.CREATED, DCTERMS.DESCRIPTION, DCTERMS.LANGUAGE,
+                DCTERMS.FORMAT, DCTERMS.IS_PART_OF));
     }
 
     public RepositoryStatistics getStatistics() throws ManagerException {

@@ -47,6 +47,7 @@ class NifModelWriterTest {
                         + "title: Storia della lessicografia\n"
                         + "author: Mario Rossi\n"
                         + "date: 2026\n"
+                        + "description: Una storia del dizionario italiano\n"
                         + "language: it\n"
                         + "format: text/plain\n"
                         + "corpus: Corpus storico\n"
@@ -58,9 +59,23 @@ class NifModelWriterTest {
         assertLiteral(model, context, "title", "Storia della lessicografia");
         assertLiteral(model, context, "creator", "Mario Rossi");
         assertLiteral(model, context, "created", "2026");
+        assertLiteral(model, context, "description", "Una storia del dizionario italiano");
         assertLiteral(model, context, "language", "it");
         assertLiteral(model, context, "format", "text/plain");
         assertLiteral(model, context, "isPartOf", "Corpus storico");
+    }
+
+    @Test
+    @DisplayName("Description is always emitted as a literal, including URI-shaped values")
+    void mapsDescriptionOnlyAsLiteral() throws Exception {
+        String uriShapedDescription = "https://example.org/descriptions/001";
+        ParsedTextDocument document = parser.parsePlainText(
+                "---\ndescription: " + uriShapedDescription + "\n---\nTesto.");
+        Model model = writer.build("description", "example.txt", document);
+        IRI context = iri(BASE + "description#context");
+
+        assertThat(model.filter(context, iri(DCTERMS + "description"), null).objects())
+                .containsExactly(values.createLiteral(uriShapedDescription));
     }
 
     @Test

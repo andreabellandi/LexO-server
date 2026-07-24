@@ -180,6 +180,7 @@ public final class TextCatalogManager {
         predicates.put(DCTERMS.TITLE, "title");
         predicates.put(DCTERMS.CREATOR, "author");
         predicates.put(DCTERMS.CREATED, "date");
+        predicates.put(DCTERMS.DESCRIPTION, "description");
         predicates.put(DCTERMS.LANGUAGE, "language");
         predicates.put(DCTERMS.FORMAT, "format");
         predicates.put(DCTERMS.IS_PART_OF, "corpus");
