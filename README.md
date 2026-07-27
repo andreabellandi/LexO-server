@@ -55,6 +55,40 @@ Run the unit suite with `mvn test`. Tests for the text services, including the
 optional end-to-end tests for a deployed LexO-server and GraphDB Free, are
 documented in [docs/text-services-tests.md](docs/text-services-tests.md).
 
+## Attestations
+
+`POST /service/attestations` creates multiple FRAC attestations for one OntoLex
+lexical entry, form, lexical sense, or lexical concept. Required query parameters
+are `observable` and `corpus`; `external` and `author` are optional. The JSON body
+is a non-empty list whose items contain required `value`, `start`, and `end`
+fields and an optional `description`. Offsets are Unicode code-point offsets on
+the canonical `nif:isString` value.
+
+```json
+[
+  {"description": "First occurrence", "value": "example", "start": 10, "end": 17},
+  {"description": "Second occurrence", "value": "example", "start": 42, "end": 49}
+]
+```
+
+The whole list is validated before persistence. All FRAC resources and NIF loci
+are then written as one batch transaction per repository; a failed occurrence
+does not leave the preceding occurrences stored.
+
+For local evidence, `corpus` must identify a `dcmitype:Collection`,
+`dcmitype:Dataset`, or `dcmitype:Text` in `LexOTexts`. The service validates the
+selected substring and writes the NIF locus in the document graph. With
+`external=true`, `corpus` must be an HTTP(S) URL and no remote content is
+downloaded. FRAC data is written to the per-text attestation graph in
+`LexOLexica`; application data is never written to a default graph.
+
+`POST /service/attestations/{fileId}` returns the attestations of one text as a
+paginated JSON response. `observableType` and `author` optionally filter the RDF
+type of the observed lexical entity and the exact `dcterms:creator` value.
+`limit` defaults to 200 and `offset` defaults to 0. Each result combines FRAC
+metadata from `LexOLexica` with anchor, offsets, language, RDF types and reference
+context read from the corresponding NIF locus in `LexOTexts`.
+
 ## License
 
 MIT

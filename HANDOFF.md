@@ -1,8 +1,10 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 27 luglio 2026, dopo il merge della pull request #6 in `master`
-(`95cd052`). Questo documento descrive lo stato osservato del repository; prima di
-iniziare nuovo lavoro verificare sempre `git status`, il branch remoto e la
+Aggiornato al 27 luglio 2026 durante lo sviluppo dei servizi di creazione e
+consultazione delle attestazioni sul branch `codex/attestation-create`, basato
+su `origin/master` (`46cb91c`).
+Questo documento descrive lo stato osservato del repository; prima di iniziare
+nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
 
 ## Scopo del progetto
@@ -116,7 +118,17 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 43 test unitari/repository passati il 27 luglio 2026.
+- Suite corrente: 55 test unitari/repository passati il 27 luglio 2026, inclusi
+  i 12 test mirati delle attestazioni batch.
+- Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
+  relativi loci NIF, con validazione di tipi OntoLex/DCMI, URL esterni, offset
+  Unicode e isolamento nei named graph per testo.
+- La creazione accetta ora una lista JSON di occorrenze e valida l'intero batch
+  prima di scrivere tutte le attestazioni e i loci in una transazione per
+  repository, con compensazione tra `LexOLexica` e `LexOTexts`.
+- Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per tipo
+  dell'osservabile e creator, arricchito con i dati del locus da `LexOTexts`.
+- Namespace applicativo predefinito aggiornato a `https://lexo.ilc.cnr.it#`.
 
 ## Funzionalità ancora da completare o validare
 
@@ -132,6 +144,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   le proprietà sono commentate nella configurazione predefinita.
 - Ampliare i test automatici dei servizi lessicali: la copertura più completa al
   momento riguarda il dominio testuale e i named graph.
+- Completare gli ulteriori servizi di gestione delle attestazioni quando saranno
+  disponibili le rispettive specifiche; al momento sono implementate creazione
+  batch e consultazione paginata per testo.
 
 ## Decisioni tecniche importanti
 
@@ -170,6 +185,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   correttamente avviata.
 - La configurazione predefinita è volutamente legata a `localhost:7200`; un
   deployment remoto richiede modifica esplicita delle proprietà.
+- `POST /attestations` richiede una lista JSON al livello principale. Con un
+  oggetto JSON, Jersey/MOXy fallisce prima dell'ingresso nel metodo con
+  `IllegalArgumentException: argument type mismatch` e restituisce HTTP 500
+  invece di un errore applicativo 400; il client deve inviare l'array documentato.
 - In ambienti Codex senza `mvn` nel `PATH` è stato usato Maven incluso in
   NetBeans 12.2. Il sandbox può mostrare warning se non può scrivere in `~/.m2`.
 
@@ -218,16 +237,18 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/text-services-test-suite`.
-- Il branch è stato mergiato in `master` tramite PR #6.
-- Commit di merge su `master`: `95cd052`.
-- HEAD del branch al momento del handoff: `9f77676`.
-- Per il prossimo lavoro non continuare su questo branch già integrato: partire
-  da `origin/master` aggiornato e creare un nuovo branch dedicato.
-- File non tracciati osservati: log runtime e `nb-configuration.xml`; non
-  includerli nei commit.
+- Branch locale corrente: `codex/attestation-create`.
+- Base aggiornata: `origin/master` al commit `46cb91c`.
+- Modifiche preesistenti dell'utente conservate in `AGENTS.md`, `HANDOFF.md` e
+  `CHANGELOG.md`; non includere log runtime o `nb-configuration.xml` nei commit.
 
 ## Ultimi file modificati
+
+Il lavoro corrente sulle attestazioni ha aggiunto `Attestations.java`,
+`AttestationManager.java`, il DTO di output e i relativi test repository. Ha
+inoltre aggiornato namespace, README, bootstrap README e changelog. I 12 test
+mirati di `AttestationManagerTest` e la suite Maven completa (55 test) sono
+passati il 27 luglio 2026.
 
 L'ultimo commit (`9f77676`, supporto a `description`) ha modificato:
 
@@ -246,12 +267,21 @@ Il commit precedente più ampio (`889be33`) ha introdotto la selezione parametri
 dei repository, il catalogo testi e i graph per-test di attestazioni/annotazioni;
 queste aree sono quindi quelle con maggiore probabilità di regressioni incrociate.
 
+Il file `CHANGELOG.md` è stato aggiunto come registro delle modifiche verificabili;
+al momento non esistono tag Git, quindi tutte le voci restano nella sezione
+`Unreleased`.
+
 ## Prossimo lavoro consigliato
 
-1. Aggiornare `origin/master` e creare un nuovo branch da `origin/master`.
-2. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
-3. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
+1. Aggiungere un test end-to-end del nuovo endpoint contro repository GraphDB
+   dedicati.
+2. Gestire esplicitamente i body non-array di `POST /attestations` con una
+   risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
+3. Implementare i successivi servizi di attestazione sulla base delle specifiche
+   fornite, riutilizzando manager, validazioni e selezione del graph per testo.
+4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
+5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
    completi, verificando REST, GraphDB e filesystem.
-4. Allineare README e POM sul requisito Java ufficiale.
-5. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
+6. Allineare README e POM sul requisito Java ufficiale.
+7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.
