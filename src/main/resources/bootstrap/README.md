@@ -44,3 +44,9 @@ is rejected. Deleting a text also clears both of its LexOLexica graphs.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.
+
+FRAC attestation resources use the application namespace configured by
+`repository.lexicon.namespace` (by default `https://lexo.ilc.cnr.it#`). Their
+NIF loci remain in the corresponding `LexOTexts` document graph, while the FRAC
+triples and the `frac:attestation` link are stored in the matching per-text
+attestation graph.
