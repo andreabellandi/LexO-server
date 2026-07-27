@@ -54,8 +54,7 @@ public class SKOSService extends Service {
             @QueryParam("author") String author,
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key,
             @ApiParam(
                     name = "prefix",
@@ -86,8 +85,7 @@ public class SKOSService extends Service {
             @QueryParam("author") String author,
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key,
             @ApiParam(
                     name = "prefix",
@@ -124,8 +122,7 @@ public class SKOSService extends Service {
             @QueryParam("ordered") String ordered,
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key) {
         return Response.status(Response.Status.NOT_IMPLEMENTED).build();
     }
@@ -138,8 +135,7 @@ public class SKOSService extends Service {
     public Response delete(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSDeleter sd) {
         try {
             checkKey(key);
@@ -164,8 +160,7 @@ public class SKOSService extends Service {
     public Response updateSemanticRelation(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -191,8 +186,7 @@ public class SKOSService extends Service {
     public Response updateLexicalLabel(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -218,8 +212,7 @@ public class SKOSService extends Service {
     public Response updateNotation(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -244,8 +237,7 @@ public class SKOSService extends Service {
     public Response updateSchemeProperty(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -270,8 +262,7 @@ public class SKOSService extends Service {
     public Response updateNoteProperty(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -296,8 +287,7 @@ public class SKOSService extends Service {
     public Response updateMappingProperty(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         try {
             checkKey(key);
@@ -323,8 +313,7 @@ public class SKOSService extends Service {
     public Response updateCollection(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, SKOSUpdater su) {
         return Response.status(Response.Status.NOT_IMPLEMENTED).build();
     }
@@ -337,8 +326,7 @@ public class SKOSService extends Service {
     public Response concept(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key,
             @ApiParam(
                     name = "id",
@@ -356,8 +344,7 @@ public class SKOSService extends Service {
     public Response entity(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key,
             @ApiParam(
                     name = "id",
@@ -375,8 +362,7 @@ public class SKOSService extends Service {
     public Response conceptSchemes(
             @ApiParam(
                     name = "key",
-                    value = "authentication token",
-                    required = true)
+                    value = "authentication token")
             @HeaderParam("Authorization") String key, ConceptSchemeFilter csf) {
 
         try {
