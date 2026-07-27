@@ -33,12 +33,17 @@ class GraphDbRuntimeConfigurationTest {
                 .isEqualTo("LexOLexica");
         assertThat(properties.getProperty("GraphDb.lexiconNamedGraph"))
                 .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/lexica");
-        assertThat(properties.getProperty("GraphDb.attestationNamedGraph"))
-                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/attestations");
+        assertThat(properties.getProperty("GraphDb.attestationNamedGraphBase"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/attestations/documents/");
+        assertThat(properties.getProperty("GraphDb.annotationNamedGraphBase"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/annotations/documents/");
+        assertThat(properties.getProperty("GraphDb.schemaNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/schema");
         assertThat(properties.getProperty("TextGraphDb.url"))
                 .isEqualTo("http://localhost:7200");
         assertThat(properties.getProperty("TextGraphDb.repository"))
                 .isEqualTo("LexOTexts");
+        assertThat(properties.getProperty("TextGraphDb.size")).isEqualTo("5");
         assertThat(properties.getProperty("Bootstrap.enabled")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.required")).isEqualTo("true");
         assertThat(URI.create(properties.getProperty("Bootstrap.schema.baseIri")).isAbsolute())

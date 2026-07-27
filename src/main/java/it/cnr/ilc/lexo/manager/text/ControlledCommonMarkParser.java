@@ -468,6 +468,7 @@ public final class ControlledCommonMarkParser {
                 || "title".equals(key)
                 || "author".equals(key)
                 || "date".equals(key)
+                || "description".equals(key)
                 || "language".equals(key)
                 || "format".equals(key)
                 || "corpus".equals(key);

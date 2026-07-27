@@ -202,6 +202,12 @@ public class LexiconData extends Service {
                 TupleQueryResult lexicalEntry = lexiconManager.getLexicalEntry(_id);
                 List<LexicalEntryCore> _lec = lexicalEntryCoreHelper.newDataList(lexicalEntry);
                 LexicalEntryCore lec = lexiconManager.getLexicalEntityTypes(_lec);
+                if (lec == null) {
+                    return Response.status(Response.Status.NOT_FOUND)
+                            .type(MediaType.TEXT_PLAIN)
+                            .entity("Lexical entry not found: " + _id)
+                            .build();
+                }
                 TupleQueryResult lexicalEntityLinks = lexiconManager.getLexicalEntityLinks(_id, SparqlVariable.LEXICAL_ENTRY_INDEX);
                 LexicalEntityLinksItem links = lexicalEntityLinksItemHelper.newData(lexicalEntityLinks);
                 lexiconManager.addLexicalEntityLink(lec, links);
@@ -255,6 +261,12 @@ public class LexiconData extends Service {
                 TupleQueryResult form = lexiconManager.getForm(_id, module);
                 List<FormCore> fc = formCoreHelper.newDataList(form);
                 FormCore _fc = lexiconManager.getMorphologyInheritance(fc);
+                if (_fc == null) {
+                    return Response.status(Response.Status.NOT_FOUND)
+                            .type(MediaType.TEXT_PLAIN)
+                            .entity("Form not found: " + _id)
+                            .build();
+                }
                 TupleQueryResult lexicalEntityLinks = lexiconManager.getLexicalEntityLinks(_id, SparqlVariable.FORM_INDEX);
                 LexicalEntityLinksItem links = lexicalEntityLinksItemHelper.newData(lexicalEntityLinks);
                 lexiconManager.addLexicalEntityLink(_fc, links);
@@ -331,6 +343,12 @@ public class LexiconData extends Service {
             if (module.equals(EnumUtil.LexicalAspects.Core.toString())) {
                 log(Level.INFO, "data/lexicalSense <" + _id + "> with module: " + module);
                 TupleQueryResult lexicalSense = lexiconManager.getLexicalSense(_id);
+                if (!lexicalSense.hasNext()) {
+                    return Response.status(Response.Status.NOT_FOUND)
+                            .type(MediaType.TEXT_PLAIN)
+                            .entity("Lexical sense not found: " + _id)
+                            .build();
+                }
                 LexicalSenseCore lsc = lexicalSenseCoreHelper.newData(lexicalSense);
                 TupleQueryResult lexicalEntityLinks = lexiconManager.getLexicalEntityLinks(_id, SparqlVariable.LEXICAL_SENSE_INDEX);
                 LexicalEntityLinksItem links = lexicalEntityLinksItemHelper.newData(lexicalEntityLinks);
@@ -486,6 +504,12 @@ public class LexiconData extends Service {
                         + _id + "> iis not a dictionary entry").build();
             }
             TupleQueryResult comps = lexiconManager.getDictEntry(_id);
+            if (!comps.hasNext()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .type(MediaType.TEXT_PLAIN)
+                        .entity("Dictionary entry not found: " + _id)
+                        .build();
+            }
             DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
             String json = dictionaryEntryHelper.toJson(dict);
             return Response.ok(json)
@@ -525,8 +549,10 @@ public class LexiconData extends Service {
             ArrayList<DictionaryEntryCore> decs = new ArrayList();
             for (String de : des) {
                 TupleQueryResult comps = lexiconManager.getDictEntry(de);
-                DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
-                decs.add(dict);
+                if (comps.hasNext()) {
+                    DictionaryEntryCore dict = dictionaryEntryHelper.newData(comps);
+                    decs.add(dict);
+                }
             }
             String json = dictionaryEntryHelper.toJson(decs);
             return Response.ok(json)
@@ -557,6 +583,12 @@ public class LexiconData extends Service {
             String _id = URLDecoder.decode(id, StandardCharsets.UTF_8.name());
             log(Level.INFO, "data/component <" + _id + ">");
             TupleQueryResult _comp = lexiconManager.getComponent(_id);
+            if (!_comp.hasNext()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .type(MediaType.TEXT_PLAIN)
+                        .entity("Component not found: " + _id)
+                        .build();
+            }
             Component comp = componentHelper.newData(_comp);
             String json = componentHelper.toJson(comp);
             return Response.ok(json)
@@ -831,7 +863,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -950,7 +982,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -980,7 +1012,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -1041,7 +1073,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -1238,7 +1270,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -1271,7 +1303,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }
@@ -1315,7 +1347,7 @@ public class LexiconData extends Service {
                     .header("Access-Control-Allow-Headers", "content-type")
                     .header("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
                     .build();
-        } catch (UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
+        } catch (ManagerException | UnsupportedEncodingException | AuthorizationException | ServiceException ex) {
             log(Level.ERROR, ex.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type(MediaType.TEXT_PLAIN).entity(ex.getMessage()).build();
         }

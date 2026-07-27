@@ -65,7 +65,7 @@ public class Administration extends Service {
     @Path("repositories")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Lexical and text repository statistics",
-            notes = "Returns statement metrics, lexical resources and NIF corpus/text metadata")
+            notes = "Returns LexOLexica statistics split by named graph and unchanged NIF corpus/text statistics")
     public Response repositories(@HeaderParam("Authorization") String key) {
         try {
             log(Level.INFO, "administration/repositories");

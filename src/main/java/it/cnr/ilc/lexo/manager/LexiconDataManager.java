@@ -43,6 +43,8 @@ import it.cnr.ilc.lexo.util.StringUtil;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,12 +233,9 @@ public class LexiconDataManager implements Manager, Cached {
                 : (labelType.equals(EnumUtil.LexicalConceptSearchFilter.hiddenLabel.toString()) ? "hiddenLabel:" + textSearch : ""));
     }
 
-    public TupleQueryResult getElements(String lexicalEntryID) {
-//        TupleQuery tupleQuery = GraphDbUtil.getConnection().prepareTupleQuery(QueryLanguage.SPARQL,
-//                SparqlSelectData.DATA_LEXICAL_ENTRY_ELEMENTS.replace("[IRI]", "\\\"" + namespace + lexicalEntryID + "\\\""));
-//        return tupleQuery.evaluate();
+    public TupleQueryResult getElements(String lexicalEntryID) throws ManagerException {
         String query = SparqlSelectData.DATA_LEXICAL_ENTRY_ELEMENTS
-                .replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"");
+                .replace("[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -254,53 +253,37 @@ public class LexiconDataManager implements Manager, Cached {
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getForms(String lexicalEntryID) {
-        String query = SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"")
+    public TupleQueryResult getForms(String lexicalEntryID) throws ManagerException {
+        String query = SparqlSelectData.DATA_FORMS_BY_LEXICAL_ENTRY.replace("[IRI]", toSparqlIri(lexicalEntryID))
                 .replace("[FORM_CONSTRAINT]", "");
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getLexicalSenses(String lexicalEntryID) {
-//        TupleQuery tupleQuery = GraphDbUtil.getConnection().prepareTupleQuery(QueryLanguage.SPARQL,
-//                SparqlSelectData.DATA_LEXICAL_SENSES.replace("[FILTER]", createFilter(lexicalEntryID))
-//                        .replace("[LIMIT]", String.valueOf(500))
-//                        .replace("[OFFSET]", String.valueOf(0)));
-//        return tupleQuery.evaluate();
-        String query = SparqlSelectData.DATA_LEXICAL_SENSES.replace("[FILTER]", createFilter(lexicalEntryID))
-                .replace("[LIMIT]", String.valueOf(500))
-                .replace("[OFFSET]", String.valueOf(0));
+    public TupleQueryResult getLexicalSenses(String lexicalEntryID) throws ManagerException {
+        String query = SparqlSelectData.DATA_LEXICAL_SENSES.replace(
+                "[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getEtymologies(String lexicalEntryID) {
-        String query = SparqlSelectData.DATA_ETYMOLOGIES.replace("[FILTER]", createFilter(lexicalEntryID))
-                .replace("[LIMIT]", String.valueOf(500))
-                .replace("[OFFSET]", String.valueOf(0));
+    public TupleQueryResult getEtymologies(String lexicalEntryID) throws ManagerException {
+        String query = SparqlSelectData.DATA_ETYMOLOGIES.replace("[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getSubTerms(String lexicalEntryID) {
-        String query = SparqlSelectData.DATA_SUBTERMS.replace("[FILTER]", createFilter(lexicalEntryID))
-                .replace("_TYPE_", "")
-                .replace("[LIMIT]", "1")
-                .replace("[OFFSET]", "0");
+    public TupleQueryResult getSubTerms(String lexicalEntryID) throws ManagerException {
+        String query = SparqlSelectData.DATA_SUBTERMS.replace("[IRI]", toSparqlIri(lexicalEntryID))
+                .replace("_TYPE_", "");
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getCorrespondsTo(String compID) {
-        String query = SparqlSelectData.DATA_CORRESPONDS_TO.replace("[FILTER]", createComponentFilter(compID))
-                .replace("_TYPE_", "")
-                .replace("[LIMIT]", "1")
-                .replace("[OFFSET]", "0");
+    public TupleQueryResult getCorrespondsTo(String compID) throws ManagerException {
+        String query = SparqlSelectData.DATA_CORRESPONDS_TO.replace("[IRI]", toSparqlIri(compID))
+                .replace("_TYPE_", "");
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getComponents(String id, String index, String order) {
-        String query = SparqlSelectData.DATA_COMPONENTS.replace("[FILTER]", createFilter(id))
-                .replace("[ORDER]", order)
-                .replace("[INDEX_NAME]", index)
-                .replace("[LIMIT]", "1")
-                .replace("[OFFSET]", "0");
+    public TupleQueryResult getComponents(String id, String index, String order) throws ManagerException {
+        String query = SparqlSelectData.DATA_COMPONENTS.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -378,16 +361,17 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getLexicalEntry(String lexicalEntryID) throws ManagerException {
-        String query = SparqlSelectData.DATA_LEXICAL_ENTRY_CORE.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"");
+        String query = SparqlSelectData.DATA_LEXICAL_ENTRY_CORE.replace(
+                "[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
     public TupleQueryResult getLexicalEntryVarTrans(String lexicalEntryID, boolean directRelations) throws ManagerException {
         String query = "";
         if (directRelations) {
-            query = SparqlSelectData.DATA_LEXICAL_ENTRY_DIRECT_VARTRANS.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"");
+            query = SparqlSelectData.DATA_LEXICAL_ENTRY_DIRECT_VARTRANS.replace("[IRI]", toSparqlIri(lexicalEntryID));
         } else {
-            query = SparqlSelectData.DATA_LEXICAL_ENTRY_INDIRECT_VARTRANS.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"");
+            query = SparqlSelectData.DATA_LEXICAL_ENTRY_INDIRECT_VARTRANS.replace("[IRI]", toSparqlIri(lexicalEntryID));
         };
         return RDFQueryUtil.evaluateTQuery(query);
     }
@@ -395,9 +379,9 @@ public class LexiconDataManager implements Manager, Cached {
     public TupleQueryResult getFormVarTrans(String formID, boolean directRelations) throws ManagerException {
         String query = "";
         if (directRelations) {
-            query = SparqlSelectData.DATA_FORM_DIRECT_VARTRANS.replace("[IRI]", "\\\"" + formID + "\\\"");
+            query = SparqlSelectData.DATA_FORM_DIRECT_VARTRANS.replace("[IRI]", toSparqlIri(formID));
         } else {
-            query = SparqlSelectData.DATA_FORM_INDIRECT_VARTRANS.replace("[IRI]", "\\\"" + formID + "\\\"");
+            query = SparqlSelectData.DATA_FORM_INDIRECT_VARTRANS.replace("[IRI]", toSparqlIri(formID));
         };
         return RDFQueryUtil.evaluateTQuery(query);
     }
@@ -405,9 +389,9 @@ public class LexiconDataManager implements Manager, Cached {
     public TupleQueryResult getLexicalSenseVarTrans(String lexicalSenseID, boolean directRelations) throws ManagerException {
         String query = "";
         if (directRelations) {
-            query = SparqlSelectData.DATA_LEXICAL_SENSE_DIRECT_VARTRANS.replace("[IRI]", "\\\"" + lexicalSenseID + "\\\"");
+            query = SparqlSelectData.DATA_LEXICAL_SENSE_DIRECT_VARTRANS.replace("[IRI]", toSparqlIri(lexicalSenseID));
         } else {
-            query = SparqlSelectData.DATA_LEXICAL_SENSE_INDIRECT_VARTRANS.replace("[IRI]", "\\\"" + lexicalSenseID + "\\\"");
+            query = SparqlSelectData.DATA_LEXICAL_SENSE_INDIRECT_VARTRANS.replace("[IRI]", toSparqlIri(lexicalSenseID));
         };
         return RDFQueryUtil.evaluateTQuery(query);
     }
@@ -420,7 +404,7 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getComponent(String componentID) throws ManagerException {
-        String query = SparqlSelectData.DATA_COMPONENT.replace("[IRI]", "\\\"" + componentID + "\\\"");
+        String query = SparqlSelectData.DATA_COMPONENT.replace("[IRI]", toSparqlIri(componentID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -466,18 +450,31 @@ public class LexiconDataManager implements Manager, Cached {
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
-    public TupleQueryResult getLexicalEntityLinks(String lexicalEntryID, String entityType) {
-        String query = SparqlSelectData.DATA_LEXICAL_ENTITY_LINKS.replace("[IRI]", "\\\"" + lexicalEntryID + "\\\"")
-                .replace("[INDEX]", entityType)
-                .replace("[FIELD]", entityType.replace("Index", "IRI"));
+    public TupleQueryResult getLexicalEntityLinks(String lexicalEntryID, String entityType) throws ManagerException {
+        String query = SparqlSelectData.DATA_LEXICAL_ENTITY_LINKS.replace(
+                "[IRI]", toSparqlIri(lexicalEntryID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
+    private String toSparqlIri(String value) throws ManagerException {
+        try {
+            return NTriplesUtil.toNTriplesString(
+                    SimpleValueFactory.getInstance().createIRI(value));
+        } catch (IllegalArgumentException ex) {
+            throw new ManagerException("Invalid IRI: " + value, ex);
+        }
+    }
+
     public LexicalEntryCore getLexicalEntityTypes(List<LexicalEntryCore> lecs) {
+        if (lecs == null || lecs.isEmpty()) {
+            return null;
+        }
         if (lecs.size() > 1) {
             ArrayList<String> types = new ArrayList();
             for (LexicalEntryCore lec : lecs) {
-                types.add(lec.getType().get(0));
+                if (lec.getType() != null && !lec.getType().isEmpty()) {
+                    types.add(lec.getType().get(0));
+                }
             }
             lecs.get(0).setType(types);
         }
@@ -533,11 +530,14 @@ public class LexiconDataManager implements Manager, Cached {
         }
 //        TupleQuery tupleQuery = GraphDbUtil.getConnection().prepareTupleQuery(QueryLanguage.SPARQL,
 //                SparqlSelectData.DATA_FORM_CORE.replace("[IRI]", "\\\"" + namespace + formID + "\\\""));
-        String query = SparqlSelectData.DATA_FORM_CORE.replace("[IRI]", "\\\"" + formID + "\\\"");
+        String query = SparqlSelectData.DATA_FORM_CORE.replace("[IRI]", toSparqlIri(formID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
     public FormCore getMorphologyInheritance(List<FormCore> fc) {
+        if (fc == null || fc.isEmpty()) {
+            return null;
+        }
         List<Morphology> inhml = new ArrayList();
         for (int i = 1; i < fc.size(); i++) {
             for (Morphology m : fc.get(i).getInheritedMorphology()) {
@@ -559,7 +559,7 @@ public class LexiconDataManager implements Manager, Cached {
 //        }
 //        TupleQuery tupleQuery = GraphDbUtil.getConnection().prepareTupleQuery(QueryLanguage.SPARQL,
 //                SparqlSelectData.DATA_LEXICAL_SENSE_CORE.replace("[IRI]", "\\\"" + namespace + senseID + "\\\""));
-        String query = SparqlSelectData.DATA_LEXICAL_SENSE_CORE.replace("[IRI]", "\\\"" + senseID + "\\\"");
+        String query = SparqlSelectData.DATA_LEXICAL_SENSE_CORE.replace("[IRI]", toSparqlIri(senseID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -569,12 +569,12 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getEtymology(String etymologyID) throws ManagerException {
-        String query = SparqlSelectData.DATA_ETYMOLOGY.replace("[IRI]", "\\\"" + etymologyID + "\\\"");
+        String query = SparqlSelectData.DATA_ETYMOLOGY.replace("[IRI]", toSparqlIri(etymologyID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
     public TupleQueryResult getDictEntry(String id) throws ManagerException {
-        String query = SparqlSelectData.DATA_DICT_ENTRY.replace("_ID_", id);
+        String query = SparqlSelectData.DATA_DICT_ENTRY.replace("[IRI]", toSparqlIri(id));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 
@@ -584,7 +584,7 @@ public class LexiconDataManager implements Manager, Cached {
     }
 
     public TupleQueryResult getEtymologicalLinks(String etymologyID) throws ManagerException {
-        String query = SparqlSelectData.DATA_ETYMOLOGY_ETY_LINKS_LIST.replace("[IRI]", "\\\"" + etymologyID + "\\\"");
+        String query = SparqlSelectData.DATA_ETYMOLOGY_ETY_LINKS_LIST.replace("[IRI]", toSparqlIri(etymologyID));
         return RDFQueryUtil.evaluateTQuery(query);
     }
 

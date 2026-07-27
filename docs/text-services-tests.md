@@ -11,12 +11,22 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/CommonMark, struttura, codici di errore, front matter e corpus metadata-only |
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
+| `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
 | `TextServicesIT` | End-to-end | Upload, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
 chiamano servizi lessicali, non eseguono query sul repository del lessico e non
 creano o modificano indici lessicali.
+
+La persistenza è intenzionalmente ibrida: NIF, record operativi, metadati e
+relazioni di appartenenza sono letti e scritti nel repository `LexOTexts`;
+il filesystem conserva i file originali caricati, gli eventuali CoNLL-U e i
+descrittori originali dei corpus. Il testo canonico viene ricavato dal NIF e non
+viene duplicato in un file `canonical.txt`; analogamente non vengono creati file
+`metadata.json` locali. I record operativi sono isolati nel named graph interno
+`https://lexo.ilc.cnr.it/graphs/nif/records`, quindi non contaminano il Turtle
+NIF scaricato per un documento o un corpus.
 
 I test RDF non confrontano Turtle come una stringa. Caricano il risultato in un
 `Model` RDF4J e verificano soggetto, predicato e tipo dell'oggetto. In questo modo
@@ -89,7 +99,9 @@ dopo `Authorization:`. Se l'installazione usa il prefisso `Bearer`, includerlo:
 `lexo.test.storageDir` è facoltativo e va specificato soltanto quando i test girano
 sullo stesso host di LexO-server. Se presente, gli scenari di errore ed eliminazione
 verificano direttamente che non rimangano directory in `uploads`, `documents` e
-`work`. Per un server remoto omettere la proprietà.
+`work`. Verificano inoltre che, dopo una conversione riuscita, originali ed
+eventuali CoNLL-U siano presenti in `documents`, mentre record e testo canonico
+siano recuperabili da `LexOTexts`. Per un server remoto omettere la proprietà.
 
 I report end-to-end vengono scritti in `target/failsafe-reports`.
 
@@ -173,7 +185,7 @@ cleanup del test.
 
 ### Metadati RDF
 
-- mapping di `id`, `title`, `author`, `date`, `language`, `format` e `corpus`;
+- mapping di `id`, `title`, `author`, `date`, `description`, `language`, `format` e `corpus`;
 - chiavi sconosciute e relative liste ignorate;
 - valori multipli;
 - liste miste di stringhe e URI;
@@ -199,6 +211,22 @@ cleanup del test.
 - aggiornamento del corpus dopo la cancellazione del documento;
 - cancellazione del corpus;
 - assenza di record e NIF dopo una conversione fallita.
+
+### Catalogo dei testi
+
+- elenco di tutti i documenti presenti nei named graph di `LexOTexts`;
+- filtro opzionale per `corpusId` e rifiuto di corpus inesistenti;
+- nome originale e dimensione UTF-8 del valore canonico `nif:isString`;
+- conteggio di frasi e token quando le relative risorse NIF sono disponibili;
+- metadati singoli e multivalore;
+- conteggio delle sole `frac:Attestation` presenti nel named graph specifico
+  `.../attestations/documents/{fileId}`;
+- conteggio delle sole `oa:Annotation` presenti nel named graph specifico
+  `.../annotations/documents/{fileId}`;
+- esclusione di attestazioni e annotazioni presenti nel default graph o nei
+  named graph appartenenti ad altri testi;
+- cancellazione con il testo dei due named graph associati e verifica che i
+  grafi appartenenti agli altri testi rimangano invariati.
 
 ## Aggiungere un caso
 

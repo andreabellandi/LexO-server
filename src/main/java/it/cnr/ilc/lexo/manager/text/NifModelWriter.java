@@ -205,6 +205,8 @@ public final class NifModelWriter {
             addIriOrLiteral(model, context, DCTERMS_NS + "creator", value, null);
         } else if ("date".equals(key)) {
             addIriOrLiteral(model, context, DCTERMS_NS + "created", value, null);
+        } else if ("description".equals(key)) {
+            addLiteral(model, context, DCTERMS_NS + "description", value, null);
         } else if ("language".equals(key)) {
             addIriOrLiteral(model, context, DCTERMS_NS + "language", value, null);
         } else if ("format".equals(key)) {

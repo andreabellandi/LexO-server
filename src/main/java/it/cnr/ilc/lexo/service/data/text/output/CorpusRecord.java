@@ -10,9 +10,7 @@ public class CorpusRecord {
     public String corpusUri;
     public String originalFileName;
     public String originalPath;
-    public String nifPath;
     public String nifGraph;
-    public String metadataPath;
     public String createdAt;
     public String updatedAt;
     public Map<String, String> metadata = new LinkedHashMap<String, String>();
