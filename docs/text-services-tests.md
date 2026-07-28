@@ -9,6 +9,7 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | Classe | Livello | Cosa verifica |
 |---|---|---|
 | `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/CommonMark, struttura, codici di errore, front matter e corpus metadata-only |
+| `Iso639LanguageValidatorTest` | Unitario | Validazione del campo upload nelle prime quattro colonne ISO 639 e codici di errore stabili |
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
@@ -27,6 +28,15 @@ viene duplicato in un file `canonical.txt`; analogamente non vengono creati file
 `metadata.json` locali. I record operativi sono isolati nel named graph interno
 `https://lexo.ilc.cnr.it/graphs/nif/records`, quindi non contaminano il Turtle
 NIF scaricato per un documento o un corpus.
+
+L'upload di ogni TXT/CommonMark richiede il campo multipart `language`. Il
+valore è confrontato senza distinzione tra maiuscole e minuscole con le prime
+quattro colonne di
+`src/main/resources/iso639/lista_ufficiale_isocode_ISO_639.csv` e viene
+normalizzato in minuscolo. Un valore assente produce `MISSING_LANGUAGE`; un
+valore non presente produce `INVALID_LANGUAGE`. Il codice validato viene scritto
+come `dcterms:language` nel NIF e usato come language tag del testo e dei suoi
+segmenti.
 
 I test RDF non confrontano Turtle come una stringa. Caricano il risultato in un
 `Model` RDF4J e verificano soggetto, predicato e tipo dell'oggetto. In questo modo
@@ -180,12 +190,15 @@ cleanup del test.
 - CommonMark controllato valido;
 - `TEXT_OUTSIDE_HEADING`, `INVALID_HEADING` e `MISSING_HEADING`;
 - front matter non chiuso e caratteri NUL;
+- chiave `language` nel front matter ignorata perché la lingua proviene
+  obbligatoriamente dal campo multipart dell'upload;
 - descriptor di corpus con soli metadati;
 - rifiuto del testo nel descriptor di corpus.
 
 ### Metadati RDF
 
-- mapping di `id`, `title`, `author`, `date`, `description`, `language`, `format` e `corpus`;
+- mapping di `id`, `title`, `author`, `date`, `description`, `format` e `corpus`;
+- mapping del campo upload validato in `dcterms:language`;
 - chiavi sconosciute e relative liste ignorate;
 - valori multipli;
 - liste miste di stringhe e URI;
@@ -204,6 +217,7 @@ cleanup del test.
 ### Ciclo REST e rollback
 
 - upload e conversione asincrona di TXT semplice;
+- rifiuto dell'upload senza lingua o con un codice assente dalla lista ISO 639;
 - polling fino a `COMPLETED`, `FAILED` o `CANCELLED` con timeout;
 - download di originale, canonicale e NIF;
 - creazione di corpus e aggiunta di un documento;

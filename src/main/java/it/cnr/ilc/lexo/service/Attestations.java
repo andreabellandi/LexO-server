@@ -84,7 +84,7 @@ public class Attestations extends Service {
     @javax.ws.rs.Path("{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text attestations retrieval",
-            notes = "This method returns a paginated list of the attestations stored for one text, including their metadata and NIF locus data")
+            notes = "This method returns a paginated list of the attestations stored for one text, including their metadata, observable display labels, and NIF locus data")
     public Response list(
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "fileId",

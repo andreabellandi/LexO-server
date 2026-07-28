@@ -95,6 +95,7 @@ class ControlledCommonMarkParserTest {
                 .containsExactly("Mario Rossi", "https://example.org/people/bianchi");
         assertThat(document.metadataValues.get("description"))
                 .containsExactly("Una descrizione del documento");
+        assertThat(document.metadataValues).doesNotContainKey("language");
         assertThat(document.metadataValues).doesNotContainKey("unknown");
         assertThat(document.cleanText).isEqualTo("Testo del documento.");
     }

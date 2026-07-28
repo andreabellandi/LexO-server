@@ -46,6 +46,9 @@ public class AttestationManager implements Manager {
             "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
     private static final String DCMITYPE = "http://purl.org/dc/dcmitype/";
     private static final String PROV = "http://www.w3.org/ns/prov#";
+    private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema#";
+    private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
+    private static final String NO_LABEL = "no label";
     private static final String DEFAULT_STRUCTURE_NAMESPACE =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
 
@@ -103,8 +106,11 @@ public class AttestationManager implements Manager {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
             validateObservable(lexical, observableIri);
+            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
             List<String> observableTypes = rdfTypes(lexical, observableIri,
-                    vf.createIRI(LexicalNamedGraphs.lexiconGraphUri()));
+                    lexicalGraph);
+            String observableLabel = observableLabel(lexical, observableIri,
+                    lexicalGraph);
             List<PendingAttestation> pending = new ArrayList<PendingAttestation>();
             Map<String, Model> batchLoci = new HashMap<String, Model>();
             Set<String> reservedAttestationIris = new HashSet<String>();
@@ -154,10 +160,11 @@ public class AttestationManager implements Manager {
                 }
                 Model attestationStatements = attestationModel(attestationIri,
                         observableIri, locus, corpusIri, occurrence.description, value,
-                        author, timestamp);
+                        location.language, author, timestamp);
                 Attestation result = attestationResult(attestationIri, observable,
-                        observableTypes, occurrence.description, value, start, end,
-                        corpus, location, external, author, timestamp);
+                        observableLabel, observableTypes, occurrence.description,
+                        value, start, end, corpus, location, external, author,
+                        timestamp);
                 pending.add(new PendingAttestation(attestationGraph,
                         location.textGraph, attestationStatements,
                         newPhraseStatements, result));
@@ -181,6 +188,7 @@ public class AttestationManager implements Manager {
     }
 
     private Attestation attestationResult(IRI attestationIri, String observable,
+                                          String observableLabel,
                                           List<String> observableTypes,
                                           String description, String value,
                                           int start, int end, String corpus,
@@ -189,6 +197,7 @@ public class AttestationManager implements Manager {
         Attestation result = new Attestation();
         result.attestation = attestationIri.stringValue();
         result.observable = observable;
+        result.observableLabel = observableLabel;
         result.observableTypes = new ArrayList<String>(observableTypes);
         result.description = blank(description) ? null : description;
         result.value = value;
@@ -246,6 +255,7 @@ public class AttestationManager implements Manager {
             IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
             IRI textGraph = vf.createIRI(textGraphBase + "documents/" + fileId);
             List<Attestation> matches = new ArrayList<Attestation>();
+            Map<String, String> observableLabels = new HashMap<String, String>();
             try (RepositoryResult<Statement> statements = lexical.getStatements(null,
                     RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false,
                     attestationGraph)) {
@@ -261,7 +271,8 @@ public class AttestationManager implements Manager {
                         continue;
                     }
                     matches.add(readAttestation(lexical, text, resource, observable,
-                            attestationGraph, lexicalGraph, textGraph, fileId));
+                            attestationGraph, lexicalGraph, textGraph, fileId,
+                            observableLabels));
                 }
             }
             Collections.sort(matches, new Comparator<Attestation>() {
@@ -314,14 +325,22 @@ public class AttestationManager implements Manager {
                                         RepositoryConnection text,
                                         Resource attestation, Resource observable,
                                         Resource attestationGraph, Resource lexicalGraph,
-                                        Resource textGraph, String fileId) {
+                                        Resource textGraph, String fileId,
+                                        Map<String, String> observableLabels) {
         Attestation result = new Attestation();
         result.attestation = attestation.stringValue();
         result.fileId = fileId;
         result.external = Boolean.valueOf(fileId.startsWith("external-"));
         result.observable = observable == null ? null : observable.stringValue();
+        result.observableLabel = NO_LABEL;
         if (observable != null) {
             result.observableTypes = rdfTypes(lexical, observable, lexicalGraph);
+            String key = observable.stringValue();
+            if (!observableLabels.containsKey(key)) {
+                observableLabels.put(key, observableLabel(lexical, observable,
+                        lexicalGraph));
+            }
+            result.observableLabel = observableLabels.get(key);
         }
         result.creator = firstString(lexical, attestation, DCTERMS.CREATOR,
                 attestationGraph);
@@ -360,6 +379,133 @@ public class AttestationManager implements Manager {
             result.referenceContext = reference == null ? null : reference.stringValue();
         }
         return result;
+    }
+
+    private String observableLabel(RepositoryConnection connection,
+                                   Resource observable, Resource lexicalGraph) {
+        if (isLexicalEntry(connection, observable, lexicalGraph)) {
+            return firstNonBlank(
+                    firstLiteralWithLanguage(connection, observable,
+                            vf.createIRI(RDFS + "label"), lexicalGraph),
+                    canonicalWrittenRep(connection, observable, lexicalGraph),
+                    NO_LABEL);
+        }
+        if (hasType(connection, observable, "Form", lexicalGraph)) {
+            return firstNonBlank(
+                    firstLiteralWithLanguage(connection, observable,
+                            vf.createIRI(ONTOLEX + "writtenRep"), lexicalGraph),
+                    firstLiteralWithLanguage(connection, observable,
+                            vf.createIRI(RDFS + "label"), lexicalGraph),
+                    NO_LABEL);
+        }
+        if (hasType(connection, observable, "LexicalSense", lexicalGraph)) {
+            String definition = firstLiteralWithLanguage(connection, observable,
+                    vf.createIRI(SKOS + "definition"), lexicalGraph);
+            if (blank(definition)) {
+                return NO_LABEL;
+            }
+            Value entryValue = firstObject(connection, observable,
+                    vf.createIRI(ONTOLEX + "isSenseOf"), lexicalGraph);
+            String entryLabel = null;
+            if (entryValue instanceof Resource) {
+                Resource entry = (Resource) entryValue;
+                entryLabel = firstNonBlank(
+                        firstLiteralWithLanguage(connection, entry,
+                                vf.createIRI(RDFS + "label"), lexicalGraph),
+                        canonicalWrittenRep(connection, entry, lexicalGraph), null);
+            }
+            return blank(entryLabel) ? definition : entryLabel + " - " + definition;
+        }
+        if (hasType(connection, observable, "LexicalConcept", lexicalGraph)) {
+            return firstNonBlank(
+                    firstLiteralWithLanguage(connection, observable,
+                            vf.createIRI(SKOS + "prefLabel"), lexicalGraph),
+                    firstLiteralWithLanguage(connection, observable,
+                            vf.createIRI(RDFS + "label"), lexicalGraph),
+                    NO_LABEL);
+        }
+        return NO_LABEL;
+    }
+
+    private String canonicalWrittenRep(RepositoryConnection connection,
+                                       Resource entry, Resource lexicalGraph) {
+        Value form = firstObject(connection, entry,
+                vf.createIRI(ONTOLEX + "canonicalForm"), lexicalGraph);
+        if (!(form instanceof Resource)) {
+            return null;
+        }
+        return firstLiteralWithLanguage(connection, (Resource) form,
+                vf.createIRI(ONTOLEX + "writtenRep"), lexicalGraph);
+    }
+
+    private String firstLiteralWithLanguage(RepositoryConnection connection,
+                                            Resource subject, IRI predicate,
+                                            Resource graph) {
+        Literal literal = firstLiteral(connection, subject, predicate, graph);
+        if (literal == null) {
+            return null;
+        }
+        String language = literal.getLanguage().orElse(null);
+        return blank(language) ? literal.getLabel()
+                : literal.getLabel() + "@" + language;
+    }
+
+    private boolean hasType(RepositoryConnection connection, Resource observable,
+                            String localType, Resource lexicalGraph) {
+        return connection.hasStatement(observable, RDF.TYPE,
+                vf.createIRI(ONTOLEX + localType), true, lexicalGraph);
+    }
+
+    private boolean isLexicalEntry(RepositoryConnection connection,
+                                   Resource observable, Resource lexicalGraph) {
+        IRI lexicalEntry = vf.createIRI(ONTOLEX + "LexicalEntry");
+        if (connection.hasStatement(observable, RDF.TYPE, lexicalEntry, true,
+                lexicalGraph)) {
+            return true;
+        }
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                observable, RDF.TYPE, null, false, lexicalGraph)) {
+            while (statements.hasNext()) {
+                Value type = statements.next().getObject();
+                if (type instanceof IRI && isSubclassOf(connection, (IRI) type,
+                        lexicalEntry, lexicalGraph, new HashSet<String>())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isSubclassOf(RepositoryConnection connection, IRI candidate,
+                                 IRI expected, Resource lexicalGraph,
+                                 Set<String> visited) {
+        if (candidate.equals(expected)) {
+            return true;
+        }
+        if (!visited.add(candidate.stringValue())) {
+            return false;
+        }
+        IRI schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                candidate, vf.createIRI(RDFS + "subClassOf"), null, true,
+                lexicalGraph, schemaGraph)) {
+            while (statements.hasNext()) {
+                Value parent = statements.next().getObject();
+                if (parent instanceof IRI && isSubclassOf(connection, (IRI) parent,
+                        expected, lexicalGraph, visited)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String firstNonBlank(String first, String second,
+                                        String fallback) {
+        if (!blank(first)) {
+            return first;
+        }
+        return blank(second) ? fallback : second;
     }
 
     private List<String> rdfTypes(RepositoryConnection connection, Resource subject,
@@ -521,7 +667,13 @@ public class AttestationManager implements Manager {
                 }
                 try {
                     validateAnchor(canonical.getLabel(), value, start, end);
-                    String language = canonical.getLanguage().orElse(null);
+                    Value languageValue = firstObject(connection, context,
+                            DCTERMS.LANGUAGE, contextGraph);
+                    String language = languageValue instanceof Literal
+                            ? ((Literal) languageValue).getLabel().trim() : null;
+                    if (blank(language)) {
+                        language = null;
+                    }
                     return new TextLocation(fileId.getLabel(),
                             phraseUri(context, start, end), contextGraph, context,
                             language);
@@ -573,7 +725,7 @@ public class AttestationManager implements Manager {
 
     private Model attestationModel(IRI attestation, IRI observable, IRI locus,
                                    IRI corpus, String description, String value,
-                                   String author, String timestamp) {
+                                   String language, String author, String timestamp) {
         Model model = new LinkedHashModel();
         model.add(attestation, RDF.TYPE, vf.createIRI(FRAC + "Attestation"));
         model.add(attestation, DCTERMS.CREATOR,
@@ -583,8 +735,10 @@ public class AttestationManager implements Manager {
         if (!blank(description)) {
             model.add(attestation, DCTERMS.DESCRIPTION, vf.createLiteral(description));
         }
-        model.add(attestation, vf.createIRI(FRAC + "gloss"), vf.createLiteral(value));
-        model.add(attestation, RDF.VALUE, vf.createLiteral(value));
+        Literal attestedValue = blank(language)
+                ? vf.createLiteral(value) : vf.createLiteral(value, language);
+        model.add(attestation, vf.createIRI(FRAC + "gloss"), attestedValue);
+        model.add(attestation, RDF.VALUE, attestedValue);
         model.add(attestation, vf.createIRI(FRAC + "locus"), locus);
         model.add(attestation, vf.createIRI(FRAC + "observedIn"), corpus);
         model.add(observable, vf.createIRI(FRAC + "attestation"), attestation);

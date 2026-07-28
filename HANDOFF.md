@@ -1,8 +1,9 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 27 luglio 2026 durante lo sviluppo dei servizi di creazione e
-consultazione delle attestazioni sul branch `codex/attestation-create`, basato
-su `origin/master` (`46cb91c`).
+Aggiornato al 28 luglio 2026 durante l'estensione della consultazione delle
+attestazioni e l'introduzione della lingua ISO 639 obbligatoria per gli upload
+testuali sul branch `codex/attestation-observable-label`, basato sul merge di
+`codex/attestation-create` in `origin/master` (`c6b582a`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -79,6 +80,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
 │   └── util/                     utility RDF, named graph e query
 ├── src/main/resources/
 │   ├── bootstrap/repositories/   template Turtle dei repository GraphDB
+│   ├── iso639/                    lista dei codici lingua ammessi negli upload
 │   ├── bootstrap/schema/         RDF/OWL e manifest di import
 │   ├── bootstrap/indexes/        query e manifest degli indici Lucene
 │   └── lexo-server.properties    configurazione runtime principale
@@ -106,8 +108,12 @@ appartenenza ai corpora sono persistiti in GraphDB.
   graph lessicali, attestazioni, annotazioni e schema.
 - Import testuale di TXT semplice, CommonMark controllato ed eventuale CoNLL-U.
 - Front matter con valori singoli o multipli per `id`, `title`, `author`, `date`,
-  `description`, `language`, `format` e `corpus`; valori URI gestiti secondo le
+  `description`, `format` e `corpus`; valori URI gestiti secondo le
   regole documentate. `description` è sempre un letterale `dcterms:description`.
+- Upload TXT/CommonMark con campo multipart obbligatorio `language`, validato
+  contro le prime quattro colonne della lista ISO 639 inclusa nel progetto. Il
+  codice normalizzato è persistito come `dcterms:language` e language tag NIF;
+  la chiave `language` nel front matter viene ignorata.
 - Conversione asincrona in NIF, polling, cancellazione, download di NIF,
   originale, testo canonico e CoNLL-U.
 - Creazione, consultazione, download ed eliminazione di corpora NIF senza testo;
@@ -118,16 +124,22 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 55 test unitari/repository passati il 27 luglio 2026, inclusi
-  i 12 test mirati delle attestazioni batch.
+- Suite corrente: 63 test unitari/repository passati il 28 luglio 2026, inclusi
+  i 17 test mirati delle attestazioni.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
   relativi loci NIF, con validazione di tipi OntoLex/DCMI, URL esterni, offset
   Unicode e isolamento nei named graph per testo.
 - La creazione accetta ora una lista JSON di occorrenze e valida l'intero batch
   prima di scrivere tutte le attestazioni e i loci in una transazione per
-  repository, con compensazione tra `LexOLexica` e `LexOTexts`.
+  repository, con compensazione tra `LexOLexica` e `LexOTexts`. Il metadato
+  `dcterms:language` del contesto testuale viene applicato a `nif:anchorOf`,
+  `frac:gloss` e `rdf:value` quando disponibile.
 - Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per tipo
   dell'osservabile e creator, arricchito con i dati del locus da `LexOTexts`.
+- Ogni attestazione consultata espone `observableLabel`, risolto in base al tipo
+  OntoLex usando label RDFS/SKOS, forma canonica e definizione del senso con i
+  fallback documentati; sono riconosciute anche sottoclassi di `LexicalEntry` e
+  i language tag sono preservati nel formato `valore@lingua`.
 - Namespace applicativo predefinito aggiornato a `https://lexo.ilc.cnr.it#`.
 
 ## Funzionalità ancora da completare o validare
@@ -237,18 +249,26 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-create`.
-- Base aggiornata: `origin/master` al commit `46cb91c`.
+- Branch locale corrente: `codex/attestation-observable-label`.
+- Base aggiornata: `origin/master` al commit `c6b582a`.
 - Modifiche preesistenti dell'utente conservate in `AGENTS.md`, `HANDOFF.md` e
   `CHANGELOG.md`; non includere log runtime o `nb-configuration.xml` nei commit.
 
 ## Ultimi file modificati
 
-Il lavoro corrente sulle attestazioni ha aggiunto `Attestations.java`,
-`AttestationManager.java`, il DTO di output e i relativi test repository. Ha
-inoltre aggiornato namespace, README, bootstrap README e changelog. I 12 test
-mirati di `AttestationManagerTest` e la suite Maven completa (55 test) sono
-passati il 27 luglio 2026.
+Il lavoro corrente aggiunge `observableLabel` all'output delle attestazioni e la
+relativa risoluzione per lexical entry (comprese sottoclassi), form, lexical
+sense e lexical concept. La creazione propaga inoltre `dcterms:language` ai
+letterali dell'attestazione e del locus. I 17 test mirati di
+`AttestationManagerTest` e la suite Maven completa (63 test) sono passati il 28
+luglio 2026.
+
+Nello stesso branch l'upload testuale è stato esteso con la lingua ISO 639
+obbligatoria. I file principali coinvolti sono `Texts.java`, `TextJobManager.java`,
+`Iso639LanguageValidator.java`, `ControlledCommonMarkParser.java`, la lista CSV
+in `src/main/resources/iso639`, i test testuali e la relativa documentazione.
+La suite completa conta ora 62 test; gli end-to-end `*IT` restano esclusi da
+`mvn test` e richiedono un deployment dedicato.
 
 L'ultimo commit (`9f77676`, supporto a `description`) ha modificato:
 
@@ -281,7 +301,8 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
    fornite, riutilizzando manager, validazioni e selezione del graph per testo.
 4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
 5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
-   completi, verificando REST, GraphDB e filesystem.
+   completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi di
+   lingua upload mancante/non valida e il relativo `dcterms:language` nel NIF.
 6. Allineare README e POM sul requisito Java ufficiale.
 7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.

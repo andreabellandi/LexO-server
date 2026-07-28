@@ -119,13 +119,13 @@ class TextCatalogManagerTest {
         String corpusUri = writer.corpusUri("corpus-one");
 
         ParsedTextDocument corpusMetadata = parser.parseMetadataOnly(
-                "---\ntitle: Corpus uno\nlanguage: it\n---\n");
+                "---\ntitle: Corpus uno\n---\n");
         Model corpus = writer.buildCorpus("corpus-one", "corpus.txt",
                 corpusMetadata, null);
 
         ParsedTextDocument interview = parser.parsePlainText(
                 "---\ntitle: Intervista di prova\nauthor: Mario Rossi\n"
-                        + "description: Conversazione di prova\nlanguage: it\n---\nUna frase.");
+                        + "description: Conversazione di prova\n---\nUna frase.");
         ParsedTextDocument second = parser.parsePlainText("Secondo documento.");
 
         try (RepositoryConnection connection = textRepository.getConnection()) {

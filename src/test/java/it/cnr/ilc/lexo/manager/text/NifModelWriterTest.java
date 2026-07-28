@@ -48,10 +48,10 @@ class NifModelWriterTest {
                         + "author: Mario Rossi\n"
                         + "date: 2026\n"
                         + "description: Una storia del dizionario italiano\n"
-                        + "language: it\n"
                         + "format: text/plain\n"
                         + "corpus: Corpus storico\n"
                         + "---\nTesto.");
+        setUploadLanguage(document, "it");
         Model model = writer.build("file-1", "example.txt", document);
         IRI context = iri(BASE + "file-1#context");
 
@@ -131,7 +131,7 @@ class NifModelWriterTest {
     @DisplayName("Corpus NIF has metadata and members but no textual nif:isString")
     void buildsTextlessCorpusModel() throws Exception {
         ParsedTextDocument metadata = parser.parseMetadataOnly(
-                "---\ntitle: Corpus di prova\nlanguage: it\n---\n");
+                "---\ntitle: Corpus di prova\n---\n");
         Model model = writer.buildCorpus("corpus-1", "corpus.txt", metadata,
                 Arrays.asList(BASE + "file-a#context", BASE + "file-b#context"));
         IRI corpus = iri(BASE + "corpora/corpus-1");
@@ -161,6 +161,11 @@ class NifModelWriterTest {
                     assertThat(value).isInstanceOf(Literal.class);
                     assertThat(value.stringValue()).isEqualTo(lexicalValue);
                 });
+    }
+
+    private static void setUploadLanguage(ParsedTextDocument document, String language) {
+        document.metadata.put("language", language);
+        document.metadataValues.put("language", Arrays.asList(language));
     }
 
     private IRI iri(String value) {

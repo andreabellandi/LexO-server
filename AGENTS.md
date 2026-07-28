@@ -39,8 +39,11 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
   alterare il testo canonico o gli offset NIF.
 - Gli offset sono code point Unicode sul valore `nif:isString`, non indici UTF-16
   e non offset sul sorgente CommonMark renderizzato.
-- Front matter ammesso: `id`, `title`, `author`, `date`, `description`,
-  `language`, `format`, `corpus`; ignorare chiavi sconosciute.
+- Front matter ammesso: `id`, `title`, `author`, `date`, `description`, `format`,
+  `corpus`; ignorare chiavi sconosciute, incluso `language`.
+- Ogni upload TXT/CommonMark richiede un campo multipart `language`, validato
+  contro le prime quattro colonne della lista ISO 639 versionata nelle risorse;
+  usare quel codice per segmentazione, metadati e language tag NIF.
 - Preservare valori multipli. `description` deve essere sempre un letterale
   `dcterms:description`; rispettare le regole IRI già implementate per gli altri
   campi.
@@ -104,3 +107,41 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
   passo devono riflettere lo stato reale.
 - Non dichiarare completata una funzionalità senza una verifica proporzionata al
   rischio e senza distinguere test unitari da test end-to-end.
+
+After every substantial change:
+
+1. Update `HANDOFF.md` with:
+   - the current state of the project;
+   - completed functionality;
+   - remaining work;
+   - known problems;
+   - recommended next steps.
+2. Update `README.md` if installation, configuration, usage, or project structure
+   changed.
+3. Run the relevant tests before completing the task.
+4. Do not update `HANDOFF.md` for trivial formatting-only changes.
+
+## Changelog maintenance
+
+After every substantial user-visible change, update the `Unreleased` section of
+`CHANGELOG.md`.
+
+Use only the relevant categories among:
+
+- Added
+- Changed
+- Deprecated
+- Removed
+- Fixed
+- Security
+
+Describe changes from the user's perspective. Do not add trivial internal
+refactoring, formatting-only changes, or unverified information.
+
+Do not create a new release number or release date unless explicitly requested.
+When preparing a release, move the relevant entries from `Unreleased` into a
+versioned section using the format:
+
+```text
+## [X.Y.Z] - YYYY-MM-DD
+```
