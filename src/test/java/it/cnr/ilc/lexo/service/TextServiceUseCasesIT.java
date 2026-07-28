@@ -49,7 +49,7 @@ class TextServiceUseCasesIT {
         workflow.assumeFullyConfigured();
         String originalName = "uc01-" + UUID.randomUUID() + ".txt";
         Path input = write(originalName,
-                "---\ntitle: Documento autonomo\nlanguage: it\n---\n"
+                "---\ntitle: Documento autonomo\n---\n"
                         + "Prima frase. Seconda frase.");
         String fileId = null;
         try {
@@ -101,7 +101,7 @@ class TextServiceUseCasesIT {
             // 1. Creazione del corpus vuoto.
             JsonNode corpus = workflow.createCorpus(write(descriptorName,
                     "---\nid: https://example.org/corpora/uc02\n"
-                            + "title: Corpus con due documenti\nlanguage: it\n---\n"));
+                            + "title: Corpus con due documenti\n---\n"));
             corpusId = corpus.path("corpusId").asText();
             String corpusUri = corpus.path("corpusUri").asText();
             workflow.assertCorpusFilesExist(corpusId, descriptorName);
@@ -174,7 +174,7 @@ class TextServiceUseCasesIT {
         Path text = write(textName,
                 "---\nauthor:\n  - Mario Rossi\n"
                         + "  - <https://example.org/people/bianchi>\n"
-                        + "language: it\n---\nMario corre.");
+                        + "---\nMario corre.");
         Path conllu = write(conlluName,
                 "# sent_id = s1\n# text = Mario corre.\n"
                         + "# start_char = 0\n# end_char = 12\n"

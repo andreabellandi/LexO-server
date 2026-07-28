@@ -88,6 +88,8 @@ class TextServicesIT {
             assertThat(nif.contains(null, iri(
                     "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#isString"),
                     null)).isTrue();
+            assertThat(nif.contains(null, iri(DCTERMS + "language"),
+                    SimpleValueFactory.getInstance().createLiteral("it"))).isTrue();
 
             assertStatus(get("texts/" + fileId + "/original"), 200);
             assertStatus(get("texts/" + fileId + "/canonical"), 200);
@@ -110,6 +112,22 @@ class TextServicesIT {
             fileId = null;
         } finally {
             deleteQuietly(fileId == null ? null : "texts/" + fileId);
+        }
+    }
+
+    @Test
+    @DisplayName("Text upload rejects missing and unknown ISO 639 language codes")
+    void validatesRequiredUploadLanguage() throws Exception {
+        assumeConfigured();
+        Path input = write("language-" + UUID.randomUUID() + ".txt", "Testo.");
+
+        try (Response missing = uploadMultipartWithLanguage(input, null)) {
+            assertStatus(missing, 400);
+            assertThat(missing.readEntity(String.class)).contains("MISSING_LANGUAGE");
+        }
+        try (Response invalid = uploadMultipartWithLanguage(input, "not-a-language")) {
+            assertStatus(invalid, 400);
+            assertThat(invalid.readEntity(String.class)).contains("INVALID_LANGUAGE");
         }
     }
 
@@ -232,11 +250,32 @@ class TextServicesIT {
 
     private Response uploadMultipart(String endpoint, Path input) {
         FormDataMultiPart multipart = new FormDataMultiPart();
+        if ("texts/upload".equals(endpoint)) {
+            multipart.field("language", "it");
+        }
         multipart.bodyPart(new FileDataBodyPart("file", input.toFile()));
         try {
             Response response = request(endpoint).post(Entity.entity(multipart, multipart.getMediaType()));
             assertStatus(response, 200);
             return response;
+        } finally {
+            try {
+                multipart.close();
+            } catch (Exception ignored) {
+                // Test cleanup must not hide the service assertion.
+            }
+        }
+    }
+
+    private Response uploadMultipartWithLanguage(Path input, String language) {
+        FormDataMultiPart multipart = new FormDataMultiPart();
+        if (language != null) {
+            multipart.field("language", language);
+        }
+        multipart.bodyPart(new FileDataBodyPart("file", input.toFile()));
+        try {
+            return request("texts/upload")
+                    .post(Entity.entity(multipart, multipart.getMediaType()));
         } finally {
             try {
                 multipart.close();

@@ -14,6 +14,8 @@ public class Attestation implements Data {
     public String attestation;
     @ApiModelProperty(value = "IRI of the observed lexical entity")
     public String observable;
+    @ApiModelProperty(value = "display label resolved from the observed lexical entity")
+    public String observableLabel;
     @ApiModelProperty(value = "RDF types of the observed lexical entity")
     public List<String> observableTypes = new ArrayList<String>();
     @ApiModelProperty(value = "optional attestation description")

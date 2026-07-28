@@ -81,6 +81,7 @@ final class TextWorkflowTestSupport implements AutoCloseable {
 
     String upload(Path text, Path conllu) throws Exception {
         FormDataMultiPart multipart = new FormDataMultiPart();
+        multipart.field("language", "it");
         multipart.bodyPart(new FileDataBodyPart("file", text.toFile()));
         if (conllu != null) {
             multipart.bodyPart(new FileDataBodyPart("conllu", conllu.toFile()));

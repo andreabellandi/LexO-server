@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
@@ -86,7 +87,14 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text upload",
-            notes = "This method uploads one TXT or CommonMark file and an optional CoNLL-U file, and returns the generated file id")
+            notes = "This method uploads one TXT or CommonMark file, its required ISO 639 language code and an optional CoNLL-U file, and returns the generated file id")
+    @ApiImplicitParam(
+            name = "language",
+            value = "required text language code present in ISO 639-1, ISO 639-2 or ISO 639-3",
+            example = "it",
+            required = true,
+            dataType = "string",
+            paramType = "form")
     public Response upload(
             @HeaderParam("Authorization") String key,
             @ApiParam(
@@ -107,6 +115,16 @@ public class Texts extends Service {
             if (parts.isEmpty()) {
                 return plain(Response.Status.BAD_REQUEST, "Missing file");
             }
+
+            List<FormDataBodyPart> languageParts = multiPart.getFields("language");
+            if (languageParts != null && languageParts.size() > 1) {
+                return plain(Response.Status.BAD_REQUEST,
+                        "INVALID_LANGUAGE: È ammesso un solo campo language");
+            }
+            FormDataBodyPart languagePart = languageParts == null || languageParts.isEmpty()
+                    ? null : languageParts.get(0);
+            String language = TextJobManager.get().saveUploadLanguage(fileId,
+                    languagePart == null ? null : languagePart.getValue());
 
             String textFileName = null;
             String conlluFileName = null;
@@ -159,6 +177,7 @@ public class Texts extends Service {
             Map<String, Object> response = new LinkedHashMap<String, Object>();
             response.put("fileId", fileId);
             response.put("originalFileName", textFileName);
+            response.put("language", language);
             if (conlluFileName != null) {
                 response.put("conlluFileName", conlluFileName);
             }

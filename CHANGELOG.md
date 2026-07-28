@@ -17,7 +17,7 @@ starts from the ongoing `Unreleased` work.
 - Plain-text TXT import and NIF conversion for documents without CommonMark
   headings.
 - Front matter support for `id`, `title`, `author`, `date`, `description`,
-  `language`, `format`, and `corpus`, including multi-valued metadata and URI
+  `format`, and `corpus`, including multi-valued metadata and URI
   handling.
 - Corpus creation, corpus membership, and corpus-aware text conversion.
 - Dedicated GraphDB Free bootstrap for `LexOLexica` and `LexOTexts`, including
@@ -28,9 +28,17 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Paginated attestation results now include an `observableLabel` resolved from
+  OntoLex and SKOS labels, canonical written representations, and sense
+  definitions according to the observable RDF type, preserving language tags
+  when present.
+- TXT and CommonMark uploads now require an ISO 639-1, ISO 639-2, or ISO 639-3
+  language code. The validated code is written as `dcterms:language` in the NIF;
+  `language` values in file front matter are ignored.
 - Attestation creation now accepts a JSON list of textual occurrences and
   creates all corresponding FRAC attestations and NIF loci as one validated
-  batch.
+  batch. NIF anchors, FRAC glosses, and RDF values now inherit the text's
+  language metadata when available.
 - The default LexO application namespace is now `https://lexo.ilc.cnr.it#`.
 - Text persistence now uses a dedicated GraphDB repository instead of the
   lexical repository.

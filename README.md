@@ -55,6 +55,26 @@ Run the unit suite with `mvn test`. Tests for the text services, including the
 optional end-to-end tests for a deployed LexO-server and GraphDB Free, are
 documented in [docs/text-services-tests.md](docs/text-services-tests.md).
 
+## Text upload language
+
+`POST /service/texts/upload` requires a multipart `language` field in addition
+to the TXT/CommonMark `file` and optional `conllu` file. The value must occur in
+one of the first four columns of the bundled ISO 639 list (ISO 639-1, the two
+ISO 639-2 forms, or ISO 639-3). Matching is case-insensitive and the stored code
+is normalized to lowercase.
+
+```bash
+curl -X POST 'http://localhost:8080/LexO-server/service/texts/upload' \
+  -H 'Authorization: Bearer TOKEN_LEXO' \
+  -F 'language=it' \
+  -F 'file=@intervista.txt;type=text/plain'
+```
+
+The language supplied by the upload is stored as `dcterms:language` during NIF
+conversion and is used as the NIF literal language tag. A `language` key in the
+file front matter is ignored. Supported front-matter keys are `id`, `title`,
+`author`, `date`, `description`, `format`, and `corpus`.
+
 ## Attestations
 
 `POST /service/attestations` creates multiple FRAC attestations for one OntoLex
@@ -73,7 +93,10 @@ the canonical `nif:isString` value.
 
 The whole list is validated before persistence. All FRAC resources and NIF loci
 are then written as one batch transaction per repository; a failed occurrence
-does not leave the preceding occurrences stored.
+does not leave the preceding occurrences stored. When the text context has a
+`dcterms:language` metadata value, the same language tag is applied to
+`nif:anchorOf`, `frac:gloss`, and `rdf:value`; otherwise these values remain
+plain string literals.
 
 For local evidence, `corpus` must identify a `dcmitype:Collection`,
 `dcmitype:Dataset`, or `dcmitype:Text` in `LexOTexts`. The service validates the
@@ -87,7 +110,14 @@ paginated JSON response. `observableType` and `author` optionally filter the RDF
 type of the observed lexical entity and the exact `dcterms:creator` value.
 `limit` defaults to 200 and `offset` defaults to 0. Each result combines FRAC
 metadata from `LexOLexica` with anchor, offsets, language, RDF types and reference
-context read from the corresponding NIF locus in `LexOTexts`.
+context read from the corresponding NIF locus in `LexOTexts`. The
+`observableLabel` field is resolved according to the observable type: lexical
+entries prefer `rdfs:label` and then their canonical form's
+`ontolex:writtenRep`; forms prefer `ontolex:writtenRep` and then `rdfs:label`;
+lexical senses combine their entry label or canonical written representation
+with `skos:definition`; lexical concepts prefer `skos:prefLabel` and then
+`rdfs:label`. Language tags are preserved in the compact `value@language`
+format (for example, `casa@it`); missing values fall back to `"no label"`.
 
 ## License
 

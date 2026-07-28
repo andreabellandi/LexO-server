@@ -41,6 +41,7 @@ import org.eclipse.rdf4j.model.Model;
 public final class TextJobManager {
 
     private static final TextJobManager INSTANCE = new TextJobManager();
+    private static final String LANGUAGE_FILE = ".language";
 
     public static TextJobManager get() {
         return INSTANCE;
@@ -155,6 +156,23 @@ public final class TextJobManager {
         }
     }
 
+    /** Associates a validated ISO 639 language with an upload and persists it across restarts. */
+    public String saveUploadLanguage(String fileId, String language) throws IOException {
+        requireSafeFileId(fileId);
+        String canonical = Iso639LanguageValidator.get().requireValid(language);
+        Path dir = uploadRoot.resolve(fileId);
+        Files.createDirectories(dir);
+        Files.write(dir.resolve(LANGUAGE_FILE), canonical.getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE);
+        UploadSet set = uploads.computeIfAbsent(fileId,
+                k -> new UploadSet(fileId, Instant.now().toString()));
+        synchronized (set) {
+            set.language = canonical;
+        }
+        return canonical;
+    }
+
     public boolean hasTextUpload(String fileId) {
         UploadSet set = findUploadSet(fileId);
         return set != null && set.text != null && Files.exists(set.text);
@@ -173,6 +191,9 @@ public final class TextJobManager {
         UploadSet upload = findUploadSet(fileId);
         if (upload == null || upload.text == null || !Files.exists(upload.text)) {
             throw new IllegalStateException("No uploaded TXT/Markdown file for " + fileId);
+        }
+        if (upload.language == null) {
+            throw new IllegalStateException("Missing language for uploaded text " + fileId);
         }
         TextJobInfo current = jobs.get(fileId);
         if (current != null && (current.state == TextJobState.PENDING
@@ -219,13 +240,13 @@ public final class TextJobManager {
 
             ControlledCommonMarkParser parser = new ControlledCommonMarkParser();
             boolean plainText = !parser.hasControlledCommonMarkHeading(rawText);
-            ParsedTextDocument doc;
+            ParsedTextDocument doc = plainText
+                    ? parser.parsePlainTextStructure(rawText)
+                    : parser.parseStructure(rawText);
+            applyUploadLanguage(doc, upload.language);
             if (rawConllu == null) {
-                doc = plainText ? parser.parsePlainText(rawText) : parser.parse(rawText);
+                parser.segmentWithBreakIterator(doc);
             } else {
-                doc = plainText
-                        ? parser.parsePlainTextStructure(rawText)
-                        : parser.parseStructure(rawText);
                 new ConlluSegmenter().apply(doc, rawConllu, upload.conlluFileName);
             }
             job.progress = 55;
@@ -327,6 +348,13 @@ public final class TextJobManager {
         }
         record.warnings.addAll(doc.warnings);
         return record;
+    }
+
+    private static void applyUploadLanguage(ParsedTextDocument doc, String language) {
+        doc.metadata.put("language", language);
+        List<String> values = new ArrayList<String>(1);
+        values.add(language);
+        doc.metadataValues.put("language", values);
     }
 
     public Collection<TextJobInfo> getAllJobsFor(String fileId) {
@@ -474,6 +502,15 @@ public final class TextJobManager {
             return null;
         }
         UploadSet discovered = new UploadSet(fileId, Instant.now().toString());
+        Path languagePath = dir.resolve(LANGUAGE_FILE);
+        if (Files.isRegularFile(languagePath)) {
+            try {
+                discovered.language = Iso639LanguageValidator.get()
+                        .requireValid(readUtf8Strict(languagePath));
+            } catch (IOException | IllegalArgumentException e) {
+                throw new IllegalStateException("Cannot read upload language for " + fileId, e);
+            }
+        }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path path : stream) {
                 if (!Files.isRegularFile(path) || path.getFileName().toString().startsWith(".")) {
@@ -602,6 +639,7 @@ public final class TextJobManager {
         final String createdAt;
         Path text;
         String textFileName;
+        String language;
         Path conllu;
         String conlluFileName;
 

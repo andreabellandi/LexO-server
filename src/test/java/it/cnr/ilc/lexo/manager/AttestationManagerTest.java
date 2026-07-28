@@ -33,6 +33,8 @@ class AttestationManagerTest {
     private static final String NIF =
             "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
     private static final String DCMITYPE = "http://purl.org/dc/dcmitype/";
+    private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema#";
+    private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
     private static final String NIFS =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
     private static final String PROV = "http://www.w3.org/ns/prov#";
@@ -65,6 +67,8 @@ class AttestationManagerTest {
         try (RepositoryConnection connection = textRepository.getConnection()) {
             connection.add(context, RDF.TYPE, iri(DCMITYPE + "Text"), textGraph);
             connection.add(context, RDF.TYPE, iri(NIF + "Context"), textGraph);
+            connection.add(context, DCTERMS.LANGUAGE,
+                    vf.createLiteral("it"), textGraph);
             connection.add(context, iri(NIF + "isString"),
                     vf.createLiteral("A😀B gli stessi diritti", "it"), textGraph);
             connection.add(context, iri(NIFS + "fileId"),
@@ -89,6 +93,7 @@ class AttestationManagerTest {
         assertThat(result.fileId).isEqualTo("file-a");
         assertThat(result.locus).isEqualTo(locus.stringValue());
         assertThat(result.creator).isEqualTo("user7");
+        assertThat(result.observableLabel).isEqualTo("no label");
         assertThat(result.attestation).startsWith("https://lexo.ilc.cnr.it#LexO_");
 
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
@@ -105,9 +110,9 @@ class AttestationManagerTest {
             assertThat(connection.hasStatement(attestation, DCTERMS.MODIFIED,
                     vf.createLiteral(result.lastUpdate), false, attestationGraph)).isTrue();
             assertThat(connection.hasStatement(attestation, iri(FRAC + "gloss"),
-                    vf.createLiteral("😀B"), false, attestationGraph)).isTrue();
+                    vf.createLiteral("😀B", "it"), false, attestationGraph)).isTrue();
             assertThat(connection.hasStatement(attestation, RDF.VALUE,
-                    vf.createLiteral("😀B"), false, attestationGraph)).isTrue();
+                    vf.createLiteral("😀B", "it"), false, attestationGraph)).isTrue();
             assertThat(connection.hasStatement(attestation, iri(FRAC + "locus"),
                     locus, false, attestationGraph)).isTrue();
             assertThat(connection.hasStatement(attestation, iri(FRAC + "observedIn"),
@@ -246,6 +251,15 @@ class AttestationManagerTest {
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(count(lexical, null, RDF.TYPE, iri(FRAC + "Attestation"),
                     attestationGraph)).isEqualTo(2);
+            for (Attestation result : results) {
+                IRI attestation = iri(result.attestation);
+                assertThat(lexical.hasStatement(attestation,
+                        iri(FRAC + "gloss"), vf.createLiteral(result.value, "it"),
+                        false, attestationGraph)).isTrue();
+                assertThat(lexical.hasStatement(attestation, RDF.VALUE,
+                        vf.createLiteral(result.value, "it"), false,
+                        attestationGraph)).isTrue();
+            }
             assertThat(text.hasStatement(
                     iri("https://example.org/text/interview#char=0,1"),
                     RDF.TYPE, iri(NIF + "Phrase"), false, textGraph)).isTrue();
@@ -254,6 +268,30 @@ class AttestationManagerTest {
                     RDF.TYPE, iri(NIF + "Phrase"), false, textGraph)).isTrue();
             assertDefaultGraphEmpty(lexical);
             assertDefaultGraphEmpty(text);
+        }
+    }
+
+    @Test
+    void createsPlainAttestedLiteralsWhenTextLanguageMetadataIsMissing()
+            throws Exception {
+        try (RepositoryConnection connection = textRepository.getConnection()) {
+            connection.remove(context, DCTERMS.LANGUAGE, null, textGraph);
+        }
+
+        Attestation result = manager.create(observable.stringValue(), null,
+                "A", "0", "1", context.stringValue(), false, "user7");
+
+        IRI attestation = iri(result.attestation);
+        IRI locus = iri("https://example.org/text/interview#char=0,1");
+        IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "gloss"),
+                    vf.createLiteral("A"), false, attestationGraph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, RDF.VALUE,
+                    vf.createLiteral("A"), false, attestationGraph)).isTrue();
+            assertThat(text.hasStatement(locus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("A"), false, textGraph)).isTrue();
         }
     }
 
@@ -352,6 +390,168 @@ class AttestationManagerTest {
     }
 
     @Test
+    void resolvesLexicalEntryLabelsIncludingSubclassAndFallbacks() throws Exception {
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI schemaGraph = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
+        IRI labelledEntry = iri("https://example.org/lexicon/labelled-entry");
+        IRI subclassEntry = iri("https://example.org/lexicon/subclass-entry");
+        IRI unlabelledEntry = iri("https://example.org/lexicon/unlabelled-entry");
+        IRI customEntryType = iri("https://example.org/ontology/CustomEntry");
+        IRI labelledForm = iri("https://example.org/lexicon/labelled-entry-form");
+        IRI subclassForm = iri("https://example.org/lexicon/subclass-entry-form");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(labelledEntry, RDF.TYPE, iri(ONTOLEX + "LexicalEntry"),
+                    lexicalGraph);
+            connection.add(labelledEntry, iri(RDFS + "label"),
+                    vf.createLiteral("Preferred entry label", "it"), lexicalGraph);
+            connection.add(labelledEntry, iri(ONTOLEX + "canonicalForm"),
+                    labelledForm, lexicalGraph);
+            connection.add(labelledForm, iri(ONTOLEX + "writtenRep"),
+                    vf.createLiteral("ignored canonical form"), lexicalGraph);
+
+            connection.add(customEntryType, iri(RDFS + "subClassOf"),
+                    iri(ONTOLEX + "LexicalEntry"), schemaGraph);
+            connection.add(subclassEntry, RDF.TYPE, customEntryType, lexicalGraph);
+            connection.add(subclassEntry, iri(ONTOLEX + "canonicalForm"),
+                    subclassForm, lexicalGraph);
+            connection.add(subclassForm, iri(ONTOLEX + "writtenRep"),
+                    vf.createLiteral("Subclass canonical form", "fr"), lexicalGraph);
+
+            connection.add(unlabelledEntry, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalEntry"), lexicalGraph);
+        }
+        addPersistedAttestation("file-a", "entry-label", labelledEntry,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "entry-subclass", subclassEntry,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "entry-none", unlabelledEntry,
+                "user7", "A", 0, 1);
+
+        AttestationPage page = manager.list("file-a", null, null, null, null);
+
+        assertThat(labelFor(page, labelledEntry)).isEqualTo("Preferred entry label@it");
+        assertThat(labelFor(page, subclassEntry)).isEqualTo("Subclass canonical form@fr");
+        assertThat(labelFor(page, unlabelledEntry)).isEqualTo("no label");
+    }
+
+    @Test
+    void resolvesFormLabelsInWrittenRepThenRdfsLabelOrder() throws Exception {
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI representedForm = iri("https://example.org/lexicon/represented-form");
+        IRI labelledForm = iri("https://example.org/lexicon/rdfs-labelled-form");
+        IRI unlabelledForm = iri("https://example.org/lexicon/unlabelled-form");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(representedForm, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    lexicalGraph);
+            connection.add(representedForm, iri(ONTOLEX + "writtenRep"),
+                    vf.createLiteral("Preferred written representation", "de"),
+                    lexicalGraph);
+            connection.add(representedForm, iri(RDFS + "label"),
+                    vf.createLiteral("ignored form label"), lexicalGraph);
+            connection.add(labelledForm, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    lexicalGraph);
+            connection.add(labelledForm, iri(RDFS + "label"),
+                    vf.createLiteral("Form RDFS label", "es"), lexicalGraph);
+            connection.add(unlabelledForm, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    lexicalGraph);
+        }
+        addPersistedAttestation("file-a", "form-written", representedForm,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "form-label", labelledForm,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "form-none", unlabelledForm,
+                "user7", "A", 0, 1);
+
+        AttestationPage page = manager.list("file-a", null, null, null, null);
+
+        assertThat(labelFor(page, representedForm))
+                .isEqualTo("Preferred written representation@de");
+        assertThat(labelFor(page, labelledForm)).isEqualTo("Form RDFS label@es");
+        assertThat(labelFor(page, unlabelledForm)).isEqualTo("no label");
+    }
+
+    @Test
+    void resolvesLexicalSenseLabelsFromEntryAndDefinition() throws Exception {
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI labelledEntry = iri("https://example.org/lexicon/sense-entry-label");
+        IRI canonicalEntry = iri("https://example.org/lexicon/sense-entry-canonical");
+        IRI canonicalForm = iri("https://example.org/lexicon/sense-entry-form");
+        IRI labelledSense = iri("https://example.org/lexicon/labelled-sense");
+        IRI canonicalSense = iri("https://example.org/lexicon/canonical-sense");
+        IRI definitionOnlySense = iri("https://example.org/lexicon/definition-only-sense");
+        IRI undefinedSense = iri("https://example.org/lexicon/undefined-sense");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(labelledEntry, iri(RDFS + "label"),
+                    vf.createLiteral("Entry label", "it"), lexicalGraph);
+            connection.add(canonicalEntry, iri(ONTOLEX + "canonicalForm"),
+                    canonicalForm, lexicalGraph);
+            connection.add(canonicalForm, iri(ONTOLEX + "writtenRep"),
+                    vf.createLiteral("Canonical entry", "fr"), lexicalGraph);
+            addSense(connection, lexicalGraph, labelledSense, labelledEntry,
+                    "First definition", "en");
+            addSense(connection, lexicalGraph, canonicalSense, canonicalEntry,
+                    "Second definition", "it");
+            addSense(connection, lexicalGraph, definitionOnlySense, null,
+                    "Definition without entry label", "de");
+            addSense(connection, lexicalGraph, undefinedSense, labelledEntry,
+                    null, null);
+        }
+        addPersistedAttestation("file-a", "sense-label", labelledSense,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "sense-canonical", canonicalSense,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "sense-definition", definitionOnlySense,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "sense-none", undefinedSense,
+                "user7", "A", 0, 1);
+
+        AttestationPage page = manager.list("file-a", null, null, null, null);
+
+        assertThat(labelFor(page, labelledSense))
+                .isEqualTo("Entry label@it - First definition@en");
+        assertThat(labelFor(page, canonicalSense))
+                .isEqualTo("Canonical entry@fr - Second definition@it");
+        assertThat(labelFor(page, definitionOnlySense))
+                .isEqualTo("Definition without entry label@de");
+        assertThat(labelFor(page, undefinedSense)).isEqualTo("no label");
+    }
+
+    @Test
+    void resolvesLexicalConceptLabelsInPrefLabelThenRdfsLabelOrder() throws Exception {
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI preferredConcept = iri("https://example.org/lexicon/preferred-concept");
+        IRI labelledConcept = iri("https://example.org/lexicon/labelled-concept");
+        IRI unlabelledConcept = iri("https://example.org/lexicon/unlabelled-concept");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(preferredConcept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), lexicalGraph);
+            connection.add(preferredConcept, iri(SKOS + "prefLabel"),
+                    vf.createLiteral("Preferred concept label", "it"), lexicalGraph);
+            connection.add(preferredConcept, iri(RDFS + "label"),
+                    vf.createLiteral("ignored concept label"), lexicalGraph);
+            connection.add(labelledConcept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), lexicalGraph);
+            connection.add(labelledConcept, iri(RDFS + "label"),
+                    vf.createLiteral("Concept RDFS label", "fr"), lexicalGraph);
+            connection.add(unlabelledConcept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), lexicalGraph);
+        }
+        addPersistedAttestation("file-a", "concept-pref", preferredConcept,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "concept-label", labelledConcept,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "concept-none", unlabelledConcept,
+                "user7", "A", 0, 1);
+
+        AttestationPage page = manager.list("file-a", null, null, null, null);
+
+        assertThat(labelFor(page, preferredConcept))
+                .isEqualTo("Preferred concept label@it");
+        assertThat(labelFor(page, labelledConcept)).isEqualTo("Concept RDFS label@fr");
+        assertThat(labelFor(page, unlabelledConcept)).isEqualTo("no label");
+    }
+
+    @Test
     void validatesAttestationListFiltersAndPagination() {
         assertThatThrownBy(() -> manager.list("file-a", "not an IRI",
                 null, null, null))
@@ -414,6 +614,28 @@ class AttestationManagerTest {
                     locusGraph);
             connection.add(locus, iri(NIF + "referenceContext"), context, locusGraph);
         }
+    }
+
+    private void addSense(RepositoryConnection connection, Resource lexicalGraph,
+                          IRI sense, IRI entry, String definition, String language) {
+        connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"), lexicalGraph);
+        if (entry != null) {
+            connection.add(sense, iri(ONTOLEX + "isSenseOf"), entry, lexicalGraph);
+        }
+        if (definition != null) {
+            connection.add(sense, iri(SKOS + "definition"),
+                    language == null ? vf.createLiteral(definition)
+                            : vf.createLiteral(definition, language), lexicalGraph);
+        }
+    }
+
+    private String labelFor(AttestationPage page, IRI observed) {
+        for (Attestation item : page.list) {
+            if (observed.stringValue().equals(item.observable)) {
+                return item.observableLabel;
+            }
+        }
+        return null;
     }
 
     private void assertDefaultGraphEmpty(RepositoryConnection connection) {
