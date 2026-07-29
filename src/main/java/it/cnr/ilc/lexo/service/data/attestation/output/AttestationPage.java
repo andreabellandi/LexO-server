@@ -17,7 +17,7 @@ public class AttestationPage implements Data {
     @ApiModelProperty(value = "zero-based offset of this page")
     public int offset;
     @ApiModelProperty(value = "attestations in the requested page")
-    public List<Attestation> list = new ArrayList<Attestation>();
+    public List<AttestationListItem> list = new ArrayList<AttestationListItem>();
 
     public AttestationPage() {
     }

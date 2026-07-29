@@ -12,8 +12,10 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | `Iso639LanguageValidatorTest` | Unitario | Validazione del campo upload nelle prime quattro colonne ISO 639 e codici di errore stabili |
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
+| `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
+| `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
-| `TextServicesIT` | End-to-end | Upload, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
+| `TextServicesIT` | End-to-end | Upload singolo e bulk, risultato parziale, rifiuto CoNLL-U, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
@@ -37,6 +39,13 @@ normalizzato in minuscolo. Un valore assente produce `MISSING_LANGUAGE`; un
 valore non presente produce `INVALID_LANGUAGE`. Il codice validato viene scritto
 come `dcterms:language` nel NIF e usato come language tag del testo e dei suoi
 segmenti.
+
+Il bulk usa un solo campo `language` per tutti i file e accetta esclusivamente
+parti `file` con estensione `.txt`, `.md` o `.markdown`. La presenza di una parte
+`conllu` o di un'estensione CoNLL-U rifiuta l'intera richiesta prima della
+conversione. Dopo l'ammissione ciascun documento conserva invece job, `fileId`,
+persistenza e rollback indipendenti; lo stato aggregato può quindi essere
+`PARTIALLY_COMPLETED`.
 
 I test RDF non confrontano Turtle come una stringa. Caricano il risultato in un
 `Model` RDF4J e verificano soggetto, predicato e tipo dell'oggetto. In questo modo
@@ -62,6 +71,7 @@ Per eseguire una sola classe:
 mvn -Dtest=ControlledCommonMarkParserTest test
 mvn -Dtest=NifModelWriterTest test
 mvn -Dtest=ConlluSegmenterTest test
+mvn -Dtest=TextBulkImportValidatorTest,TextBulkJobManagerTest test
 ```
 
 Per un singolo caso:
@@ -217,14 +227,29 @@ cleanup del test.
 ### Ciclo REST e rollback
 
 - upload e conversione asincrona di TXT semplice;
+- upload bulk di TXT/CommonMark con una lingua comune, polling aggregato e
+  rollback indipendente che conserva i documenti riusciti;
+- rifiuto atomico del bulk quando è presente una parte CoNLL-U;
 - rifiuto dell'upload senza lingua o con un codice assente dalla lista ISO 639;
 - polling fino a `COMPLETED`, `FAILED` o `CANCELLED` con timeout;
 - download di originale, canonicale e NIF;
 - creazione di corpus e aggiunta di un documento;
+- creazione batch tramite `POST /attestations/by-locus`, verificando una
+  attestazione per osservabile, un solo locus NIF e rollback completo in caso di
+  osservabile non valido;
 - verifica RDF in entrambi i NIF;
 - aggiornamento del corpus dopo la cancellazione del documento;
 - cancellazione del corpus;
 - assenza di record e NIF dopo una conversione fallita.
+
+### Metadata delle attestazioni
+
+I test repository complementari in `AttestationManagerTest` verificano
+l'aggiornamento batch atomico dei metadata, con sostituzione e cancellazione per
+proprietà, valori multipli, IRI e letterali tipizzati o con lingua, isolamento
+nel named graph del documento, assenza di scritture nel default graph, rollback
+del batch non valido e rifiuto dei predicati strutturali. Non costituiscono un
+test end-to-end del routing HTTP della PATCH.
 
 ### Catalogo dei testi
 

@@ -37,6 +37,7 @@ import it.cnr.ilc.lexo.util.EnumUtil.LexicalConceptSearchFilter;
 import it.cnr.ilc.lexo.util.EnumUtil.LexicalEntryStatus;
 import it.cnr.ilc.lexo.util.EnumUtil.LexicalEntryTypes;
 import it.cnr.ilc.lexo.util.EnumUtil.LexicalSenseSearchFilter;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import it.cnr.ilc.lexo.util.OntoLexEntity;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
 import it.cnr.ilc.lexo.util.StringUtil;
@@ -623,6 +624,7 @@ public class LexiconDataManager implements Manager, Cached {
         int offset = lcf.getOffset();
         String query = SparqlSelectData.DATA_LEXICAL_CONCEPTS_FILTER.replace("[FILTER]", filter)
                 .replace("_LABELPROPERTY_", SparqlPrefix.SKOS.getUri() + lcf.getLabelType())
+                .replace("_ATTESTATION_GRAPH_BASE_", LexicalNamedGraphs.attestationGraphBaseUri())
                 .replace("[LIMIT]", String.valueOf(limit))
                 .replace("[OFFSET]", String.valueOf(offset));
         return RDFQueryUtil.evaluateTQuery(query);

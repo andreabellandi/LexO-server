@@ -6,6 +6,7 @@
 package it.cnr.ilc.lexo.manager;
 
 import it.cnr.ilc.lexo.LexOProperties;
+import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.skos.SKOSDeleter;
 import it.cnr.ilc.lexo.service.data.lexicon.input.skos.SKOSUpdater;
 import it.cnr.ilc.lexo.service.data.lexicon.output.ConceptSet;
@@ -20,6 +21,7 @@ import it.cnr.ilc.lexo.sparql.skos.SparqlSKOSData;
 import it.cnr.ilc.lexo.sparql.skos.SparqlSKOSDelete;
 import it.cnr.ilc.lexo.sparql.skos.SparqlSKOSInsert;
 import it.cnr.ilc.lexo.sparql.skos.SparqlSKOSUpdate;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import it.cnr.ilc.lexo.util.RDFQueryUtil;
 import it.cnr.ilc.lexo.util.SKOSEntity;
 import java.sql.Timestamp;
@@ -32,6 +34,7 @@ import javax.ws.rs.core.Response;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.TupleQueryResult;
@@ -122,7 +125,16 @@ public class SKOSManager implements Manager, Cached {
         }
     }
 
-    public LexicalConcept createLexicalConcept(String author, String prefix, String baseIRI, String desiredID) throws ManagerException {
+    public LexicalConcept createLexicalConcept(String author, String prefix, String baseIRI,
+            String desiredID) throws ManagerException {
+        return createLexicalConcept(author, prefix, baseIRI, desiredID, null, null);
+    }
+
+    public LexicalConcept createLexicalConcept(String author, String prefix, String baseIRI,
+            String desiredID, String label, String language) throws ManagerException {
+        String normalizedLabel = normalizeOptional(label);
+        String normalizedLanguage = normalizeLexicalConceptLanguage(
+                normalizedLabel, language);
         Timestamp tm = new Timestamp(System.currentTimeMillis());
         String id = (desiredID != null ? (!desiredID.isEmpty() ? (Manager.IDAlreadyExists(baseIRI + desiredID) ? null : desiredID) : idInstancePrefix + tm.toString()) : idInstancePrefix + tm.toString());
         if (id == null) throw new ManagerException("ID " + desiredID + " already exists");
@@ -130,14 +142,44 @@ public class SKOSManager implements Manager, Cached {
         String sparqlPrefix = "PREFIX " + prefix + ": <" + baseIRI + ">";
         String idLabel = id.replaceAll("\\s+", "").replaceAll(":", "_").replaceAll("\\.", "_");
         String _id = baseIRI + id.replaceAll("\\s+", "").replaceAll(":", "_").replaceAll("\\.", "_");
-        String label = lexicalizationModel.equals("label") ? "rdfs:label" : (lexicalizationModel.equals("skos") ? "skos:prefLabel" : "skos:prefLabel");
-        RDFQueryUtil.update(SparqlInsertData.CREATE_LEXICAL_CONCEPT.replaceAll("_ID_", _id)
+        String effectiveLabel = normalizedLabel == null ? idLabel : normalizedLabel;
+        String effectiveLanguage = normalizedLanguage == null
+                ? defaultLanguageLabel : normalizedLanguage;
+        RDFQueryUtil.update(buildCreateLexicalConceptQuery(_id, author, sparqlPrefix,
+                created, effectiveLabel, effectiveLanguage));
+        return setLexicalConcept(_id, effectiveLabel, effectiveLanguage, created, author);
+    }
+
+    static String buildCreateLexicalConceptQuery(String id, String author,
+            String sparqlPrefix, String created, String label, String language) {
+        String literal = NTriplesUtil.toNTriplesString(
+                skosFactory.createLiteral(label, language));
+        return SparqlInsertData.CREATE_LEXICAL_CONCEPT.replace("_ID_", id)
                 .replace("_AUTHOR_", author)
                 .replace("_CREATED_", created)
                 .replace("_PREFIX_", sparqlPrefix)
                 .replace("_MODIFIED_", created)
-                .replace("_LABEL_", label + " \"" + idLabel + "\"@" + defaultLanguageLabel));
-        return setLexicalConcept(_id, idLabel, created, author);
+                .replace("_LABEL_", "skos:prefLabel " + literal);
+    }
+
+    private String normalizeLexicalConceptLanguage(String label, String language)
+            throws ManagerException {
+        if (label != null && normalizeOptional(language) == null) {
+            throw new ManagerException(
+                    "MISSING_LANGUAGE: language is required when label is provided");
+        }
+        if (normalizeOptional(language) == null) {
+            return null;
+        }
+        try {
+            return Iso639LanguageValidator.get().requireValid(language);
+        } catch (IllegalArgumentException e) {
+            throw new ManagerException(e.getMessage(), e);
+        }
+    }
+
+    private static String normalizeOptional(String value) {
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     public ConceptSet createConceptSet(String author, String prefix, String baseIRI, String desiredID) throws ManagerException {
@@ -158,7 +200,8 @@ public class SKOSManager implements Manager, Cached {
         return setConceptSet(_id, idLabel, created, author);
     }
 
-    private LexicalConcept setLexicalConcept(String id, String label, String created, String author) {
+    static LexicalConcept setLexicalConcept(String id, String label, String language,
+            String created, String author) {
         LexicalConcept lc = new LexicalConcept();
         lc.setCreator(author);
         lc.setLexicalConcept(id);
@@ -166,7 +209,8 @@ public class SKOSManager implements Manager, Cached {
         lc.setConfidence(-1.0);
         lc.setCreationDate(created);
         lc.setDefaultLabel(label);
-        lc.setLanguage(defaultLanguageLabel);
+        lc.setLabel(label);
+        lc.setLanguage(language);
         return lc;
     }
 
@@ -518,6 +562,8 @@ public class SKOSManager implements Manager, Cached {
                 throw new ManagerException(id + " is an unknown entity");
             }
         }
+        query = query.replace("_ATTESTATION_GRAPH_BASE_",
+                LexicalNamedGraphs.attestationGraphBaseUri());
         return RDFQueryUtil.evaluateTQuery(query);
     }
 

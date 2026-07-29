@@ -11,9 +11,14 @@ starts from the ongoing `Unreleased` work.
 
 - A `POST /attestations` service now creates FRAC attestations and validated NIF
   loci for local or external textual evidence.
+- A `POST /attestations/by-locus` batch service now creates one FRAC attestation
+  per observable while sharing one validated NIF locus and transaction.
 - A paginated `POST /attestations/{fileId}` service now retrieves one text's
   attestations with optional observable-type and creator filters and includes
   the corresponding NIF locus data.
+- A `PATCH /attestations/{fileId}/metadata` service now atomically replaces or
+  removes selected RDF metadata properties on multiple attestations, preserving
+  IRI values, language-tagged literals, typed literals, and multiple values.
 - Plain-text TXT import and NIF conversion for documents without CommonMark
   headings.
 - Front matter support for `id`, `title`, `author`, `date`, `description`,
@@ -25,13 +30,25 @@ starts from the ongoing `Unreleased` work.
 - Text services test coverage, including workflow-oriented integration tests.
 - Repository administration statistics for lexical and text repositories.
 - Text catalog/listing endpoints for browsing stored texts and their metadata.
+- Bulk TXT/CommonMark upload and asynchronous conversion with one shared
+  language, aggregate status polling, per-document rollback, and partial
+  completion results. Bulk requests containing CoNLL-U are rejected before
+  any conversion starts.
 
 ### Changed
 
+- Lexical concept creation now accepts optional `label` and ISO 639 `language`
+  parameters, stores the value as a language-tagged `skos:prefLabel`, and
+  returns the preferred label in the response's `label` field.
+- Lexical concept list items now include the `attestations` count, computed from
+  their `frac:attestation` links in the per-document attestation named graphs.
 - Paginated attestation results now include an `observableLabel` resolved from
   OntoLex and SKOS labels, canonical written representations, and sense
   definitions according to the observable RDF type, preserving language tags
   when present.
+- Paginated attestation results now expose custom attestation metadata grouped
+  by property IRI, excluding protected structural FRAC, RDF, and Dublin Core
+  properties.
 - TXT and CommonMark uploads now require an ISO 639-1, ISO 639-2, or ISO 639-3
   language code. The validated code is written as `dcterms:language` in the NIF;
   `language` values in file front matter are ignored.
@@ -56,6 +73,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Attestation creation now reuses an existing NIF word, sentence, or structural
+  locus when its anchor, offsets, and reference context match, instead of
+  reporting a false `LOCUS_CONFLICT` because its RDF types differ.
 - Exact lexical entry and dictionary entry lookups now work even when labels are
   missing.
 - Text import and conversion now clean up partial files and directories when an
@@ -66,6 +86,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Removed
 
+- Attestation descriptions were removed from both `POST /attestations` and the
+  paginated `POST /attestations/{fileId}` contract; new attestations no longer
+  persist `dcterms:description`.
 - Legacy database and repository services backed by MySQL/Hibernate were
   removed from the application.
 

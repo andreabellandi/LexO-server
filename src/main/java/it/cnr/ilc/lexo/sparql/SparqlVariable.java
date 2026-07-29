@@ -247,6 +247,7 @@ public class SparqlVariable {
     public static final String CHILD = "child";
     public static final String GCHILD = "grandchild";
     public static final String NGCHILD = "nGrandchildren";
+    public static final String ATTESTATIONS = "attestations";
     public static final String ROOT = "root";
 
 }

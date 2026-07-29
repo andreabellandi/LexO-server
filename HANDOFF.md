@@ -1,9 +1,9 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 28 luglio 2026 durante l'estensione della consultazione delle
-attestazioni e l'introduzione della lingua ISO 639 obbligatoria per gli upload
-testuali sul branch `codex/attestation-observable-label`, basato sul merge di
-`codex/attestation-create` in `origin/master` (`c6b582a`).
+Aggiornato al 29 luglio 2026 dopo l'aggiunta dei metadata RDF batch alle
+attestazioni e dell'import/conversione bulk TXT/CommonMark, sul branch
+`codex/attestation-list-without-description`, basato su `origin/master`
+(`e5cd107`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -116,6 +116,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   la chiave `language` nel front matter viene ignorata.
 - Conversione asincrona in NIF, polling, cancellazione, download di NIF,
   originale, testo canonico e CoNLL-U.
+- Endpoint `POST /texts/bulk` per caricare e convertire più TXT/CommonMark con
+  una sola lingua e un eventuale corpus comune. L'ammissione è atomica e vieta
+  ogni CoNLL-U; dopo l'accettazione i job e i rollback sono indipendenti e
+  `GET /texts/bulk/{bulkId}/status` espone anche risultati parziali.
 - Creazione, consultazione, download ed eliminazione di corpora NIF senza testo;
   collegamenti bidirezionali `dcterms:hasPart`/`dcterms:isPartOf`.
 - Catalogo testi filtrabile per corpus con nome, dimensione, conteggio di frasi,
@@ -124,18 +128,47 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 63 test unitari/repository passati il 28 luglio 2026, inclusi
-  i 17 test mirati delle attestazioni.
+- Suite corrente: 82 test unitari/repository passati il 29 luglio 2026, inclusi
+  i 6 test mirati del bulk testuale, i 24 test delle attestazioni, i 2 test del
+  conteggio attestazioni nei lexical concept e i 4 test della creazione dei
+  lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
   relativi loci NIF, con validazione di tipi OntoLex/DCMI, URL esterni, offset
   Unicode e isolamento nei named graph per testo.
+- Endpoint `POST /attestations/by-locus` per creare atomicamente una attestazione
+  per ogni IRI nella lista `observables`, condividendo lo stesso intervallo e lo
+  stesso locus NIF nel corpus indicato.
+- La creazione delle attestazioni riutilizza i loci NIF deterministici già
+  presenti per parole, frasi o strutture quando `anchorOf`, `beginIndex`,
+  `endIndex` e `referenceContext` coincidono, senza alterarne i tipi RDF; il
+  codice `LOCUS_CONFLICT` resta riservato a differenze effettive nei dati
+  identificativi del locus.
 - La creazione accetta ora una lista JSON di occorrenze e valida l'intero batch
   prima di scrivere tutte le attestazioni e i loci in una transazione per
   repository, con compensazione tra `LexOLexica` e `LexOTexts`. Il metadato
   `dcterms:language` del contesto testuale viene applicato a `nif:anchorOf`,
-  `frac:gloss` e `rdf:value` quando disponibile.
+  `frac:gloss` e `rdf:value` quando disponibile. Le occorrenze non accettano più
+  `description` e le nuove attestazioni non scrivono `dcterms:description`.
 - Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per tipo
   dell'osservabile e creator, arricchito con i dati del locus da `LexOTexts`.
+- Endpoint `PATCH /attestations/{fileId}/metadata` per sostituire o cancellare
+  atomicamente proprietà RDF personalizzate su una o più attestazioni del named
+  graph del documento. Il contratto conserva valori multipli, IRI, letterali con
+  lingua e letterali tipizzati, protegge i predicati strutturali e aggiorna
+  `dcterms:modified`.
+- Le risposte di creazione e consultazione non espongono `description`.
+- La consultazione paginata espone i metadata personalizzati in una mappa per
+  IRI di proprietà, senza includere i predicati strutturali o la legacy
+  `dcterms:description`.
+- Gli elementi restituiti da `GET /data/lexicalConcepts` e dalla ricerca
+  filtrata espongono `attestations`, conteggio distinto dei collegamenti
+  `frac:attestation` presenti nei named graph di attestazione per documento;
+  il valore è `0` quando il concetto non ha attestazioni.
+- `GET /create/lexicalConcept` accetta `label` e `language` facoltativi. Se la
+  label è presente, la lingua è obbligatoria e deve appartenere alle prime
+  quattro colonne della lista ISO 639 versionata; il codice normalizzato viene
+  usato nel literal `skos:prefLabel` del graph `lexica`. La risposta espone la
+  label nel nuovo campo JSON `label` e la lingua normalizzata in `language`.
 - Ogni attestazione consultata espone `observableLabel`, risolto in base al tipo
   OntoLex usando label RDFS/SKOS, forma canonica e definizione del senso con i
   fallback documentati; sono riconosciute anche sottoclassi di `LexicalEntry` e
@@ -146,7 +179,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 - Eseguire regolarmente `TextServicesIT` e `TextServiceUseCasesIT` contro una
   coppia di repository e una directory filesystem dedicati ai test. Questi test
-  sono esclusi da `mvn test` e non sono stati eseguiti nell'ultima validazione.
+  sono esclusi da `mvn test` e non sono stati eseguiti nell'ultima validazione;
+  `TextServicesIT` include ora anche esito bulk parziale e rifiuto CoNLL-U.
 - Decidere se completare o rimuovere i metodi legacy che lanciano ancora
   `UnsupportedOperationException` in alcuni manager (ad esempio creazione e
   cancellazione lessicale, SKOS, utenti, Zotero e amministrazione).
@@ -175,6 +209,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - I file originali e CoNLL-U sono persistiti sul filesystem; il testo canonico
   non va duplicato in `canonical.txt` e i record non vanno duplicati in
   `metadata.json`.
+- Il bulk testuale usa una lingua comune, accetta soltanto TXT/CommonMark e non
+  introduce associazioni implicite basate sui nomi dei file. Gli errori generali
+  eliminano tutto lo staging; gli errori di conversione eliminano soltanto il
+  documento interessato.
 - I metadati multipli devono restare multipli nel modello RDF e nelle risposte.
 - Le asserzioni RDF devono confrontare il modello semantico, non il testo Turtle.
 - Il bootstrap è checksum-based e deve restare idempotente.
@@ -197,6 +235,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   correttamente avviata.
 - La configurazione predefinita è volutamente legata a `localhost:7200`; un
   deployment remoto richiede modifica esplicita delle proprietà.
+- I record aggregati dei bulk sono mantenuti in memoria: i documenti e i job già
+  avviati restano gestiti individualmente, ma dopo un riavvio non è più
+  disponibile il polling tramite il precedente `bulkId`.
 - `POST /attestations` richiede una lista JSON al livello principale. Con un
   oggetto JSON, Jersey/MOXy fallisce prima dell'ingresso nel metodo con
   `IllegalArgumentException: argument type mismatch` e restituisce HTTP 500
@@ -249,25 +290,44 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-observable-label`.
-- Base aggiornata: `origin/master` al commit `c6b582a`.
-- Modifiche preesistenti dell'utente conservate in `AGENTS.md`, `HANDOFF.md` e
-  `CHANGELOG.md`; non includere log runtime o `nb-configuration.xml` nei commit.
+- Branch locale corrente: `codex/attestation-list-without-description`.
+- Base aggiornata: `origin/master` al commit `e5cd107`.
+- Le modifiche applicative sono organizzate in commit consecutivi e focalizzati;
+  log runtime e `nb-configuration.xml` restano esclusi dai commit.
 
 ## Ultimi file modificati
 
-Il lavoro corrente aggiunge `observableLabel` all'output delle attestazioni e la
-relativa risoluzione per lexical entry (comprese sottoclassi), form, lexical
-sense e lexical concept. La creazione propaga inoltre `dcterms:language` ai
-letterali dell'attestazione e del locus. I 17 test mirati di
-`AttestationManagerTest` e la suite Maven completa (63 test) sono passati il 28
-luglio 2026.
+Il lavoro corrente elimina `description` dai contratti JSON e Swagger delle API
+di attestazione, aggiunge `POST /attestations/by-locus` e introduce
+`PATCH /attestations/{fileId}/metadata`. La PATCH sostituisce insiemi di valori
+RDF diversi per attestazioni diverse in un batch atomico, supporta cancellazione
+con lista vuota e protegge le proprietà strutturali; la lista paginata restituisce
+i metadata personalizzati con tipo RDF, lingua e datatype. Le nuove attestazioni
+non persistono più `dcterms:description`; eventuali triple storiche non vengono
+modificate né esposte come metadata. I test del 29 luglio 2026 comprendono 24 test
+mirati delle attestazioni e la suite Maven completa di 82 test, tutti passati.
+Gli end-to-end REST restano da eseguire in un ambiente GraphDB e filesystem
+dedicato.
+
+La creazione dei lexical concept accetta ora i parametri facoltativi `label` e
+`language`; quando la label è presente la lingua è obbligatoria, validata sulla
+lista ISO 639 inclusa e normalizzata. La scrittura usa sempre un literal
+`skos:prefLabel` language-tagged nel graph `lexica`, anche quando la
+configurazione lessicale generale usa un altro modello. Il DTO di creazione
+espone il nuovo campo `label`. I quattro test dedicati verificano validazione,
+escaping del literal, named graph, assenza nel default graph e JSON di output.
+
+Il servizio `GET /data/lexicalConcepts` e la ricerca filtrata dei lexical concept
+usano ora il campo JSON `attestations`. Le query contano i soli oggetti distinti
+di `frac:attestation` nei graph sotto la base configurata delle attestazioni,
+senza includere default graph o graph estranei; il test repository dedicato
+verifica anche che il conteggio non alteri il numero di figli.
 
 Nello stesso branch l'upload testuale è stato esteso con la lingua ISO 639
 obbligatoria. I file principali coinvolti sono `Texts.java`, `TextJobManager.java`,
 `Iso639LanguageValidator.java`, `ControlledCommonMarkParser.java`, la lista CSV
 in `src/main/resources/iso639`, i test testuali e la relativa documentazione.
-La suite completa conta ora 62 test; gli end-to-end `*IT` restano esclusi da
+La suite completa conta ora 82 test; gli end-to-end `*IT` restano esclusi da
 `mvn test` e richiedono un deployment dedicato.
 
 L'ultimo commit (`9f77676`, supporto a `description`) ha modificato:
@@ -293,8 +353,8 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere un test end-to-end del nuovo endpoint contro repository GraphDB
-   dedicati.
+1. Aggiungere test end-to-end dei nuovi endpoint di attestazione e della
+   creazione dei lexical concept con label contro repository GraphDB dedicati.
 2. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
 3. Implementare i successivi servizi di attestazione sulla base delle specifiche

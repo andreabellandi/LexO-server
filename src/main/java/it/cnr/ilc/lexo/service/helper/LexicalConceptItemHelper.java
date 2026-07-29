@@ -20,6 +20,7 @@ public class LexicalConceptItemHelper extends TripleStoreDataHelper<LexicalConce
         setTotalHits(getIntegerNumber(bs, SparqlVariable.TOTAL_HITS));
        data.setHasChildren(getIntegerNumber(bs, SparqlVariable.NGCHILD) > 0);
        data.setChildren(getIntegerNumber(bs, SparqlVariable.NGCHILD));
+       data.setAttestations(getIntegerNumber(bs, SparqlVariable.ATTESTATIONS));
        data.setLexicalConcept(getStringValue(bs, SparqlVariable.CHILD));
        data.setConfidence(getDoubleNumber(bs, SparqlVariable.CONFIDENCE));
        data.setCreationDate(getStringValue(bs, SparqlVariable.CREATION_DATE));

@@ -21,6 +21,8 @@ public class LexicalConceptItem extends SKOSClass implements Data {
     private String lexicalConcept;
     private boolean hasChildren;
     private int children;
+    @ApiModelProperty(value = "number of FRAC attestations")
+    private int attestations;
 //    private String defaultLabel;
 
     public String getLexicalConcept() {
@@ -45,6 +47,14 @@ public class LexicalConceptItem extends SKOSClass implements Data {
 
     public void setChildren(int children) {
         this.children = children;
+    }
+
+    public int getAttestations() {
+        return attestations;
+    }
+
+    public void setAttestations(int attestations) {
+        this.attestations = attestations;
     }
 
 //    public String getDefaultLabel() {
