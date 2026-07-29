@@ -132,6 +132,82 @@ class TextServicesIT {
     }
 
     @Test
+    @DisplayName("Bulk TXT/CommonMark conversion keeps successful documents after a partial failure")
+    void convertsBulkWithIndependentRollback() throws Exception {
+        assumeConfigured();
+        java.util.List<String> fileIds = new java.util.ArrayList<String>();
+        try {
+            Path valid = write("bulk-valid-" + UUID.randomUUID() + ".txt",
+                    "Documento bulk valido.");
+            Path invalid = write("bulk-invalid-" + UUID.randomUUID() + ".md",
+                    "# Heading senza identificatore\nDocumento bulk non valido.");
+            FormDataMultiPart multipart = new FormDataMultiPart();
+            multipart.field("language", "it");
+            multipart.bodyPart(new FileDataBodyPart("file", valid.toFile()));
+            multipart.bodyPart(new FileDataBodyPart("file", invalid.toFile()));
+            JsonNode accepted;
+            try {
+                Response response = request("texts/bulk")
+                        .post(Entity.entity(multipart, multipart.getMediaType()));
+                assertStatus(response, 202);
+                accepted = JSON.readTree(response.readEntity(String.class));
+            } finally {
+                multipart.close();
+            }
+
+            String bulkId = accepted.path("bulkId").asText();
+            assertThat(bulkId).isNotBlank();
+            assertThat(accepted.path("language").asText()).isEqualTo("it");
+            assertThat(accepted.path("items")).hasSize(2);
+            for (JsonNode item : accepted.path("items")) {
+                fileIds.add(item.path("fileId").asText());
+            }
+
+            JsonNode terminal = awaitTerminalBulk(bulkId, Duration.ofSeconds(30));
+            assertThat(terminal.path("state").asText()).isEqualTo("PARTIALLY_COMPLETED");
+            assertThat(terminal.path("completed").asInt()).isEqualTo(1);
+            assertThat(terminal.path("failed").asInt()).isEqualTo(1);
+
+            for (JsonNode item : terminal.path("items")) {
+                String fileId = item.path("fileId").asText();
+                if ("COMPLETED".equals(item.path("state").asText())) {
+                    assertStatus(get("texts/" + fileId), 200);
+                } else {
+                    assertThat(item.path("state").asText()).isEqualTo("FAILED");
+                    assertStatus(get("texts/" + fileId), 404);
+                    assertNoServerFilesystemArtifacts(fileId);
+                }
+            }
+        } finally {
+            for (String fileId : fileIds) {
+                deleteQuietly("texts/" + fileId);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("A CoNLL-U part rejects the complete bulk before conversion")
+    void rejectsConlluInBulk() throws Exception {
+        assumeConfigured();
+        Path text = write("bulk-text-" + UUID.randomUUID() + ".txt", "Testo.");
+        Path conllu = write("bulk-tokens-" + UUID.randomUUID() + ".conllu",
+                "# sent_id = s1\n1\tTesto\ttesto\tNOUN\t_\t_\t0\troot\t_\tTokenRange=0:5\n");
+        FormDataMultiPart multipart = new FormDataMultiPart();
+        multipart.field("language", "it");
+        multipart.bodyPart(new FileDataBodyPart("file", text.toFile()));
+        multipart.bodyPart(new FileDataBodyPart("conllu", conllu.toFile()));
+        try {
+            Response response = request("texts/bulk")
+                    .post(Entity.entity(multipart, multipart.getMediaType()));
+            assertStatus(response, 400);
+            JsonNode error = JSON.readTree(response.readEntity(String.class));
+            assertThat(error.path("code").asText()).isEqualTo("BULK_CONLLU_NOT_ALLOWED");
+        } finally {
+            multipart.close();
+        }
+    }
+
+    @Test
     @DisplayName("Corpus: creation, bidirectional membership, member deletion and corpus deletion")
     void managesCorpusMembershipLifecycle() throws Exception {
         assumeConfigured();
@@ -301,6 +377,21 @@ class TextServicesIT {
             Thread.sleep(200L);
         }
         throw new AssertionError("Text job did not terminate within " + timeout + "; last=" + last);
+    }
+
+    private JsonNode awaitTerminalBulk(String bulkId, Duration timeout) throws Exception {
+        Instant deadline = Instant.now().plus(timeout);
+        JsonNode last = null;
+        while (Instant.now().isBefore(deadline)) {
+            last = json(get("texts/bulk/" + bulkId + "/status"));
+            String state = last.path("state").asText();
+            if ("COMPLETED".equals(state) || "PARTIALLY_COMPLETED".equals(state)
+                    || "FAILED".equals(state) || "CANCELLED".equals(state)) {
+                return last;
+            }
+            Thread.sleep(200L);
+        }
+        throw new AssertionError("Bulk job did not terminate within " + timeout + "; last=" + last);
     }
 
     private Path write(String fileName, String content) throws Exception {

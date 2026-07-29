@@ -7,6 +7,10 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
+import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.text.TextBulkImportValidator;
+import it.cnr.ilc.lexo.manager.text.TextBulkJobManager;
+import it.cnr.ilc.lexo.manager.text.TextBulkJobManager.BulkUpload;
 import it.cnr.ilc.lexo.manager.text.TextCatalogManager;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
@@ -14,6 +18,7 @@ import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.UploadKind;
 import it.cnr.ilc.lexo.service.data.lexicon.input.converter.CancelRequest;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
+import it.cnr.ilc.lexo.service.data.text.output.BulkTextJob;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +57,10 @@ public class Texts extends Service {
             "lexo.text.maxTextBytes", TextJobManager.DEFAULT_MAX_TEXT_BYTES);
     private static final long MAX_CONLLU_BYTES = longProperty(
             "lexo.text.maxConlluBytes", TextJobManager.DEFAULT_MAX_CONLLU_BYTES);
+    private static final int MAX_BULK_FILES = intProperty(
+            "lexo.text.maxBulkFiles", 100);
+    private static final long MAX_BULK_BYTES = longProperty(
+            "lexo.text.maxBulkBytes", 200L * 1024L * 1024L);
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -210,6 +219,169 @@ public class Texts extends Service {
                 } catch (IOException ignored) {
                 }
             }
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/bulk")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Bulk text upload and NIF conversion",
+            notes = "This method validates and uploads multiple TXT/CommonMark files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. CoNLL-U is not allowed in bulk requests")
+    @ApiImplicitParam(
+            name = "language",
+            value = "single required ISO 639 language code applied to every text in the bulk",
+            example = "it",
+            required = true,
+            dataType = "string",
+            paramType = "form")
+    public Response uploadBulk(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(
+                    name = "file",
+                    value = "multipart request containing one or more .txt, .md or .markdown file fields",
+                    required = true)
+            FormDataMultiPart multiPart,
+            @ApiParam(
+                    name = "corpusId",
+                    value = "optional id of the corpus to which every successfully converted text is added",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = false)
+            @QueryParam("corpusId") String corpusId) {
+        List<String> stagedFileIds = new ArrayList<String>();
+        try {
+            checkKey(key);
+            if (multiPart == null) {
+                return bulkError(Response.Status.BAD_REQUEST, "BULK_MISSING_REQUEST",
+                        "Missing multipart request");
+            }
+
+            List<FormDataBodyPart> conlluParts = multiPart.getFields("conllu");
+            TextBulkImportValidator.rejectConlluPart(
+                    conlluParts != null && !conlluParts.isEmpty());
+
+            List<FormDataBodyPart> fileParts = multiPart.getFields("file");
+            int fileCount = fileParts == null ? 0 : fileParts.size();
+            TextBulkImportValidator.requireFileCount(fileCount, MAX_BULK_FILES);
+
+            for (FormDataBodyPart part : fileParts) {
+                FormDataContentDisposition metadata = part == null
+                        ? null : part.getFormDataContentDisposition();
+                TextBulkImportValidator.requireSupportedFileName(
+                        metadata == null ? null : metadata.getFileName());
+            }
+
+            List<FormDataBodyPart> languageParts = multiPart.getFields("language");
+            if (languageParts != null && languageParts.size() > 1) {
+                return bulkError(Response.Status.BAD_REQUEST, "INVALID_LANGUAGE",
+                        "È ammesso un solo campo language per l'intero bulk");
+            }
+            FormDataBodyPart languagePart = languageParts == null || languageParts.isEmpty()
+                    ? null : languageParts.get(0);
+            String language = Iso639LanguageValidator.get().requireValid(
+                    languagePart == null ? null : languagePart.getValue());
+
+            String selectedCorpusId = corpusId == null || corpusId.trim().isEmpty()
+                    ? null : corpusId.trim();
+            if (selectedCorpusId != null) {
+                try {
+                    CorpusManager.get().requireCorpusUri(selectedCorpusId);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException(
+                            "INVALID_CORPUS: " + e.getMessage(), e);
+                }
+            }
+
+            long totalBytes = 0L;
+            List<BulkUpload> uploads = new ArrayList<BulkUpload>(fileCount);
+            for (FormDataBodyPart part : fileParts) {
+                String fileId = UUID.randomUUID().toString();
+                stagedFileIds.add(fileId);
+                String originalName = part.getFormDataContentDisposition().getFileName();
+                TextJobManager.get().saveUploadLanguage(fileId, language);
+                long remaining = MAX_BULK_BYTES - totalBytes;
+                if (remaining <= 0L) {
+                    throw new BulkSizeException("BULK_SIZE_LIMIT_EXCEEDED",
+                            "Il bulk supera il limite configurato di " + MAX_BULK_BYTES + " byte");
+                }
+                long itemLimit = Math.min(MAX_TEXT_BYTES, remaining);
+                Path stored;
+                try (InputStream input = part.getEntityAs(InputStream.class)) {
+                    stored = TextJobManager.get().saveUpload(fileId, input, originalName,
+                            UploadKind.TEXT, itemLimit);
+                } catch (IOException e) {
+                    if (e.getMessage() == null
+                            || !e.getMessage().contains("exceeds configured limit")) {
+                        throw e;
+                    }
+                    String code = itemLimit < MAX_TEXT_BYTES
+                            ? "BULK_SIZE_LIMIT_EXCEEDED" : "BULK_FILE_TOO_LARGE";
+                    throw new BulkSizeException(code, e.getMessage(), e);
+                }
+                totalBytes += Files.size(stored);
+                uploads.add(new BulkUpload(fileId, stored.getFileName().toString()));
+            }
+
+            String bulkId = UUID.randomUUID().toString();
+            BulkTextJob bulk = TextBulkJobManager.get().start(
+                    bulkId, language, selectedCorpusId, uploads);
+            stagedFileIds.clear();
+            log(Level.INFO, "/texts/bulk: accepted bulkId=" + bulkId
+                    + " files=" + fileCount + " language=" + language);
+            return json(Response.Status.ACCEPTED, bulk);
+        } catch (BulkSizeException e) {
+            cleanupBulkUploads(stagedFileIds);
+            log(Level.ERROR, "/texts/bulk: " + e.getMessage());
+            return bulkError(Response.Status.REQUEST_ENTITY_TOO_LARGE,
+                    e.code, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            cleanupBulkUploads(stagedFileIds);
+            log(Level.ERROR, "/texts/bulk: " + e.getMessage());
+            return bulkError(Response.Status.BAD_REQUEST,
+                    errorCode(e.getMessage(), "INVALID_BULK_REQUEST"), e.getMessage());
+        } catch (IOException e) {
+            cleanupBulkUploads(stagedFileIds);
+            log(Level.ERROR, "/texts/bulk: " + e.getMessage());
+            return bulkError(Response.Status.BAD_REQUEST, "BULK_UPLOAD_FAILED", e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            cleanupBulkUploads(stagedFileIds);
+            return unauthorized("/texts/bulk");
+        } catch (Throwable e) {
+            cleanupBulkUploads(stagedFileIds);
+            log(Level.ERROR, "/texts/bulk: "
+                    + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+            return bulkError(Response.Status.INTERNAL_SERVER_ERROR, "BULK_INTERNAL_ERROR",
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        } finally {
+            if (multiPart != null) {
+                try {
+                    multiPart.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/bulk/{bulkId}/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Bulk text conversion status",
+            notes = "This method returns aggregate and per-document states for an accepted bulk text conversion")
+    public Response bulkStatus(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "bulkId", value = "id returned by the bulk text upload service",
+                    required = true)
+            @PathParam("bulkId") String bulkId) {
+        try {
+            checkKey(key);
+            BulkTextJob bulk = TextBulkJobManager.get().get(bulkId);
+            if (bulk == null) {
+                return bulkError(Response.Status.NOT_FOUND, "BULK_NOT_FOUND",
+                        "Bulk text job not found: " + bulkId);
+            }
+            return json(bulk);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("/texts/bulk/{bulkId}/status");
         }
     }
 
@@ -670,10 +842,40 @@ public class Texts extends Service {
     }
 
     private static Response json(Object body) {
+        return json(Response.Status.OK, body);
+    }
+
+    private static Response json(Response.Status status, Object body) {
         try {
-            return Response.ok(MAPPER.writeValueAsString(body), MediaType.APPLICATION_JSON).build();
+            return Response.status(status).type(MediaType.APPLICATION_JSON)
+                    .entity(MAPPER.writeValueAsString(body)).build();
         } catch (JsonProcessingException e) {
             return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    private static Response bulkError(Response.Status status, String code, String message) {
+        Map<String, String> error = new LinkedHashMap<String, String>();
+        error.put("code", code);
+        error.put("message", message == null ? "" : message);
+        return json(status, error);
+    }
+
+    private static String errorCode(String message, String fallback) {
+        if (message == null) {
+            return fallback;
+        }
+        int separator = message.indexOf(':');
+        if (separator <= 0) {
+            return fallback;
+        }
+        String candidate = message.substring(0, separator);
+        return candidate.matches("[A-Z][A-Z0-9_]*") ? candidate : fallback;
+    }
+
+    private static void cleanupBulkUploads(List<String> fileIds) {
+        for (String fileId : fileIds) {
+            TextJobManager.get().cleanupUpload(fileId);
         }
     }
 
@@ -712,6 +914,33 @@ public class Texts extends Service {
             return parsed > 0 ? parsed : fallback;
         } catch (NumberFormatException e) {
             return fallback;
+        }
+    }
+
+    private static int intProperty(String name, int fallback) {
+        String value = System.getProperty(name);
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : fallback;
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static final class BulkSizeException extends IOException {
+        final String code;
+
+        BulkSizeException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+
+        BulkSizeException(String code, String message, Throwable cause) {
+            super(message, cause);
+            this.code = code;
         }
     }
 

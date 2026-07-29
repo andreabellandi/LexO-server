@@ -75,6 +75,34 @@ conversion and is used as the NIF literal language tag. A `language` key in the
 file front matter is ignored. Supported front-matter keys are `id`, `title`,
 `author`, `date`, `description`, `format`, and `corpus`.
 
+## Bulk text upload
+
+`POST /service/texts/bulk` accepts multiple `file` parts containing only `.txt`,
+`.md`, or `.markdown` documents and one shared required `language`. An optional
+`corpusId` query parameter adds every successfully converted document to the
+same existing corpus. CoNLL-U is supported only by the single-document upload:
+the bulk request is rejected atomically with `BULK_CONLLU_NOT_ALLOWED` when a
+`conllu` part or a CoNLL-U extension is present.
+
+```bash
+curl -X POST 'http://localhost:8080/LexO-server/service/texts/bulk' \
+  -H 'Authorization: Bearer TOKEN_LEXO' \
+  -F 'language=it' \
+  -F 'file=@documento-1.txt;type=text/plain' \
+  -F 'file=@documento-2.md;type=text/markdown'
+```
+
+The service returns HTTP `202` with one `bulkId` and an independent `fileId`
+for every document. Poll `GET /service/texts/bulk/{bulkId}/status` for aggregate
+and per-document states. Admission errors clean up the complete staged request;
+after acceptance, conversion failures roll back only their own document and can
+produce the aggregate state `PARTIALLY_COMPLETED`.
+
+The default admission limits are 100 files and 200 MiB for the complete bulk,
+in addition to the existing 50 MiB per-text limit. They can be overridden with
+the JVM properties `lexo.text.maxBulkFiles`, `lexo.text.maxBulkBytes`, and
+`lexo.text.maxTextBytes`.
+
 ## Lexical concepts
 
 `GET /service/create/lexicalConcept` accepts the optional query parameters

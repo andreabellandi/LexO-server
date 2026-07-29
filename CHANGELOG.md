@@ -30,6 +30,10 @@ starts from the ongoing `Unreleased` work.
 - Text services test coverage, including workflow-oriented integration tests.
 - Repository administration statistics for lexical and text repositories.
 - Text catalog/listing endpoints for browsing stored texts and their metadata.
+- Bulk TXT/CommonMark upload and asynchronous conversion with one shared
+  language, aggregate status polling, per-document rollback, and partial
+  completion results. Bulk requests containing CoNLL-U are rejected before
+  any conversion starts.
 
 ### Changed
 
