@@ -942,6 +942,18 @@ public class LexiconCreation extends Service {
                     required = false)
             @QueryParam("desiredID") String desiredID,
             @ApiParam(
+                    name = "label",
+                    value = "optional preferred label; language is required when label is provided",
+                    example = "animal",
+                    required = false)
+            @QueryParam("label") String label,
+            @ApiParam(
+                    name = "language",
+                    value = "optional ISO 639 code for the preferred label",
+                    example = "en",
+                    required = false)
+            @QueryParam("language") String language,
+            @ApiParam(
                     name = "prefix",
                     value = "prefix of the namespace",
                     example = "myprefix",
@@ -958,7 +970,8 @@ public class LexiconCreation extends Service {
             log(Level.INFO, "create/lexicalConcept");
             UtilityManager utilityManager = ManagerFactory.getManager(UtilityManager.class);
             utilityManager.validateNamespace(prefix, baseIRI);
-            LexicalConcept lc = skosManager.createLexicalConcept(author, prefix, baseIRI, desiredID);
+            LexicalConcept lc = skosManager.createLexicalConcept(author, prefix, baseIRI,
+                    desiredID, label, language);
             String json = lexicalConceptHelper.toJson(lc);
             log(Level.INFO, "Lexical concept " + lc.getLexicalConcept() + " created (prefix=" + prefix + " baseIRI=" + baseIRI);
             return Response.ok(json)

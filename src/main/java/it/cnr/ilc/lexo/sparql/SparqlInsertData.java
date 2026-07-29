@@ -329,6 +329,7 @@ public class SparqlInsertData {
             = SparqlPrefix.DCT.getSparqlPrefix() + "\n"
             + SparqlPrefix.ONTOLEX.getSparqlPrefix() + "\n"
             + SparqlPrefix.RDFS.getSparqlPrefix() + "\n"
+            + SparqlPrefix.SKOS.getSparqlPrefix() + "\n"
             + "_PREFIX_ \n"
             + "INSERT DATA {\n"
             + "    <_ID_> a ontolex:LexicalConcept ;\n"

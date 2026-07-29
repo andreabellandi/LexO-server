@@ -221,10 +221,22 @@ cleanup del test.
 - polling fino a `COMPLETED`, `FAILED` o `CANCELLED` con timeout;
 - download di originale, canonicale e NIF;
 - creazione di corpus e aggiunta di un documento;
+- creazione batch tramite `POST /attestations/by-locus`, verificando una
+  attestazione per osservabile, un solo locus NIF e rollback completo in caso di
+  osservabile non valido;
 - verifica RDF in entrambi i NIF;
 - aggiornamento del corpus dopo la cancellazione del documento;
 - cancellazione del corpus;
 - assenza di record e NIF dopo una conversione fallita.
+
+### Metadata delle attestazioni
+
+I test repository complementari in `AttestationManagerTest` verificano
+l'aggiornamento batch atomico dei metadata, con sostituzione e cancellazione per
+proprietà, valori multipli, IRI e letterali tipizzati o con lingua, isolamento
+nel named graph del documento, assenza di scritture nel default graph, rollback
+del batch non valido e rifiuto dei predicati strutturali. Non costituiscono un
+test end-to-end del routing HTTP della PATCH.
 
 ### Catalogo dei testi
 

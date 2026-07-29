@@ -3,8 +3,16 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.RepositoryTarget;
+import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchItem;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
@@ -18,6 +26,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,7 +46,7 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryResult;
 
-/** Creates FRAC attestations and the corresponding NIF loci. */
+/** Manages FRAC attestations, their metadata, and corresponding NIF loci. */
 public class AttestationManager implements Manager {
 
     private static final String ONTOLEX = "http://www.w3.org/ns/lemon/ontolex#";
@@ -51,6 +60,8 @@ public class AttestationManager implements Manager {
     private static final String NO_LABEL = "no label";
     private static final String DEFAULT_STRUCTURE_NAMESPACE =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
+    private static final Set<String> RESERVED_METADATA_PROPERTIES =
+            reservedMetadataProperties();
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final ConnectionSource connections;
@@ -73,15 +84,15 @@ public class AttestationManager implements Manager {
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
     }
 
-    /** Backward-compatible manager entry point for one attestation occurrence. */
-    public Attestation create(String observableValue, String description,
-                              String attestedValue, String startValue,
+    /** Manager entry point for one attestation occurrence. */
+    public Attestation create(String observableValue, String attestedValue,
+                              String startValue,
                               String endValue, String corpusValue,
                               boolean external, String author) throws ManagerException {
         int start = integer("start", startValue);
         int end = integer("end", endValue);
         List<AttestationOccurrence> occurrences = new ArrayList<AttestationOccurrence>();
-        occurrences.add(new AttestationOccurrence(description, attestedValue,
+        occurrences.add(new AttestationOccurrence(attestedValue,
                 Integer.valueOf(start), Integer.valueOf(end)));
         return createBatch(observableValue, corpusValue, external, author,
                 occurrences).get(0);
@@ -159,12 +170,14 @@ public class AttestationManager implements Manager {
                             + "define different data for " + location.locus);
                 }
                 Model attestationStatements = attestationModel(attestationIri,
-                        observableIri, locus, corpusIri, occurrence.description, value,
+                        observableIri, locus, corpusIri, value,
                         location.language, author, timestamp);
+                List<String> locusTypes = resultLocusTypes(text, locus,
+                        location.textGraph);
                 Attestation result = attestationResult(attestationIri, observable,
-                        observableLabel, observableTypes, occurrence.description,
-                        value, start, end, corpus, location, external, author,
-                        timestamp);
+                        observableLabel, observableTypes, value, start, end,
+                        corpus, location, external, author,
+                        timestamp, locusTypes);
                 pending.add(new PendingAttestation(attestationGraph,
                         location.textGraph, attestationStatements,
                         newPhraseStatements, result));
@@ -187,26 +200,108 @@ public class AttestationManager implements Manager {
         }
     }
 
+    /** Validates and creates one attestation per observable at a shared locus. */
+    public List<Attestation> createByLocus(String corpusValue, boolean external,
+                                           String author,
+                                           AttestationByLocusInput input)
+            throws ManagerException {
+        String corpus = required("corpus", corpusValue);
+        if (input == null) {
+            throw new ManagerException("MISSING_PARAMETER: locus is required");
+        }
+        String value = requiredValue("value", input.value);
+        if (input.start == null || input.end == null) {
+            throw new ManagerException("MISSING_PARAMETER: start and end are required");
+        }
+        if (input.observables == null || input.observables.isEmpty()) {
+            throw new ManagerException("MISSING_OBSERVABLES: at least one observable is required");
+        }
+        int start = input.start.intValue();
+        int end = input.end.intValue();
+        validateLocusOffsets(start, end);
+        IRI corpusIri = external ? externalUrl(corpus) : iri("corpus", corpus);
+
+        RepositoryConnection lexical = null;
+        RepositoryConnection text = null;
+        try {
+            lexical = connections.acquire(RepositoryTarget.LEXICON);
+            text = connections.acquire(RepositoryTarget.TEXT);
+            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
+            TextLocation location = external
+                    ? externalLocation(corpusIri, start, end)
+                    : internalLocation(text, corpusIri, value, start, end);
+            IRI locus = vf.createIRI(location.locus);
+            IRI attestationGraph = vf.createIRI(
+                    LexicalNamedGraphs.attestationGraphUri(location.fileId));
+            Model phraseStatements = newStatements(text,
+                    phraseModel(locus, location.referenceContext, value, start, end,
+                            location.language), location.textGraph, locus);
+            List<String> locusTypes = resultLocusTypes(text, locus,
+                    location.textGraph);
+            List<PendingAttestation> pending = new ArrayList<PendingAttestation>();
+            Set<String> reservedAttestationIris = new HashSet<String>();
+            long batchTimestamp = System.currentTimeMillis();
+
+            for (int index = 0; index < input.observables.size(); index++) {
+                String observable = required("observables[" + index + "]",
+                        input.observables.get(index));
+                IRI observableIri = iri("observables[" + index + "]", observable);
+                validateObservable(lexical, observableIri);
+                List<String> observableTypes = rdfTypes(lexical, observableIri,
+                        lexicalGraph);
+                String observableLabel = observableLabel(lexical, observableIri,
+                        lexicalGraph);
+                Timestamp now = new Timestamp(batchTimestamp + index);
+                String created = timestamp(now);
+                IRI attestationIri = newAttestationIri(lexical, now,
+                        reservedAttestationIris);
+                Model attestationStatements = attestationModel(attestationIri,
+                        observableIri, locus, corpusIri, value, location.language,
+                        author, created);
+                Attestation result = attestationResult(attestationIri, observable,
+                        observableLabel, observableTypes, value, start, end, corpus,
+                        location, external, author, created, locusTypes);
+                pending.add(new PendingAttestation(attestationGraph,
+                        location.textGraph, attestationStatements,
+                        index == 0 ? phraseStatements : new LinkedHashModel(), result));
+            }
+
+            persistBatch(lexical, text, pending);
+            List<Attestation> results = new ArrayList<Attestation>();
+            for (PendingAttestation item : pending) {
+                results.add(item.result);
+            }
+            return results;
+        } catch (ManagerException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ManagerException("ATTESTATION_CREATE_FAILED: "
+                    + message(e), e);
+        } finally {
+            connections.release(RepositoryTarget.TEXT, text);
+            connections.release(RepositoryTarget.LEXICON, lexical);
+        }
+    }
+
     private Attestation attestationResult(IRI attestationIri, String observable,
                                           String observableLabel,
                                           List<String> observableTypes,
-                                          String description, String value,
-                                          int start, int end, String corpus,
+                                          String value, int start, int end,
+                                          String corpus,
                                           TextLocation location, boolean external,
-                                          String author, String timestamp) {
+                                          String author, String timestamp,
+                                          List<String> locusTypes) {
         Attestation result = new Attestation();
         result.attestation = attestationIri.stringValue();
         result.observable = observable;
         result.observableLabel = observableLabel;
         result.observableTypes = new ArrayList<String>(observableTypes);
-        result.description = blank(description) ? null : description;
         result.value = value;
         result.start = Integer.valueOf(start);
         result.end = Integer.valueOf(end);
         result.corpus = corpus;
         result.locus = location.locus;
-        result.locusTypes.add(NIF + "Phrase");
-        result.locusTypes.add(NIF + "RFC5147String");
+        result.locusTypes = new ArrayList<String>(locusTypes);
         result.language = location.language;
         result.referenceContext = location.referenceContext.stringValue();
         result.fileId = location.fileId;
@@ -224,9 +319,196 @@ public class AttestationManager implements Manager {
         }
     }
 
+    private void validateLocusOffsets(int start, int end) throws ManagerException {
+        if (start < 0 || end < start) {
+            throw new ManagerException(
+                    "INVALID_OFFSETS: start and end must satisfy 0 <= start <= end");
+        }
+    }
+
     private String timestamp(Timestamp value) {
         return new SimpleDateFormat(configured("manager.operationTimestampFormat",
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).format(value);
+    }
+
+    /** Atomically replaces selected metadata properties on multiple attestations. */
+    public AttestationMetadataPatchResult patchMetadata(String fileIdValue,
+                                                         AttestationMetadataBatch batch)
+            throws ManagerException {
+        String fileId = required("fileId", fileIdValue);
+        final IRI attestationGraph;
+        try {
+            attestationGraph = vf.createIRI(
+                    LexicalNamedGraphs.attestationGraphUri(fileId));
+        } catch (IllegalArgumentException e) {
+            throw new ManagerException(
+                    "INVALID_FILE_ID: fileId contains unsupported characters");
+        }
+        if (batch == null || batch.updates == null || batch.updates.isEmpty()) {
+            throw new ManagerException(
+                    "MISSING_METADATA_UPDATES: at least one metadata update is required");
+        }
+
+        RepositoryConnection lexical = null;
+        try {
+            lexical = connections.acquire(RepositoryTarget.LEXICON);
+            List<ValidatedMetadataUpdate> updates = validateMetadataBatch(
+                    lexical, attestationGraph, batch.updates);
+            String modified = timestamp(new Timestamp(System.currentTimeMillis()));
+            lexical.begin();
+            for (ValidatedMetadataUpdate update : updates) {
+                for (Map.Entry<IRI, List<Value>> property
+                        : update.properties.entrySet()) {
+                    lexical.remove(update.attestation, property.getKey(), null,
+                            attestationGraph);
+                    for (Value value : property.getValue()) {
+                        lexical.add(update.attestation, property.getKey(), value,
+                                attestationGraph);
+                    }
+                }
+                lexical.remove(update.attestation, DCTERMS.MODIFIED, null,
+                        attestationGraph);
+                lexical.add(update.attestation, DCTERMS.MODIFIED,
+                        vf.createLiteral(modified), attestationGraph);
+            }
+            lexical.commit();
+
+            AttestationMetadataPatchResult result =
+                    new AttestationMetadataPatchResult();
+            result.fileId = fileId;
+            for (ValidatedMetadataUpdate update : updates) {
+                AttestationMetadataPatchItem item =
+                        new AttestationMetadataPatchItem();
+                item.attestation = update.attestation.stringValue();
+                for (IRI property : update.properties.keySet()) {
+                    item.properties.add(property.stringValue());
+                }
+                item.lastUpdate = modified;
+                result.updated.add(item);
+            }
+            return result;
+        } catch (ManagerException e) {
+            rollback(lexical);
+            throw e;
+        } catch (RuntimeException e) {
+            rollback(lexical);
+            throw new ManagerException("ATTESTATION_METADATA_UPDATE_FAILED: "
+                    + message(e), e);
+        } finally {
+            connections.release(RepositoryTarget.LEXICON, lexical);
+        }
+    }
+
+    private List<ValidatedMetadataUpdate> validateMetadataBatch(
+            RepositoryConnection connection, Resource graph,
+            List<AttestationMetadataUpdate> requested) throws ManagerException {
+        List<ValidatedMetadataUpdate> result =
+                new ArrayList<ValidatedMetadataUpdate>();
+        Set<String> attestations = new HashSet<String>();
+        for (int updateIndex = 0; updateIndex < requested.size(); updateIndex++) {
+            AttestationMetadataUpdate update = requested.get(updateIndex);
+            if (update == null) {
+                throw new ManagerException("INVALID_METADATA_UPDATE: updates["
+                        + updateIndex + "] is null");
+            }
+            IRI attestation = iri("updates[" + updateIndex + "].attestation",
+                    required("updates[" + updateIndex + "].attestation",
+                            update.attestation));
+            if (!attestations.add(attestation.stringValue())) {
+                throw new ManagerException("DUPLICATE_ATTESTATION: "
+                        + attestation.stringValue());
+            }
+            if (!connection.hasStatement(attestation, RDF.TYPE,
+                    vf.createIRI(FRAC + "Attestation"), false, graph)) {
+                throw new ManagerException("ATTESTATION_NOT_FOUND: "
+                        + attestation.stringValue()
+                        + " is not an attestation in the graph for fileId");
+            }
+            if (update.properties == null || update.properties.isEmpty()) {
+                throw new ManagerException("MISSING_METADATA_PROPERTIES: updates["
+                        + updateIndex + "].properties must not be empty");
+            }
+
+            LinkedHashMap<IRI, List<Value>> properties =
+                    new LinkedHashMap<IRI, List<Value>>();
+            Set<String> propertyIris = new HashSet<String>();
+            for (int propertyIndex = 0; propertyIndex < update.properties.size();
+                    propertyIndex++) {
+                AttestationMetadataProperty property =
+                        update.properties.get(propertyIndex);
+                String field = "updates[" + updateIndex + "].properties["
+                        + propertyIndex + "]";
+                if (property == null) {
+                    throw new ManagerException("INVALID_METADATA_PROPERTY: "
+                            + field + " is null");
+                }
+                IRI predicate = iri(field + ".property",
+                        required(field + ".property", property.property));
+                if (RESERVED_METADATA_PROPERTIES.contains(predicate.stringValue())) {
+                    throw new ManagerException("RESERVED_METADATA_PROPERTY: "
+                            + predicate.stringValue());
+                }
+                if (!propertyIris.add(predicate.stringValue())) {
+                    throw new ManagerException("DUPLICATE_METADATA_PROPERTY: "
+                            + predicate.stringValue());
+                }
+                if (property.values == null) {
+                    throw new ManagerException("MISSING_METADATA_VALUES: " + field
+                            + ".values is required; use an empty list to remove it");
+                }
+                List<Value> values = new ArrayList<Value>();
+                for (int valueIndex = 0; valueIndex < property.values.size();
+                        valueIndex++) {
+                    values.add(metadataValue(property.values.get(valueIndex),
+                            field + ".values[" + valueIndex + "]"));
+                }
+                properties.put(predicate, values);
+            }
+            result.add(new ValidatedMetadataUpdate(attestation, properties));
+        }
+        return result;
+    }
+
+    private Value metadataValue(AttestationMetadataValue item, String field)
+            throws ManagerException {
+        if (item == null) {
+            throw new ManagerException("INVALID_METADATA_VALUE: " + field
+                    + " is null");
+        }
+        String type = required(field + ".type", item.type)
+                .toLowerCase(java.util.Locale.ROOT);
+        if ("iri".equals(type)) {
+            if (!blank(item.language) || !blank(item.datatype)) {
+                throw new ManagerException("INVALID_METADATA_VALUE: " + field
+                        + " cannot define language or datatype for an IRI");
+            }
+            return iri(field + ".value", required(field + ".value", item.value));
+        }
+        if (!"literal".equals(type)) {
+            throw new ManagerException("INVALID_METADATA_VALUE: " + field
+                    + ".type must be literal or iri");
+        }
+        if (item.value == null) {
+            throw new ManagerException("MISSING_PARAMETER: " + field
+                    + ".value is required");
+        }
+        if (!blank(item.language) && !blank(item.datatype)) {
+            throw new ManagerException("INVALID_METADATA_VALUE: " + field
+                    + " cannot define both language and datatype");
+        }
+        if (!blank(item.language)) {
+            String language = item.language.trim();
+            if (!language.matches("[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*")) {
+                throw new ManagerException("INVALID_METADATA_LANGUAGE: " + field
+                        + ".language is not a valid language tag");
+            }
+            return vf.createLiteral(item.value, language);
+        }
+        if (!blank(item.datatype)) {
+            return vf.createLiteral(item.value,
+                    iri(field + ".datatype", item.datatype.trim()));
+        }
+        return vf.createLiteral(item.value);
     }
 
     /** Returns one filtered page of attestations and enriches it with NIF locus data. */
@@ -254,7 +536,7 @@ public class AttestationManager implements Manager {
             text = connections.acquire(RepositoryTarget.TEXT);
             IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
             IRI textGraph = vf.createIRI(textGraphBase + "documents/" + fileId);
-            List<Attestation> matches = new ArrayList<Attestation>();
+            List<AttestationListItem> matches = new ArrayList<AttestationListItem>();
             Map<String, String> observableLabels = new HashMap<String, String>();
             try (RepositoryResult<Statement> statements = lexical.getStatements(null,
                     RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false,
@@ -275,9 +557,10 @@ public class AttestationManager implements Manager {
                             observableLabels));
                 }
             }
-            Collections.sort(matches, new Comparator<Attestation>() {
+            Collections.sort(matches, new Comparator<AttestationListItem>() {
                 @Override
-                public int compare(Attestation left, Attestation right) {
+                public int compare(AttestationListItem left,
+                                   AttestationListItem right) {
                     return left.attestation.compareTo(right.attestation);
                 }
             });
@@ -321,13 +604,15 @@ public class AttestationManager implements Manager {
         return observableType == null ? first : null;
     }
 
-    private Attestation readAttestation(RepositoryConnection lexical,
-                                        RepositoryConnection text,
-                                        Resource attestation, Resource observable,
-                                        Resource attestationGraph, Resource lexicalGraph,
-                                        Resource textGraph, String fileId,
-                                        Map<String, String> observableLabels) {
-        Attestation result = new Attestation();
+    private AttestationListItem readAttestation(RepositoryConnection lexical,
+                                                RepositoryConnection text,
+                                                Resource attestation,
+                                                Resource observable,
+                                                Resource attestationGraph,
+                                                Resource lexicalGraph,
+                                                Resource textGraph, String fileId,
+                                                Map<String, String> observableLabels) {
+        AttestationListItem result = new AttestationListItem();
         result.attestation = attestation.stringValue();
         result.fileId = fileId;
         result.external = Boolean.valueOf(fileId.startsWith("external-"));
@@ -348,8 +633,7 @@ public class AttestationManager implements Manager {
                 attestationGraph);
         result.lastUpdate = firstString(lexical, attestation, DCTERMS.MODIFIED,
                 attestationGraph);
-        result.description = firstString(lexical, attestation, DCTERMS.DESCRIPTION,
-                attestationGraph);
+        result.metadata = readMetadata(lexical, attestation, attestationGraph);
         result.value = firstString(lexical, attestation, RDF.VALUE, attestationGraph);
         if (result.value == null) {
             result.value = firstString(lexical, attestation,
@@ -379,6 +663,76 @@ public class AttestationManager implements Manager {
             result.referenceContext = reference == null ? null : reference.stringValue();
         }
         return result;
+    }
+
+    private Map<String, List<AttestationMetadataValue>> readMetadata(
+            RepositoryConnection connection, Resource attestation, Resource graph) {
+        Map<String, List<AttestationMetadataValue>> unsorted =
+                new HashMap<String, List<AttestationMetadataValue>>();
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                attestation, null, null, false, graph)) {
+            while (statements.hasNext()) {
+                Statement statement = statements.next();
+                String property = statement.getPredicate().stringValue();
+                if (RESERVED_METADATA_PROPERTIES.contains(property)) {
+                    continue;
+                }
+                AttestationMetadataValue value =
+                        outputMetadataValue(statement.getObject());
+                if (value == null) {
+                    continue;
+                }
+                List<AttestationMetadataValue> values = unsorted.get(property);
+                if (values == null) {
+                    values = new ArrayList<AttestationMetadataValue>();
+                    unsorted.put(property, values);
+                }
+                values.add(value);
+            }
+        }
+        List<String> properties = new ArrayList<String>(unsorted.keySet());
+        Collections.sort(properties);
+        Map<String, List<AttestationMetadataValue>> result =
+                new LinkedHashMap<String, List<AttestationMetadataValue>>();
+        for (String property : properties) {
+            List<AttestationMetadataValue> values = unsorted.get(property);
+            Collections.sort(values, new Comparator<AttestationMetadataValue>() {
+                @Override
+                public int compare(AttestationMetadataValue left,
+                                   AttestationMetadataValue right) {
+                    return metadataSortKey(left).compareTo(metadataSortKey(right));
+                }
+            });
+            result.put(property, values);
+        }
+        return result;
+    }
+
+    private AttestationMetadataValue outputMetadataValue(Value value) {
+        AttestationMetadataValue result = new AttestationMetadataValue();
+        result.value = value.stringValue();
+        if (value instanceof IRI) {
+            result.type = "iri";
+            return result;
+        }
+        if (!(value instanceof Literal)) {
+            return null;
+        }
+        result.type = "literal";
+        Literal literal = (Literal) value;
+        result.value = literal.getLabel();
+        result.language = literal.getLanguage().orElse(null);
+        if (result.language == null
+                && !XSD.STRING.equals(literal.getDatatype())) {
+            result.datatype = literal.getDatatype().stringValue();
+        }
+        return result;
+    }
+
+    private static String metadataSortKey(AttestationMetadataValue value) {
+        return value.type + "|" + value.value + "|"
+                + (value.language == null ? "" : value.language) + "|"
+                + (value.datatype == null ? "" : value.datatype);
     }
 
     private String observableLabel(RepositoryConnection connection,
@@ -724,7 +1078,7 @@ public class AttestationManager implements Manager {
     }
 
     private Model attestationModel(IRI attestation, IRI observable, IRI locus,
-                                   IRI corpus, String description, String value,
+                                   IRI corpus, String value,
                                    String language, String author, String timestamp) {
         Model model = new LinkedHashModel();
         model.add(attestation, RDF.TYPE, vf.createIRI(FRAC + "Attestation"));
@@ -732,9 +1086,6 @@ public class AttestationManager implements Manager {
                 vf.createLiteral(author == null ? "anonymous" : author));
         model.add(attestation, DCTERMS.CREATED, vf.createLiteral(timestamp));
         model.add(attestation, DCTERMS.MODIFIED, vf.createLiteral(timestamp));
-        if (!blank(description)) {
-            model.add(attestation, DCTERMS.DESCRIPTION, vf.createLiteral(description));
-        }
         Literal attestedValue = blank(language)
                 ? vf.createLiteral(value) : vf.createLiteral(value, language);
         model.add(attestation, vf.createIRI(FRAC + "gloss"), attestedValue);
@@ -780,10 +1131,46 @@ public class AttestationManager implements Manager {
                 missing.add(statement);
             }
         }
-        if (locusExists && !missing.isEmpty()) {
-            throw new ManagerException("LOCUS_CONFLICT: the NIF locus already exists with different data");
+        if (!locusExists) {
+            return missing;
         }
-        return missing;
+        validateExistingLocus(connection, expected, graph, locus);
+        return new LinkedHashModel();
+    }
+
+    private void validateExistingLocus(RepositoryConnection connection,
+                                       Model expected, Resource graph, IRI locus)
+            throws ManagerException {
+        IRI[] identityPredicates = {
+            vf.createIRI(NIF + "anchorOf"),
+            vf.createIRI(NIF + "beginIndex"),
+            vf.createIRI(NIF + "endIndex"),
+            vf.createIRI(NIF + "referenceContext")
+        };
+        for (IRI predicate : identityPredicates) {
+            Set<Value> expectedValues = new HashSet<Value>(
+                    expected.filter(locus, predicate, null).objects());
+            Set<Value> actualValues = new HashSet<Value>();
+            try (RepositoryResult<Statement> statements = connection.getStatements(
+                    locus, predicate, null, false, graph)) {
+                while (statements.hasNext()) {
+                    actualValues.add(statements.next().getObject());
+                }
+            }
+            if (!actualValues.equals(expectedValues)) {
+                throw new ManagerException("LOCUS_CONFLICT: the NIF locus already exists with different data");
+            }
+        }
+    }
+
+    private List<String> resultLocusTypes(RepositoryConnection connection,
+                                          IRI locus, Resource graph) {
+        List<String> types = rdfTypes(connection, locus, graph);
+        if (types.isEmpty()) {
+            types.add(NIF + "Phrase");
+            types.add(NIF + "RFC5147String");
+        }
+        return types;
     }
 
     private void compensate(RepositoryConnection connection,
@@ -935,6 +1322,21 @@ public class AttestationManager implements Manager {
         return value == null || value.trim().isEmpty();
     }
 
+    private static Set<String> reservedMetadataProperties() {
+        Set<String> result = new HashSet<String>();
+        result.add(RDF.TYPE.stringValue());
+        result.add(RDF.VALUE.stringValue());
+        result.add(DCTERMS.CREATOR.stringValue());
+        result.add(DCTERMS.CREATED.stringValue());
+        result.add(DCTERMS.MODIFIED.stringValue());
+        result.add(DCTERMS.DESCRIPTION.stringValue());
+        result.add(FRAC + "attestation");
+        result.add(FRAC + "gloss");
+        result.add(FRAC + "locus");
+        result.add(FRAC + "observedIn");
+        return Collections.unmodifiableSet(result);
+    }
+
     private static String namespace(String value) {
         return value.endsWith("/") || value.endsWith("#") ? value : value + "#";
     }
@@ -967,6 +1369,17 @@ public class AttestationManager implements Manager {
             this.textGraph = textGraph;
             this.referenceContext = referenceContext;
             this.language = language;
+        }
+    }
+
+    private static final class ValidatedMetadataUpdate {
+        final IRI attestation;
+        final LinkedHashMap<IRI, List<Value>> properties;
+
+        ValidatedMetadataUpdate(IRI attestation,
+                                LinkedHashMap<IRI, List<Value>> properties) {
+            this.attestation = attestation;
+            this.properties = properties;
         }
     }
 

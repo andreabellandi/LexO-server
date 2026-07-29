@@ -8,6 +8,8 @@ import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.AttestationManager;
 import it.cnr.ilc.lexo.manager.ManagerException;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import java.util.List;
 import javax.ws.rs.Consumes;
@@ -53,7 +55,7 @@ public class Attestations extends Service {
                     example = "user7", required = false)
             @QueryParam("author") String author,
             @ApiParam(name = "occurrences",
-                    value = "JSON list of occurrences; every item requires value, start, and end and may include description",
+                    value = "JSON list of occurrences; every item requires value, start, and end",
                     required = true)
             List<AttestationOccurrence> occurrences) {
         try {
@@ -81,10 +83,96 @@ public class Attestations extends Service {
     }
 
     @POST
+    @javax.ws.rs.Path("by-locus")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Attestation creation by locus",
+            notes = "This method creates one FRAC attestation for every supplied lexical entity at a shared textual locus and returns the created attestations")
+    public Response createByLocus(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "corpus",
+                    value = "IRI of the text or corpus where the lexical entities were observed",
+                    example = "https://lexo.ilc.cnr.it/texts/example#context", required = true)
+            @QueryParam("corpus") String corpus,
+            @ApiParam(name = "external",
+                    value = "true when corpus is an external HTTP or HTTPS resource",
+                    example = "false", required = false)
+            @QueryParam("external") String external,
+            @ApiParam(name = "author",
+                    value = "the account that is creating the attestations (if LexO user management is disabled)",
+                    example = "user7", required = false)
+            @QueryParam("author") String author,
+            @ApiParam(name = "locus",
+                    value = "JSON object containing the required value, start, end, and non-empty observable IRI list",
+                    required = true)
+            AttestationByLocusInput locus) {
+        try {
+            checkKey(key);
+            boolean externalValue = parseExternal(external);
+            String creator = getUser(author);
+            log(Level.INFO, "/attestations/by-locus: creating attestations for corpus="
+                    + corpus);
+            return json(manager.createByLocus(corpus, externalValue, creator, locus));
+        } catch (ManagerException | IllegalArgumentException e) {
+            log(Level.ERROR, "/attestations/by-locus: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/attestations/by-locus: " + username
+                    + " not authorized");
+            return plain(Response.Status.BAD_REQUEST, username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/attestations/by-locus: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        }
+    }
+
+    @PATCH
+    @javax.ws.rs.Path("{fileId}/metadata")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Attestation metadata batch update",
+            notes = "This method atomically replaces selected RDF metadata property values on one or more FRAC attestations in the per-text attestation graph; an empty values list removes the property")
+    public Response patchMetadata(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "fileId",
+                    value = "id of the text whose attestation graph must be updated",
+                    example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            @PathParam("fileId") String fileId,
+            @ApiParam(name = "batch",
+                    value = "atomic batch of attestation metadata property replacements",
+                    required = true)
+            AttestationMetadataBatch batch) {
+        try {
+            checkKey(key);
+            log(Level.INFO, "/attestations/{fileId}/metadata: updating metadata for fileId="
+                    + fileId);
+            return json(manager.patchMetadata(fileId, batch));
+        } catch (ManagerException | IllegalArgumentException e) {
+            log(Level.ERROR, "/attestations/{fileId}/metadata: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/attestations/{fileId}/metadata: " + username
+                    + " not authorized");
+            return plain(Response.Status.BAD_REQUEST, username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/attestations/{fileId}/metadata: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        }
+    }
+
+    @POST
     @javax.ws.rs.Path("{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text attestations retrieval",
-            notes = "This method returns a paginated list of the attestations stored for one text, including their metadata, observable display labels, and NIF locus data")
+            notes = "This method returns a paginated list of the attestations stored for one text, including observable display labels and NIF locus data; attestation descriptions are not included")
     public Response list(
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "fileId",

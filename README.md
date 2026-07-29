@@ -75,19 +75,49 @@ conversion and is used as the NIF literal language tag. A `language` key in the
 file front matter is ignored. Supported front-matter keys are `id`, `title`,
 `author`, `date`, `description`, `format`, and `corpus`.
 
+## Lexical concepts
+
+`GET /service/create/lexicalConcept` accepts the optional query parameters
+`label` and `language`. When `label` is supplied, `language` is required and
+must occur in one of the first four columns of the bundled ISO 639 list. The
+code is matched case-insensitively and normalized to lowercase. The value is
+stored as a language-tagged `skos:prefLabel` in the lexical named graph, and
+the creation response returns it in the `label` field together with the
+normalized `language`. Without `label`, the service preserves the existing
+fallback label derived from the generated ID and the configured default
+language; an explicitly supplied `language` is validated and applies to that
+fallback label.
+
+```bash
+curl -G 'http://localhost:8080/LexO-server/service/create/lexicalConcept' \
+  -H 'Authorization: Bearer TOKEN_LEXO' \
+  --data-urlencode 'prefix=example' \
+  --data-urlencode 'baseIRI=https://example.org/lexicon/' \
+  --data-urlencode 'desiredID=animal' \
+  --data-urlencode 'label=animal' \
+  --data-urlencode 'language=en'
+```
+
+Each item returned by `GET /service/data/lexicalConcepts` includes an integer
+`attestations` field. It is the number of distinct objects linked to that
+lexical concept through `frac:attestation` in the configured per-document
+attestation named graphs; concepts without attestations return `0`. The same
+field is included by `POST /service/data/filteredLexicalConcepts`, which uses the
+same lexical-concept item response model.
+
 ## Attestations
 
 `POST /service/attestations` creates multiple FRAC attestations for one OntoLex
 lexical entry, form, lexical sense, or lexical concept. Required query parameters
 are `observable` and `corpus`; `external` and `author` are optional. The JSON body
 is a non-empty list whose items contain required `value`, `start`, and `end`
-fields and an optional `description`. Offsets are Unicode code-point offsets on
-the canonical `nif:isString` value.
+fields. Offsets are Unicode code-point offsets on the canonical `nif:isString`
+value.
 
 ```json
 [
-  {"description": "First occurrence", "value": "example", "start": 10, "end": 17},
-  {"description": "Second occurrence", "value": "example", "start": 42, "end": 49}
+  {"value": "example", "start": 10, "end": 17},
+  {"value": "example", "start": 42, "end": 49}
 ]
 ```
 
@@ -105,19 +135,93 @@ selected substring and writes the NIF locus in the document graph. With
 downloaded. FRAC data is written to the per-text attestation graph in
 `LexOLexica`; application data is never written to a default graph.
 
+`POST /service/attestations/by-locus` creates one attestation for each lexical
+entity observed at the same textual interval. It uses the same required
+`corpus` query parameter and optional `external` and `author` parameters as the
+other creation endpoint. The JSON body requires `value`, `start`, `end`, and a
+non-empty `observables` IRI list:
+
+```json
+{
+  "value": "gli stessi diritti",
+  "start": 42,
+  "end": 60,
+  "observables": [
+    "https://lexo.ilc.cnr.it#LexO_entry1",
+    "https://lexo.ilc.cnr.it#LexO_sense1"
+  ]
+}
+```
+
+The service validates the complete observable list before writing, creates a
+single shared NIF locus, and returns the same JSON attestation array produced by
+`POST /service/attestations`. If the deterministic `#char=start,end` resource
+already exists as a compatible NIF word, sentence, or other structural span,
+the service reuses it without changing its RDF types. A `LOCUS_CONFLICT` is
+returned only when its anchor, offsets, or reference context differ.
+
 `POST /service/attestations/{fileId}` returns the attestations of one text as a
 paginated JSON response. `observableType` and `author` optionally filter the RDF
 type of the observed lexical entity and the exact `dcterms:creator` value.
 `limit` defaults to 200 and `offset` defaults to 0. Each result combines FRAC
 metadata from `LexOLexica` with anchor, offsets, language, RDF types and reference
-context read from the corresponding NIF locus in `LexOTexts`. The
-`observableLabel` field is resolved according to the observable type: lexical
+context read from the corresponding NIF locus in `LexOTexts`. The response does
+not expose attestation descriptions. The creation endpoint likewise neither
+accepts nor persists them. The `observableLabel` field is resolved according to
+the observable type: lexical
 entries prefer `rdfs:label` and then their canonical form's
 `ontolex:writtenRep`; forms prefer `ontolex:writtenRep` and then `rdfs:label`;
 lexical senses combine their entry label or canonical written representation
 with `skos:definition`; lexical concepts prefer `skos:prefLabel` and then
 `rdfs:label`. Language tags are preserved in the compact `value@language`
 format (for example, `casa@it`); missing values fall back to `"no label"`.
+
+`PATCH /service/attestations/{fileId}/metadata` atomically replaces selected RDF
+metadata properties on one or more attestations in that text's attestation named
+graph. Property names and IRI values must be absolute IRIs. Literal values may
+optionally carry either a BCP 47 language tag or an RDF datatype IRI. An empty
+`values` list removes the property; properties omitted from the request remain
+unchanged.
+
+```json
+{
+  "updates": [
+    {
+      "attestation": "https://lexo.ilc.cnr.it#LexO_2026-07-29...",
+      "properties": [
+        {
+          "property": "https://example.org/vocabulary/confidence",
+          "values": [
+            {
+              "value": "0.92",
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+            }
+          ]
+        },
+        {
+          "property": "http://purl.org/dc/terms/source",
+          "values": [
+            {
+              "value": "https://example.org/sources/corpus-1",
+              "type": "iri"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every attestation must already be a `frac:Attestation` in the graph selected by
+`fileId`. Structural properties such as `rdf:type`, `rdf:value`, `frac:locus`,
+`frac:observedIn`, `frac:gloss`, creator and timestamps cannot be changed through
+this endpoint. The complete batch is validated before its single LexOLexica
+transaction, and every updated attestation receives a new `dcterms:modified`
+value. Paginated attestation results expose custom properties in a `metadata`
+object keyed by property IRI while preserving multiple values and their RDF
+kind, language or datatype.
 
 ## License
 
