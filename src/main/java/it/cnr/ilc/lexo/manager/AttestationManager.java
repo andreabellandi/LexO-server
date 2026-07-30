@@ -492,21 +492,37 @@ public class AttestationManager implements Manager {
                     "MISSING_ATTESTATIONS: provide at least one attestation");
         }
         final IRI attestationGraph;
+        final IRI textGraph;
         try {
             attestationGraph = vf.createIRI(
                     LexicalNamedGraphs.attestationGraphUri(fileId));
+            textGraph = vf.createIRI(textGraphBase + "documents/" + fileId);
         } catch (IllegalArgumentException e) {
             throw new ManagerException(
                     "INVALID_FILE_ID: fileId contains unsupported characters");
         }
 
         RepositoryConnection lexical = null;
+        RepositoryConnection text = null;
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
+            text = connections.acquire(RepositoryTarget.TEXT);
             validateObservable(lexical, observable);
             List<ValidatedObservableUpdate> updates =
                     validateObservableUpdates(lexical, attestationGraph,
                             input.attestations);
+            Map<String, FrequencyKey> affected =
+                    new LinkedHashMap<String, FrequencyKey>();
+            for (ValidatedObservableUpdate update : updates) {
+                IRI observedIn = observedText(lexical, text, update.attestation,
+                        attestationGraph, textGraph);
+                addFrequencyKey(affected, observable, observedIn,
+                        attestationGraph);
+                for (IRI previous : update.previousObservables) {
+                    addFrequencyKey(affected, previous, observedIn,
+                            attestationGraph);
+                }
+            }
             String modified = timestamp(new Timestamp(System.currentTimeMillis()));
             IRI relation = vf.createIRI(FRAC + "attestation");
             lexical.begin();
@@ -520,11 +536,14 @@ public class AttestationManager implements Manager {
                 lexical.add(update.attestation, DCTERMS.MODIFIED,
                         vf.createLiteral(modified), attestationGraph);
             }
+            Map<String, Integer> frequencies =
+                    synchronizeFrequencies(lexical, affected);
             lexical.commit();
 
             AttestationObservableUpdateResult result =
                     new AttestationObservableUpdateResult();
             result.fileId = fileId;
+            result.frequencies.putAll(frequencies);
             for (ValidatedObservableUpdate update : updates) {
                 AttestationObservableUpdateItem item =
                         new AttestationObservableUpdateItem();
@@ -545,6 +564,7 @@ public class AttestationManager implements Manager {
             throw new ManagerException("ATTESTATION_OBSERVABLE_UPDATE_FAILED: "
                     + message(e), e);
         } finally {
+            connections.release(RepositoryTarget.TEXT, text);
             connections.release(RepositoryTarget.LEXICON, lexical);
         }
     }
@@ -648,10 +668,19 @@ public class AttestationManager implements Manager {
                     : explicitAttestations(requestedValues);
             List<PendingDeletion> pending = validateDeletions(lexical,
                     attestationGraph, requested, expectedObservable, expectedLocus);
+            Map<String, FrequencyKey> affected =
+                    deletionFrequencyKeys(lexical, text, attestationGraph,
+                            vf.createIRI(textGraphBase + "documents/" + fileId),
+                            pending);
+            if (expectedObservable != null) {
+                addExistingFrequencyKeys(lexical, affected, expectedObservable,
+                        attestationGraph);
+            }
             List<PendingLocusDeletion> loci = orphanGeneratedLoci(lexical, text,
                     fileId, pending);
-            persistDeletion(lexical, text, attestationGraph, pending, loci);
-            return deletionResult(fileId, pending, loci);
+            Map<String, Integer> frequencies = persistDeletion(lexical, text,
+                    attestationGraph, pending, loci, affected);
+            return deletionResult(fileId, pending, loci, frequencies);
         } catch (ManagerException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -739,22 +768,32 @@ public class AttestationManager implements Manager {
                 throw new ManagerException("ATTESTATION_LOCUS_MISMATCH: "
                         + attestation.stringValue());
             }
-            Resource observable = expectedObservable == null
-                    ? firstSubject(connection, attestationRelation, attestation,
-                            graph) : expectedObservable;
+            List<IRI> observables = observableSubjects(connection,
+                    attestationRelation, attestation, graph);
+            if (expectedObservable != null && !observables.contains(expectedObservable)) {
+                observables.add(expectedObservable);
+            }
             PendingDeletion item = new PendingDeletion(attestation,
-                    observable instanceof IRI ? (IRI) observable : null, locus);
+                    observables, locus);
             result.add(item);
         }
         return result;
     }
 
-    private Resource firstSubject(RepositoryConnection connection, IRI predicate,
-                                  Value object, Resource graph) {
+    private List<IRI> observableSubjects(RepositoryConnection connection,
+                                         IRI predicate, Value object,
+                                         Resource graph) {
+        List<IRI> result = new ArrayList<IRI>();
         try (RepositoryResult<Statement> statements = connection.getStatements(
                 null, predicate, object, false, graph)) {
-            return statements.hasNext() ? statements.next().getSubject() : null;
+            while (statements.hasNext()) {
+                Resource subject = statements.next().getSubject();
+                if (subject instanceof IRI && !result.contains(subject)) {
+                    result.add((IRI) subject);
+                }
+            }
         }
+        return result;
     }
 
     private List<PendingLocusDeletion> orphanGeneratedLoci(
@@ -809,9 +848,10 @@ public class AttestationManager implements Manager {
         return false;
     }
 
-    private void persistDeletion(RepositoryConnection lexical,
+    private Map<String, Integer> persistDeletion(RepositoryConnection lexical,
             RepositoryConnection text, Resource attestationGraph,
-            List<PendingDeletion> pending, List<PendingLocusDeletion> loci)
+            List<PendingDeletion> pending, List<PendingLocusDeletion> loci,
+            Map<String, FrequencyKey> affected)
             throws ManagerException {
         boolean textCommitted = false;
         try {
@@ -827,9 +867,12 @@ public class AttestationManager implements Manager {
             for (PendingLocusDeletion locus : loci) {
                 text.remove(locus.locus, null, null, locus.textGraph);
             }
+            Map<String, Integer> frequencies =
+                    synchronizeFrequencies(lexical, affected);
             text.commit();
             textCommitted = true;
             lexical.commit();
+            return frequencies;
         } catch (RuntimeException e) {
             rollback(lexical);
             rollback(text);
@@ -856,7 +899,8 @@ public class AttestationManager implements Manager {
     }
 
     private AttestationDeletionResult deletionResult(String fileId,
-            List<PendingDeletion> pending, List<PendingLocusDeletion> loci) {
+            List<PendingDeletion> pending, List<PendingLocusDeletion> loci,
+            Map<String, Integer> frequencies) {
         Set<String> deletedLoci = new HashSet<String>();
         for (PendingLocusDeletion locus : loci) {
             deletedLoci.add(locus.locus.stringValue());
@@ -866,8 +910,8 @@ public class AttestationManager implements Manager {
         for (PendingDeletion pendingItem : pending) {
             AttestationDeletionItem item = new AttestationDeletionItem();
             item.attestation = pendingItem.attestation.stringValue();
-            item.observable = pendingItem.observable == null ? null
-                    : pendingItem.observable.stringValue();
+            item.observable = pendingItem.observables.isEmpty() ? null
+                    : pendingItem.observables.get(0).stringValue();
             item.locus = pendingItem.locus.stringValue();
             result.deleted.add(item);
             if (!deletedLoci.contains(item.locus)
@@ -879,7 +923,232 @@ public class AttestationManager implements Manager {
         result.deletedLoci.addAll(deletedLoci);
         Collections.sort(result.deletedLoci);
         Collections.sort(result.retainedLoci);
+        result.frequencies.putAll(frequencies);
         return result;
+    }
+
+    private Map<String, FrequencyKey> deletionFrequencyKeys(
+            RepositoryConnection lexical, RepositoryConnection text,
+            Resource attestationGraph, Resource textGraph,
+            List<PendingDeletion> pending) throws ManagerException {
+        Map<String, FrequencyKey> result =
+                new LinkedHashMap<String, FrequencyKey>();
+        for (PendingDeletion item : pending) {
+            IRI observedIn = observedText(lexical, text, item.attestation,
+                    item.locus, attestationGraph, textGraph);
+            for (IRI observable : item.observables) {
+                addFrequencyKey(result, observable, observedIn, attestationGraph);
+            }
+        }
+        return result;
+    }
+
+    private IRI observedText(RepositoryConnection lexical,
+                             RepositoryConnection text, IRI attestation,
+                             Resource attestationGraph, Resource textGraph)
+            throws ManagerException {
+        Value locus = firstObject(lexical, attestation,
+                vf.createIRI(FRAC + "locus"), attestationGraph);
+        return observedText(lexical, text, attestation,
+                locus instanceof IRI ? (IRI) locus : null,
+                attestationGraph, textGraph);
+    }
+
+    private IRI observedText(RepositoryConnection lexical,
+                             RepositoryConnection text, IRI attestation,
+                             IRI locus, Resource attestationGraph,
+                             Resource textGraph) throws ManagerException {
+        if (locus != null) {
+            Value reference = firstObject(text, locus,
+                    vf.createIRI(NIF + "referenceContext"), textGraph);
+            if (reference instanceof IRI) {
+                return (IRI) reference;
+            }
+        }
+        Value fallback = firstObject(lexical, attestation,
+                vf.createIRI(FRAC + "observedIn"), attestationGraph);
+        if (fallback instanceof IRI) {
+            return (IRI) fallback;
+        }
+        throw new ManagerException("ATTESTATION_TEXT_MISSING: cannot resolve the text observed by "
+                + attestation.stringValue());
+    }
+
+    private void addFrequencyKey(Map<String, FrequencyKey> target,
+                                 IRI observable, IRI observedIn,
+                                 Resource graph) {
+        FrequencyKey value = new FrequencyKey(observable, observedIn, graph);
+        target.put(frequencyKey(observable, observedIn, graph), value);
+    }
+
+    private void addExistingFrequencyKeys(RepositoryConnection connection,
+                                          Map<String, FrequencyKey> target,
+                                          IRI observable, Resource graph) {
+        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
+        try (RepositoryResult<Statement> links = connection.getStatements(
+                observable, vf.createIRI(FRAC + "frequency"), null, false,
+                graph)) {
+            while (links.hasNext()) {
+                Value frequency = links.next().getObject();
+                if (!(frequency instanceof Resource)) {
+                    continue;
+                }
+                try (RepositoryResult<Statement> observations =
+                             connection.getStatements((Resource) frequency,
+                                     observedInRelation, null, false, graph)) {
+                    while (observations.hasNext()) {
+                        Value observedIn = observations.next().getObject();
+                        if (observedIn instanceof IRI) {
+                            addFrequencyKey(target, observable, (IRI) observedIn,
+                                    graph);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private Map<String, Integer> synchronizeFrequencies(
+            RepositoryConnection connection,
+            Map<String, FrequencyKey> affected) {
+        Map<String, Integer> result = new LinkedHashMap<String, Integer>();
+        for (FrequencyKey key : affected.values()) {
+            int frequency = synchronizeFrequency(connection, key.observable,
+                    key.observedIn, key.graph);
+            result.put(key.observable.stringValue(), Integer.valueOf(frequency));
+        }
+        return result;
+    }
+
+    private int synchronizeFrequency(RepositoryConnection connection,
+                                     IRI observable, IRI observedIn,
+                                     Resource graph) {
+        int value = countObservableAttestations(connection, observable, graph);
+        List<Resource> frequencies = frequencyResources(connection, observable,
+                observedIn, graph);
+        if (value == 0) {
+            removeFrequencyResources(connection, observable, frequencies, graph);
+            return 0;
+        }
+        writeFrequency(connection, observable, observedIn, graph, frequencies,
+                value);
+        return value;
+    }
+
+    private int incrementFrequency(RepositoryConnection connection,
+                                   IRI observable, IRI observedIn,
+                                   Resource graph, int increment) {
+        List<Resource> frequencies = frequencyResources(connection, observable,
+                observedIn, graph);
+        Integer current = frequencies.size() == 1
+                ? frequencyValue(connection, frequencies.get(0), graph) : null;
+        int value = current == null
+                ? countObservableAttestations(connection, observable, graph)
+                : current.intValue() + increment;
+        writeFrequency(connection, observable, observedIn, graph, frequencies,
+                value);
+        return value;
+    }
+
+    private void writeFrequency(RepositoryConnection connection, IRI observable,
+                                IRI observedIn, Resource graph,
+                                List<Resource> existing, int value) {
+        Resource frequency = existing.isEmpty() ? vf.createBNode() : existing.get(0);
+        if (existing.size() > 1) {
+            removeFrequencyResources(connection, observable,
+                    existing.subList(1, existing.size()), graph);
+        }
+        IRI relation = vf.createIRI(FRAC + "frequency");
+        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
+        connection.add(observable, relation, frequency, graph);
+        connection.add(frequency, RDF.TYPE, vf.createIRI(FRAC + "Frequency"), graph);
+        connection.remove(frequency, observedInRelation, null, graph);
+        connection.add(frequency, observedInRelation, observedIn, graph);
+        connection.remove(frequency, RDF.VALUE, null, graph);
+        connection.add(frequency, RDF.VALUE,
+                vf.createLiteral(Integer.toString(value), XSD.INT), graph);
+    }
+
+    private void removeFrequencyResources(RepositoryConnection connection,
+                                          IRI observable,
+                                          List<Resource> frequencies,
+                                          Resource graph) {
+        IRI relation = vf.createIRI(FRAC + "frequency");
+        for (Resource frequency : frequencies) {
+            connection.remove(observable, relation, frequency, graph);
+            connection.remove(frequency, null, null, graph);
+        }
+    }
+
+    private List<Resource> frequencyResources(RepositoryConnection connection,
+                                              Resource observable,
+                                              IRI observedIn, Resource graph) {
+        List<Resource> result = new ArrayList<Resource>();
+        IRI relation = vf.createIRI(FRAC + "frequency");
+        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                observable, relation, null, false, graph)) {
+            while (statements.hasNext()) {
+                Value candidate = statements.next().getObject();
+                if (candidate instanceof Resource
+                        && connection.hasStatement((Resource) candidate,
+                                observedInRelation, observedIn, false, graph)
+                        && !result.contains(candidate)) {
+                    result.add((Resource) candidate);
+                }
+            }
+        }
+        return result;
+    }
+
+    private Integer frequencyValue(RepositoryConnection connection,
+                                   Resource observable, IRI observedIn,
+                                   Resource graph) {
+        List<Resource> frequencies = frequencyResources(connection, observable,
+                observedIn, graph);
+        return frequencies.size() == 1
+                ? frequencyValue(connection, frequencies.get(0), graph) : null;
+    }
+
+    private Integer frequencyValue(RepositoryConnection connection,
+                                   Resource frequency, Resource graph) {
+        Literal value = firstLiteral(connection, frequency, RDF.VALUE, graph);
+        if (value == null) {
+            return null;
+        }
+        try {
+            int parsed = value.intValue();
+            return parsed < 0 ? null : Integer.valueOf(parsed);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private int countObservableAttestations(RepositoryConnection connection,
+                                            IRI observable, Resource graph) {
+        Set<String> attestations = new HashSet<String>();
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                observable, vf.createIRI(FRAC + "attestation"), null, false,
+                graph)) {
+            while (statements.hasNext()) {
+                Value candidate = statements.next().getObject();
+                if (candidate instanceof Resource
+                        && connection.hasStatement((Resource) candidate, RDF.TYPE,
+                                vf.createIRI(FRAC + "Attestation"), false, graph)) {
+                    attestations.add(candidate.stringValue());
+                }
+            }
+        }
+        return attestations.size();
+    }
+
+    private String frequencyKey(IRI observable, IRI observedIn, Resource graph) {
+        return graph.stringValue() + "\n" + observable.stringValue() + "\n"
+                + observedIn.stringValue();
+    }
+
+    private IRI iriUnchecked(String value) {
+        return vf.createIRI(value);
     }
 
     private String timestamp(Timestamp value) {
@@ -1614,6 +1883,14 @@ public class AttestationManager implements Manager {
                     vf.createIRI(NIF + "referenceContext"), textGraph);
             result.referenceContext = reference == null ? null : reference.stringValue();
         }
+        if (observable != null) {
+            Value frequencyObservedIn = blank(result.referenceContext)
+                    ? corpus : vf.createIRI(result.referenceContext);
+            if (frequencyObservedIn instanceof IRI) {
+                result.frequency = frequencyValue(lexical, observable,
+                        (IRI) frequencyObservedIn, attestationGraph);
+            }
+        }
         return result;
     }
 
@@ -2067,6 +2344,29 @@ public class AttestationManager implements Manager {
                 lexical.add(item.attestationStatements, item.attestationGraph);
                 text.add(item.phraseStatements, item.textGraph);
             }
+            Map<String, List<PendingAttestation>> frequencyGroups =
+                    new LinkedHashMap<String, List<PendingAttestation>>();
+            for (PendingAttestation item : pending) {
+                String key = frequencyKey(iriUnchecked(item.result.observable),
+                        iriUnchecked(item.result.referenceContext),
+                        item.attestationGraph);
+                List<PendingAttestation> group = frequencyGroups.get(key);
+                if (group == null) {
+                    group = new ArrayList<PendingAttestation>();
+                    frequencyGroups.put(key, group);
+                }
+                group.add(item);
+            }
+            for (List<PendingAttestation> group : frequencyGroups.values()) {
+                PendingAttestation sample = group.get(0);
+                int frequency = incrementFrequency(lexical,
+                        iriUnchecked(sample.result.observable),
+                        iriUnchecked(sample.result.referenceContext),
+                        sample.attestationGraph, group.size());
+                for (PendingAttestation item : group) {
+                    item.result.frequency = Integer.valueOf(frequency);
+                }
+            }
             text.commit();
             textCommitted = true;
             lexical.commit();
@@ -2506,13 +2806,25 @@ public class AttestationManager implements Manager {
 
     private static final class PendingDeletion {
         final IRI attestation;
-        final IRI observable;
+        final List<IRI> observables;
         final IRI locus;
 
-        PendingDeletion(IRI attestation, IRI observable, IRI locus) {
+        PendingDeletion(IRI attestation, List<IRI> observables, IRI locus) {
             this.attestation = attestation;
-            this.observable = observable;
+            this.observables = observables;
             this.locus = locus;
+        }
+    }
+
+    private static final class FrequencyKey {
+        final IRI observable;
+        final IRI observedIn;
+        final Resource graph;
+
+        FrequencyKey(IRI observable, IRI observedIn, Resource graph) {
+            this.observable = observable;
+            this.observedIn = observedIn;
+            this.graph = graph;
         }
     }
 

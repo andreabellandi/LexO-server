@@ -1,10 +1,9 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 30 luglio 2026 dopo l'aggiunta degli aggiornamenti del locus e
-dell'observable delle attestazioni, oltre alla ricerca paginata per observable
-e ai filtri booleani condivisi, sul branch
-`codex/attestation-filter-search`, derivato da `codex/attestation-deletion`
-(`d726ef3`) e basato su `origin/master` (`9ab5a4e`).
+Aggiornato al 30 luglio 2026 dopo l'aggiunta delle frequenze FRAC per observable
+e testo nei servizi di creazione, cancellazione, consultazione e sostituzione
+dell'observable, sul branch `codex/attestation-frequency`, basato su
+`origin/master` (`56850c2`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -129,8 +128,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 96 test unitari/repository passati il 30 luglio 2026, inclusi
-  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
+- Suite corrente: 98 test unitari/repository passati il 30 luglio 2026, inclusi
+  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -175,6 +174,13 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Endpoint `PATCH /attestations/{fileId}/observable` per sostituire atomicamente
   il collegamento inverso `frac:attestation` di una o più attestazioni dopo la
   validazione completa del batch e del nuovo tipo OntoLex.
+- I servizi di creazione mantengono un oggetto `frac:Frequency` per coppia
+  observable/testo nel named graph documentale, con `rdf:value` `xsd:int` e
+  `frac:observedIn` sul contesto NIF specifico. Cancellazioni per observable o
+  locus e sostituzione dell'observable riallineano tutti i conteggi coinvolti e
+  rimuovono la frequenza quando il valore residuo è zero. I JSON di creazione e
+  consultazione espongono `frequency`; gli altri JSON di mutazione espongono la
+  mappa `frequencies`.
 - Endpoint `DELETE /attestations/{fileId}/by-observable` e
   `DELETE /attestations/{fileId}/by-locus` per cancellare atomicamente una lista
   esplicita di attestazioni oppure tutte quelle che corrispondono al criterio
@@ -219,8 +225,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Ampliare i test automatici dei servizi lessicali: la copertura più completa al
   momento riguarda il dominio testuale e i named graph.
 - Aggiungere test end-to-end REST per ricerca filtrata, aggiornamento locus e
-  aggiornamento observable delle attestazioni; al momento la logica è coperta
-  da test repository.
+  aggiornamento observable/frequenze delle attestazioni; al momento la logica è
+  coperta da test repository.
 
 ## Decisioni tecniche importanti
 
@@ -318,25 +324,33 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-filter-search`.
-- Base aggiornata: `origin/master` al commit `9ab5a4e`.
-- Le modifiche applicative sono organizzate in commit consecutivi e focalizzati;
-  log runtime e `nb-configuration.xml` restano esclusi dai commit.
+- Branch locale corrente: `codex/attestation-frequency`.
+- Base aggiornata: `origin/master` al commit `56850c2`.
+- Le modifiche alle frequenze non sono ancora committate; log runtime e
+  `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
 
-Il lavoro corrente aggiunge `PATCH /attestations/{fileId}/locus` e
+Il lavoro corrente estende `AttestationManager`, i DTO di output e Swagger per
+gestire le frequenze nel medesimo named graph per documento. Le creazioni
+incrementano un valore esistente o inizializzano il conteggio effettivo; le
+cancellazioni e `PATCH /attestations/{fileId}/observable` ricalcolano i valori
+dopo la mutazione. Il riferimento `frac:observedIn` usa il
+`nif:referenceContext`, non l'eventuale corpus contenitore. I 40 test mirati e
+l'intera suite di 98 test sono passati il 30 luglio 2026; gli end-to-end REST
+restano da eseguire in un ambiente dedicato.
+
+Il lavoro precedente, ora integrato in `origin/master`, aggiunge
+`PATCH /attestations/{fileId}/locus` e
 `PATCH /attestations/{fileId}/observable`. Il primo modifica soltanto loci
 LexO non condivisi, ricava la nuova anchor dal testo canonico con offset Unicode,
 sposta l'IRI `#char=start,end` e coordina le transazioni sui due repository con
 compensazione. Il secondo sostituisce atomicamente l'observable per una lista
 validata di attestazioni nello stesso named graph. I DTO dedicati documentano
 input e risultati, inclusi `updateGloss`, locus precedente e observable
-precedenti. I 38 test mirati delle attestazioni e la suite completa di 96 test
-sono passati il 30 luglio 2026; gli end-to-end REST restano da eseguire in un
-ambiente dedicato.
+precedenti.
 
-Lo stesso lavoro non ancora committato aggiunge inoltre
+Lo stesso lavoro precedente aggiunge inoltre
 `POST /attestations/by-observable` e il DTO ricorsivo
 `AttestationFilter`, condiviso con `POST /attestations/{fileId}`. I filtri
 combinano creator, metadata RDF del contesto testuale e tipi OntoLex, preservano
@@ -397,8 +411,8 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere test end-to-end dei nuovi endpoint di creazione, cancellazione e
-   metadata delle attestazioni e della
+1. Aggiungere test end-to-end dei nuovi endpoint di creazione, cancellazione,
+   frequenza e metadata delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
 2. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.

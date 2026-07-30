@@ -235,8 +235,8 @@ cleanup del test.
 - download di originale, canonicale e NIF;
 - creazione di corpus e aggiunta di un documento;
 - creazione batch tramite `POST /attestations/by-locus`, verificando una
-  attestazione per osservabile, un solo locus NIF e rollback completo in caso di
-  osservabile non valido;
+  attestazione e una frequenza FRAC per osservabile, un solo locus NIF e rollback
+  completo in caso di osservabile non valido;
 - verifica RDF in entrambi i NIF;
 - aggiornamento del corpus dopo la cancellazione del documento;
 - cancellazione del corpus;
@@ -287,6 +287,14 @@ di cancellazione per observable e per locus:
   `prov:wasGeneratedBy lexo:AttestationService`;
 - non aggiungano il marcatore e non eliminino loci NIF compatibili preesistenti;
 - non scrivano o cancellino dati nel default graph.
+
+Gli stessi test verificano che creazione singola e batch mantengano un solo
+oggetto `frac:Frequency` per coppia observable/testo, con `rdf:value` tipizzato
+`xsd:int` e `frac:observedIn` riferito al contesto NIF specifico anche quando la
+richiesta usa un corpus. Cancellazione per observable o locus e sostituzione
+dell'observable riallineano tutti i conteggi coinvolti e rimuovono l'oggetto
+quando il valore residuo è zero. Le triple restano nel named graph documento e
+il default graph rimane vuoto.
 
 Questi test non costituiscono ancora un test end-to-end del routing HTTP dei due
 endpoint `DELETE`.

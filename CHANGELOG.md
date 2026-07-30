@@ -47,6 +47,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Attestation creation, deletion, and observable replacement now maintain one
+  `frac:Frequency` per observable and specific text in the document attestation
+  graph. Creation and retrieval items expose `frequency`; deletion and
+  observable-update responses expose the resulting values by observable.
 - Lexical concept creation now accepts optional `label` and ISO 639 `language`
   parameters, stores the value as a language-tagged `skos:prefLabel`, and
   returns the preferred label in the response's `label` field.

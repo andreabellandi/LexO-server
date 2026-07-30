@@ -49,4 +49,6 @@ FRAC attestation resources use the application namespace configured by
 `repository.lexicon.namespace` (by default `https://lexo.ilc.cnr.it#`). Their
 NIF loci remain in the corresponding `LexOTexts` document graph, while the FRAC
 triples and the `frac:attestation` link are stored in the matching per-text
-attestation graph.
+attestation graph. The same graph stores one `frac:Frequency` object per
+observable and resolved NIF text context, linked through `frac:frequency`, with
+an `xsd:int` `rdf:value` and `frac:observedIn` pointing to that context.
