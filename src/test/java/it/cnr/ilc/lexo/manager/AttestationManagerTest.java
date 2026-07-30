@@ -171,9 +171,12 @@ class AttestationManagerTest {
 
         assertThat(result.fileId).isEqualTo("file-a");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
             assertThat(connection.hasStatement(iri(result.attestation),
                     iri(FRAC + "observedIn"), corpus, false,
-                    iri(LexicalNamedGraphs.attestationGraphUri("file-a")))).isTrue();
+                    graph)).isTrue();
+            assertFrequency(connection, observable, context, graph, 1);
+            assertNoFrequency(connection, observable, corpus, graph);
         }
     }
 
@@ -262,6 +265,7 @@ class AttestationManagerTest {
                 context.stringValue(), false, "user7", occurrences);
 
         assertThat(results).hasSize(2);
+        assertThat(results).extracting(item -> item.frequency).containsOnly(2);
         assertThat(results).extracting(item -> item.attestation).doesNotHaveDuplicates();
         assertThat(new ObjectMapper().writeValueAsString(results))
                 .doesNotContain("\"description\"");
@@ -270,6 +274,7 @@ class AttestationManagerTest {
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(count(lexical, null, RDF.TYPE, iri(FRAC + "Attestation"),
                     attestationGraph)).isEqualTo(2);
+            assertFrequency(lexical, observable, context, attestationGraph, 2);
             for (Attestation result : results) {
                 IRI attestation = iri(result.attestation);
                 assertThat(lexical.hasStatement(attestation,
@@ -291,6 +296,31 @@ class AttestationManagerTest {
     }
 
     @Test
+    void incrementsAnExistingPerTextFrequencyOnCreation() throws Exception {
+        Attestation first = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            Resource frequency = frequencyResource(lexical, observable, context,
+                    graph);
+            lexical.remove(frequency, RDF.VALUE, null, graph);
+            lexical.add(frequency, RDF.VALUE, vf.createLiteral("7", XSD.INT), graph);
+        }
+
+        Attestation second = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+
+        assertThat(first.frequency).isEqualTo(1);
+        assertThat(second.frequency).isEqualTo(8);
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertFrequency(lexical, observable, context, graph, 8);
+            assertThat(count(lexical, observable, iri(FRAC + "frequency"), null,
+                    graph)).isEqualTo(1);
+            assertDefaultGraphEmpty(lexical);
+        }
+    }
+
+    @Test
     void createsOneAttestationPerObservableAtTheSameLocus() throws Exception {
         IRI form = iri("https://example.org/lexicon/form-at-locus");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
@@ -307,6 +337,7 @@ class AttestationManagerTest {
                 false, "user7", input);
 
         assertThat(results).hasSize(2);
+        assertThat(results).extracting(item -> item.frequency).containsOnly(1);
         assertThat(results).extracting(item -> item.observable)
                 .containsExactly(observable.stringValue(), form.stringValue());
         assertThat(results).extracting(item -> item.locus)
@@ -319,6 +350,8 @@ class AttestationManagerTest {
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(count(lexical, null, RDF.TYPE, iri(FRAC + "Attestation"),
                     attestationGraph)).isEqualTo(2);
+            assertFrequency(lexical, observable, context, attestationGraph, 1);
+            assertFrequency(lexical, form, context, attestationGraph, 1);
             assertThat(lexical.hasStatement(observable, iri(FRAC + "attestation"),
                     iri(results.get(0).attestation), false, attestationGraph)).isTrue();
             assertThat(lexical.hasStatement(form, iri(FRAC + "attestation"),
@@ -512,6 +545,9 @@ class AttestationManagerTest {
         addPersistedAttestation("file-a", "b", form, "user8", "😀B", 1, 3);
         addPersistedAttestation("file-a", "c", observable, null, "gli", 4, 7);
         addPersistedAttestation("file-b", "other", observable, "user7", "x", 0, 1);
+        addFrequency("file-a", observable, context, 2);
+        addFrequency("file-a", form, context, 1);
+        addFrequency("file-b", observable, context, 1);
 
         AttestationPage page = manager.list("file-a", null, null, null, null);
 
@@ -525,6 +561,7 @@ class AttestationManagerTest {
         AttestationListItem first = page.list.get(0);
         assertThat(first.observable).isEqualTo(observable.stringValue());
         assertThat(first.observableTypes).contains(ONTOLEX + "LexicalEntry");
+        assertThat(first.frequency).isEqualTo(2);
         assertThat(first.creator).isEqualTo("user7");
         assertThat(first.value).isEqualTo("A");
         assertThat(first.start).isEqualTo(0);
@@ -1193,6 +1230,8 @@ class AttestationManagerTest {
                 "file-a", update);
 
         assertThat(result.updated).hasSize(2);
+        assertThat(result.frequencies).containsEntry(observable.stringValue(), 0)
+                .containsEntry(replacement.stringValue(), 2);
         assertThat(result.updated.get(0).previousObservables)
                 .containsExactly(observable.stringValue());
         IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
@@ -1209,6 +1248,8 @@ class AttestationManagerTest {
                         vf.createLiteral(result.updated.get(0).lastUpdate), false,
                         graph)).isTrue();
             }
+            assertNoFrequency(lexical, observable, context, graph);
+            assertFrequency(lexical, replacement, context, graph, 2);
             assertDefaultGraphEmpty(lexical);
         }
     }
@@ -1263,6 +1304,8 @@ class AttestationManagerTest {
                 "file-a", selected);
 
         assertThat(firstResult.deletedCount).isEqualTo(1);
+        assertThat(firstResult.frequencies)
+                .containsEntry(observable.stringValue(), 1);
         assertThat(firstResult.deletedLoci).containsExactly(firstLocus.stringValue());
         assertThat(firstResult.retainedLoci).isEmpty();
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
@@ -1271,6 +1314,7 @@ class AttestationManagerTest {
                     null, false, graph)).isFalse();
             assertThat(lexical.hasStatement(iri(created.get(1).attestation),
                     RDF.TYPE, iri(FRAC + "Attestation"), false, graph)).isTrue();
+            assertFrequency(lexical, observable, context, graph, 1);
             assertThat(text.hasStatement(firstLocus, null, null, false,
                     textGraph)).isFalse();
             assertThat(text.hasStatement(secondLocus, RDF.TYPE,
@@ -1287,13 +1331,36 @@ class AttestationManagerTest {
                 "file-a", all);
 
         assertThat(allResult.deletedCount).isEqualTo(1);
+        assertThat(allResult.frequencies)
+                .containsEntry(observable.stringValue(), 0);
         assertThat(allResult.deletedLoci).containsExactly(secondLocus.stringValue());
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(lexical.hasStatement(null, RDF.TYPE,
                     iri(FRAC + "Attestation"), false, graph)).isFalse();
+            assertNoFrequency(lexical, observable, context, graph);
             assertThat(text.hasStatement(secondLocus, null, null, false,
                     textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void removesAStaleFrequencyWhenDeletingAllByObservable() throws Exception {
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        addFrequency("file-a", observable, context, 4);
+        AttestationDeleteByObservableInput deletion =
+                new AttestationDeleteByObservableInput();
+        deletion.observable = observable.stringValue();
+        deletion.all = Boolean.TRUE;
+
+        AttestationDeletionResult result = manager.deleteByObservable(
+                "file-a", deletion);
+
+        assertThat(result.deletedCount).isZero();
+        assertThat(result.frequencies).containsEntry(observable.stringValue(), 0);
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertNoFrequency(lexical, observable, context, graph);
+            assertDefaultGraphEmpty(lexical);
         }
     }
 
@@ -1320,12 +1387,16 @@ class AttestationManagerTest {
                 "file-a", selected);
 
         assertThat(firstResult.deletedCount).isEqualTo(1);
+        assertThat(firstResult.frequencies)
+                .containsEntry(observable.stringValue(), 0);
         assertThat(firstResult.deletedLoci).isEmpty();
         assertThat(firstResult.retainedLoci).containsExactly(locus.stringValue());
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(lexical.hasStatement(iri(created.get(1).attestation),
                     RDF.TYPE, iri(FRAC + "Attestation"), false, graph)).isTrue();
+            assertNoFrequency(lexical, observable, context, graph);
+            assertFrequency(lexical, form, context, graph, 1);
             assertThat(text.hasStatement(locus, RDF.TYPE, iri(NIF + "Phrase"),
                     false, textGraph)).isTrue();
         }
@@ -1336,11 +1407,13 @@ class AttestationManagerTest {
         AttestationDeletionResult allResult = manager.deleteByLocus("file-a", all);
 
         assertThat(allResult.deletedCount).isEqualTo(1);
+        assertThat(allResult.frequencies).containsEntry(form.stringValue(), 0);
         assertThat(allResult.deletedLoci).containsExactly(locus.stringValue());
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(lexical.hasStatement(null, RDF.TYPE,
                     iri(FRAC + "Attestation"), false, graph)).isFalse();
+            assertNoFrequency(lexical, form, context, graph);
             assertThat(text.hasStatement(locus, null, null, false,
                     textGraph)).isFalse();
         }
@@ -1450,6 +1523,69 @@ class AttestationManagerTest {
                     locusGraph);
             connection.add(locus, iri(NIF + "referenceContext"), context, locusGraph);
         }
+    }
+
+    private void addFrequency(String fileId, IRI observed, IRI observedIn,
+                              int value) {
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri(fileId));
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            Resource frequency = vf.createBNode();
+            connection.add(observed, iri(FRAC + "frequency"), frequency, graph);
+            connection.add(frequency, RDF.TYPE, iri(FRAC + "Frequency"), graph);
+            connection.add(frequency, RDF.VALUE,
+                    vf.createLiteral(Integer.toString(value), XSD.INT), graph);
+            connection.add(frequency, iri(FRAC + "observedIn"), observedIn, graph);
+        }
+    }
+
+    private void assertFrequency(RepositoryConnection connection, IRI observed,
+                                 IRI observedIn, Resource graph, int expected) {
+        Resource frequency = frequencyResource(connection, observed, observedIn,
+                graph);
+        assertThat(connection.hasStatement(frequency, RDF.TYPE,
+                iri(FRAC + "Frequency"), false, graph)).isTrue();
+        assertThat(connection.hasStatement(frequency, RDF.VALUE,
+                vf.createLiteral(Integer.toString(expected), XSD.INT), false,
+                graph)).isTrue();
+        assertThat(connection.hasStatement(frequency, iri(FRAC + "observedIn"),
+                observedIn, false, graph)).isTrue();
+        assertThat(connection.hasStatement(observed, iri(FRAC + "frequency"),
+                frequency, false, graph)).isTrue();
+    }
+
+    private void assertNoFrequency(RepositoryConnection connection, IRI observed,
+                                   IRI observedIn, Resource graph) {
+        assertThat(frequencyResources(connection, observed, observedIn, graph))
+                .isEmpty();
+    }
+
+    private Resource frequencyResource(RepositoryConnection connection,
+                                       IRI observed, IRI observedIn,
+                                       Resource graph) {
+        List<Resource> resources = frequencyResources(connection, observed,
+                observedIn, graph);
+        assertThat(resources).hasSize(1);
+        return resources.get(0);
+    }
+
+    private List<Resource> frequencyResources(RepositoryConnection connection,
+                                              IRI observed, IRI observedIn,
+                                              Resource graph) {
+        List<Resource> result = new java.util.ArrayList<Resource>();
+        try (RepositoryResult<org.eclipse.rdf4j.model.Statement> statements =
+                     connection.getStatements(observed, iri(FRAC + "frequency"),
+                             null, false, graph)) {
+            while (statements.hasNext()) {
+                org.eclipse.rdf4j.model.Value value = statements.next().getObject();
+                if (value instanceof Resource
+                        && connection.hasStatement((Resource) value,
+                                iri(FRAC + "observedIn"), observedIn, false,
+                                graph)) {
+                    result.add((Resource) value);
+                }
+            }
+        }
+        return result;
     }
 
     private void addSense(RepositoryConnection connection, Resource lexicalGraph,
