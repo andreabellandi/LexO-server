@@ -15,6 +15,7 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
+| `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `TextServicesIT` | End-to-end | Upload singolo e bulk, risultato parziale, rifiuto CoNLL-U, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
@@ -314,6 +315,17 @@ endpoint `DELETE`.
   named graph appartenenti ad altri testi;
 - cancellazione con il testo dei due named graph associati e verifica che i
   grafi appartenenti agli altri testi rimangano invariati.
+
+### Totali FRAC di testi e corpora
+
+I test repository verificano i due servizi di sostituzione dei totali usando un
+repository RDF4J in-memory dedicato. Sono coperti `lexo:tokens`, `lexo:types`,
+`lexo:lemmas` e `lexo:sentences`, la normalizzazione da nome locale, prefisso
+compatto o IRI completo, il rifiuto di valori negativi e unità sconosciute, e il
+risultato `null` del manager per risorse inesistenti. La sovrascrittura elimina
+eventuali duplicati della stessa unità senza toccare i totali delle altre unità.
+Le asserzioni controllano `frac:Frequency`, `rdf:value` come literal `xsd:int`,
+`frac:unit` come IRI, graph documento/corpus corretto e default graph vuoto.
 
 ## Aggiungere un caso
 

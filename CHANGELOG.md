@@ -44,6 +44,9 @@ starts from the ongoing `Unreleased` work.
   language, aggregate status polling, per-document rollback, and partial
   completion results. Bulk requests containing CoNLL-U are rejected before
   any conversion starts.
+- `PUT /texts/{fileId}/total` and `PUT /texts/corpora/{corpusId}/total` now
+  create or replace FRAC totals for texts and corpora using the supported token,
+  type, lemma, and sentence units in their respective LexOTexts named graphs.
 
 ### Changed
 

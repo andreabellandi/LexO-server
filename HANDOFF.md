@@ -1,8 +1,7 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 30 luglio 2026 dopo l'aggiunta delle frequenze FRAC per observable
-e testo nei servizi di creazione, cancellazione, consultazione e sostituzione
-dell'observable, sul branch `codex/attestation-frequency`, basato su
+Aggiornato al 30 luglio 2026 dopo l'aggiunta dei servizi di sostituzione dei
+totali FRAC per testi e corpora, sul branch `codex/text-corpus-totals`, basato su
 `origin/master` (`56850c2`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
@@ -122,14 +121,20 @@ appartenenza ai corpora sono persistiti in GraphDB.
   `GET /texts/bulk/{bulkId}/status` espone anche risultati parziali.
 - Creazione, consultazione, download ed eliminazione di corpora NIF senza testo;
   collegamenti bidirezionali `dcterms:hasPart`/`dcterms:isPartOf`.
+- Endpoint `PUT /texts/{fileId}/total` e
+  `PUT /texts/corpora/{corpusId}/total` per creare o sostituire atomicamente un
+  `frac:total` nel graph documento/corpus. Sono ammesse le unità
+  `lexo:tokens`, `lexo:types`, `lexo:lemmas` e `lexo:sentences`; la sostituzione
+  riguarda soltanto la stessa unità e conserva gli altri totali.
 - Catalogo testi filtrabile per corpus con nome, dimensione, conteggio di frasi,
   token, attestazioni, annotazioni e metadati disponibili.
 - Rollback e pulizia degli artefatti in caso di errore; conservazione degli
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 98 test unitari/repository passati il 30 luglio 2026, inclusi
-  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
+- Suite corrente: 99 test unitari/repository passati il 30 luglio 2026, inclusi
+  i 3 test repository dei totali FRAC,
+  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -225,8 +230,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Ampliare i test automatici dei servizi lessicali: la copertura più completa al
   momento riguarda il dominio testuale e i named graph.
 - Aggiungere test end-to-end REST per ricerca filtrata, aggiornamento locus e
-  aggiornamento observable/frequenze delle attestazioni; al momento la logica è
-  coperta da test repository.
+  aggiornamento observable delle attestazioni; al momento la logica è coperta
+  da test repository.
+- Aggiungere test end-to-end REST per i totali FRAC di testi e corpora; la
+  validazione e la persistenza sono attualmente coperte da test repository.
 
 ## Decisioni tecniche importanti
 
@@ -278,6 +285,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   invece di un errore applicativo 400; il client deve inviare l'array documentato.
 - In ambienti Codex senza `mvn` nel `PATH` è stato usato Maven incluso in
   NetBeans 12.2. Il sandbox può mostrare warning se non può scrivere in `~/.m2`.
+- Il generatore legacy degli IRI delle attestazioni usa timestamp con precisione
+  al millisecondo: una prima esecuzione della suite ha prodotto una collisione
+  occasionale `ATTESTATION_ID_CONFLICT`; il test isolato e la suite completa
+  immediatamente successiva sono passati senza modifiche al dominio attestazioni.
 
 ## Installazione, build, avvio e test
 
@@ -324,24 +335,25 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-frequency`.
+- Branch locale corrente: `codex/text-corpus-totals`.
 - Base aggiornata: `origin/master` al commit `56850c2`.
-- Le modifiche alle frequenze non sono ancora committate; log runtime e
+- Le modifiche dei totali FRAC non sono ancora committate; log runtime e
   `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
 
-Il lavoro corrente estende `AttestationManager`, i DTO di output e Swagger per
-gestire le frequenze nel medesimo named graph per documento. Le creazioni
-incrementano un valore esistente o inizializzano il conteggio effettivo; le
-cancellazioni e `PATCH /attestations/{fileId}/observable` ricalcolano i valori
-dopo la mutazione. Il riferimento `frac:observedIn` usa il
-`nif:referenceContext`, non l'eventuale corpus contenitore. I 40 test mirati e
-l'intera suite di 98 test sono passati il 30 luglio 2026; gli end-to-end REST
-restano da eseguire in un ambiente dedicato.
+Il lavoro corrente aggiunge due endpoint `PUT` in `Texts`, i DTO
+`TextTotalInput`/`TextTotalResult`, il manager condiviso `TextTotalManager` e la
+scrittura transazionale in `TextNifRepository`. Il soggetto del testo è il suo
+contesto NIF, mentre il soggetto del corpus è la relativa IRI. Una scrittura
+rimuove tutti i nodi `frac:total` della stessa unità e ne crea uno canonico con
+tipo `frac:Frequency`, valore `xsd:int` e unità IRI; le altre unità restano
+invariate. `TextNifRepository` usa ora inizializzazione lazy per permettere test
+in-memory senza connessioni GraphDB implicite. I 3 test dedicati e la suite
+completa di 99 test sono passati il 30 luglio 2026; gli end-to-end REST restano
+da eseguire in un ambiente dedicato.
 
-Il lavoro precedente, ora integrato in `origin/master`, aggiunge
-`PATCH /attestations/{fileId}/locus` e
+Il lavoro precedente aggiunge `PATCH /attestations/{fileId}/locus` e
 `PATCH /attestations/{fileId}/observable`. Il primo modifica soltanto loci
 LexO non condivisi, ricava la nuova anchor dal testo canonico con offset Unicode,
 sposta l'IRI `#char=start,end` e coordina le transazioni sui due repository con
@@ -411,8 +423,8 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere test end-to-end dei nuovi endpoint di creazione, cancellazione,
-   frequenza e metadata delle attestazioni e della
+1. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
+   cancellazione e metadata delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
 2. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
