@@ -45,6 +45,11 @@ is rejected. Deleting a text also clears both of its LexOLexica graphs.
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.
 
+Text and corpus graphs may also contain `frac:total` frequency objects. Each
+object has an `xsd:int` `rdf:value` and one of `lexo:tokens`, `lexo:types`,
+`lexo:lemmas`, or `lexo:sentences` as its `frac:unit`; totals never use the
+default graph or the internal records graph.
+
 FRAC attestation resources use the application namespace configured by
 `repository.lexicon.namespace` (by default `https://lexo.ilc.cnr.it#`). Their
 NIF loci remain in the corresponding `LexOTexts` document graph, while the FRAC

@@ -13,6 +13,7 @@ import it.cnr.ilc.lexo.manager.text.TextBulkJobManager;
 import it.cnr.ilc.lexo.manager.text.TextBulkJobManager.BulkUpload;
 import it.cnr.ilc.lexo.manager.text.TextCatalogManager;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
+import it.cnr.ilc.lexo.manager.text.TextTotalManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.UploadKind;
@@ -20,6 +21,8 @@ import it.cnr.ilc.lexo.service.data.lexicon.input.converter.CancelRequest;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import it.cnr.ilc.lexo.service.data.text.output.BulkTextJob;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
+import it.cnr.ilc.lexo.service.data.text.input.TextTotalInput;
+import it.cnr.ilc.lexo.service.data.text.output.TextTotalResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -39,6 +42,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.PUT;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -502,6 +506,42 @@ public class Texts extends Service {
         }
     }
 
+    @PUT
+    @javax.ws.rs.Path("/corpora/{corpusId}/total")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Corpus FRAC total replacement",
+            notes = "This method creates or replaces the frac:total having the requested unit in the corpus named graph; totals using other supported units are preserved")
+    public Response replaceCorpusTotal(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "corpusId",
+                    value = "id of the corpus whose FRAC total must be replaced",
+                    example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
+                    required = true)
+            @PathParam("corpusId") String corpusId,
+            @ApiParam(name = "total",
+                    value = "non-negative xsd:int value and one supported FRAC unit",
+                    required = true)
+            TextTotalInput total) {
+        try {
+            checkKey(key);
+            TextTotalResult result = TextTotalManager.get()
+                    .replaceCorpusTotal(corpusId, total);
+            return result == null
+                    ? plain(Response.Status.NOT_FOUND, "Corpus not found")
+                    : json(result);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("PUT /texts/corpora/{corpusId}/total");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/texts/corpora/{corpusId}/total: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
+    }
+
     @GET
     @javax.ws.rs.Path("/corpora/{corpusId}/nif")
     @Produces("text/turtle")
@@ -661,6 +701,42 @@ public class Texts extends Service {
             return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/{fileId}");
+        }
+    }
+
+    @PUT
+    @javax.ws.rs.Path("/{fileId}/total")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Text FRAC total replacement",
+            notes = "This method creates or replaces the frac:total having the requested unit in the document named graph; totals using other supported units are preserved")
+    public Response replaceTextTotal(
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "fileId",
+                    value = "id of the text whose FRAC total must be replaced",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("fileId") String fileId,
+            @ApiParam(name = "total",
+                    value = "non-negative xsd:int value and one supported FRAC unit",
+                    required = true)
+            TextTotalInput total) {
+        try {
+            checkKey(key);
+            TextTotalResult result = TextTotalManager.get()
+                    .replaceDocumentTotal(fileId, total);
+            return result == null
+                    ? plain(Response.Status.NOT_FOUND, "Text not found")
+                    : json(result);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("PUT /texts/{fileId}/total");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/texts/{fileId}/total: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
         }
     }
 

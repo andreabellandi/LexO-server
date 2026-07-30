@@ -46,10 +46,9 @@ public final class TextNifRepository {
     private static final String NIF =
             "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#";
     private static final String DOCO = "http://purl.org/spar/doco/";
-    private static final TextNifRepository INSTANCE = new TextNifRepository();
-
+    private static final String FRAC = "http://www.w3.org/ns/lemon/frac#";
     public static TextNifRepository get() {
-        return INSTANCE;
+        return Holder.INSTANCE;
     }
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -60,13 +59,19 @@ public final class TextNifRepository {
     private final Repository memoryRepository;
 
     private TextNifRepository() {
+        this(null);
+    }
+
+    TextNifRepository(Repository providedRepository) {
         graphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
         recordsGraph = iri(graphBase + "records");
         structureNamespace = namespace(System.getProperty(
                 "lexo.text.structureNamespace",
                 "https://lexo.ilc.cnr.it/vocabulary/nif-structure#"));
-        if (Boolean.getBoolean("lexo.text.nifRepository.memory")) {
+        if (providedRepository != null) {
+            memoryRepository = providedRepository;
+        } else if (Boolean.getBoolean("lexo.text.nifRepository.memory")) {
             memoryRepository = new SailRepository(new MemoryStore());
             memoryRepository.init();
         } else {
@@ -188,6 +193,16 @@ public final class TextNifRepository {
 
     public boolean containsCorpus(String corpusId) {
         return containsGraph(iri(corpusGraphUri(corpusId)));
+    }
+
+    public String replaceDocumentTotal(String fileId, int value, IRI unit) {
+        return replaceTotal(iri(documentGraphUri(fileId)),
+                iri(structureNamespace + "fileId"), fileId, value, unit);
+    }
+
+    public String replaceCorpusTotal(String corpusId, int value, IRI unit) {
+        return replaceTotal(iri(corpusGraphUri(corpusId)),
+                iri(structureNamespace + "corpusId"), corpusId, value, unit);
     }
 
     public void writeDocument(String fileId, OutputStream output) {
@@ -447,6 +462,59 @@ public final class TextNifRepository {
         }
     }
 
+    private String replaceTotal(IRI graph, IRI identifierProperty,
+                                String identifier, int value, IRI unit) {
+        RepositoryConnection connection = acquire();
+        try {
+            connection.begin();
+            Resource subject = null;
+            try (RepositoryResult<Statement> identifiers = connection.getStatements(
+                    null, identifierProperty, vf.createLiteral(identifier), false,
+                    graph)) {
+                if (identifiers.hasNext()) {
+                    subject = identifiers.next().getSubject();
+                }
+            }
+            if (subject == null) {
+                connection.commit();
+                return null;
+            }
+
+            IRI totalProperty = iri(FRAC + "total");
+            IRI unitProperty = iri(FRAC + "unit");
+            List<Resource> replaced = new ArrayList<Resource>();
+            try (RepositoryResult<Statement> totals = connection.getStatements(
+                    subject, totalProperty, null, false, graph)) {
+                while (totals.hasNext()) {
+                    Value candidate = totals.next().getObject();
+                    if (candidate instanceof Resource
+                            && connection.hasStatement((Resource) candidate,
+                                    unitProperty, unit, false, graph)) {
+                        replaced.add((Resource) candidate);
+                    }
+                }
+            }
+            for (Resource current : replaced) {
+                connection.remove(subject, totalProperty, current, graph);
+                connection.remove(current, null, null, graph);
+            }
+            Resource total = vf.createBNode();
+            connection.add(subject, totalProperty, total, graph);
+            connection.add(total, RDF.TYPE, iri(FRAC + "Frequency"), graph);
+            connection.add(total, RDF.VALUE,
+                    vf.createLiteral(Integer.toString(value),
+                            org.eclipse.rdf4j.model.vocabulary.XSD.INT), graph);
+            connection.add(total, unitProperty, unit, graph);
+            connection.commit();
+            return subject.stringValue();
+        } catch (RuntimeException e) {
+            rollback(connection);
+            throw e;
+        } finally {
+            release(connection);
+        }
+    }
+
     private RepositoryConnection acquire() {
         return memoryRepository == null
                 ? GraphDbUtil.getConnection(RepositoryTarget.TEXT)
@@ -514,5 +582,10 @@ public final class TextNifRepository {
 
     private static String namespace(String value) {
         return value.endsWith("/") || value.endsWith("#") ? value : value + "#";
+    }
+
+    private static final class Holder {
+        private static final TextNifRepository INSTANCE =
+                new TextNifRepository();
     }
 }

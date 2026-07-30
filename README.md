@@ -103,6 +103,43 @@ in addition to the existing 50 MiB per-text limit. They can be overridden with
 the JVM properties `lexo.text.maxBulkFiles`, `lexo.text.maxBulkBytes`, and
 `lexo.text.maxTextBytes`.
 
+## Text and corpus totals
+
+Two idempotent services create or replace FRAC totals directly in `LexOTexts`:
+
+- `PUT /service/texts/{fileId}/total` updates a converted text;
+- `PUT /service/texts/corpora/{corpusId}/total` updates a corpus.
+
+Both accept the same JSON body:
+
+```json
+{
+  "value": 2312,
+  "unit": "tokens"
+}
+```
+
+`value` must be a non-negative `xsd:int`. `unit` accepts `tokens`, `types`,
+`lemmas`, or `sentences`; the equivalent `lexo:` compact values and full
+`https://lexo.ilc.cnr.it#...` IRIs are also accepted. Values are normalized to
+`lexo:tokens`, `lexo:types`, `lexo:lemmas`, or `lexo:sentences` in RDF.
+
+The resulting triples are stored in the resource's document or corpus named
+graph:
+
+```turtle
+<text-or-corpus> frac:total [
+    a frac:Frequency ;
+    rdf:value "2312"^^xsd:int ;
+    frac:unit lexo:tokens
+] .
+```
+
+A request replaces every existing `frac:total` object with the same unit while
+preserving totals expressed in the other supported units. The text subject is
+its NIF context IRI; the corpus subject is its corpus IRI. A missing resource
+returns HTTP 404 and invalid values or units return HTTP 400.
+
 ## Lexical concepts
 
 `GET /service/create/lexicalConcept` accepts the optional query parameters
