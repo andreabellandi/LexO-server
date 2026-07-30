@@ -21,6 +21,8 @@ public abstract class AttestationBase implements Data {
     public String observableLabel;
     @ApiModelProperty(value = "RDF types of the observed lexical entity")
     public List<String> observableTypes = new ArrayList<String>();
+    @ApiModelProperty(value = "number of attestations of the observable in this text")
+    public Integer frequency;
     @ApiModelProperty(value = "observed string")
     public String value;
     @ApiModelProperty(value = "Unicode code-point start offset")

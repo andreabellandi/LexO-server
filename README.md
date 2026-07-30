@@ -228,6 +228,23 @@ New loci created by either attestation endpoint are marked with
 `prov:wasGeneratedBy lexo:AttestationService`; pre-existing compatible loci are
 reused without receiving this marker.
 
+Both creation services also maintain one FRAC frequency object for every
+observable and specific text in the same per-document attestation named graph:
+
+```turtle
+<observable> frac:frequency [
+    a frac:Frequency ;
+    rdf:value "2"^^xsd:int ;
+    frac:observedIn <text-context>
+] .
+```
+
+`frac:observedIn` identifies the resolved NIF reference context, even when the
+creation request names a containing corpus. A new object starts with the number
+of attestations created for that text; a pre-existing value is incremented by
+the batch size. Creation and paginated retrieval JSON items expose the resulting
+integer in `frequency`.
+
 `POST /service/attestations/{fileId}` returns the attestations of one text as a
 paginated JSON response. `observableType` and `author` optionally filter the RDF
 type of the observed lexical entity and the exact `dcterms:creator` value.
@@ -412,7 +429,12 @@ the graph selected by `fileId`. After deletion, a locus is removed from
 still references it and it carries the exact generation marker
 `prov:wasGeneratedBy lexo:AttestationService`. Reused or still-attested loci are
 retained. The response reports deleted attestations plus `deletedLoci` and
-`retainedLoci`.
+`retainedLoci`. Both deletion services recalculate all affected observable
+frequencies; `PATCH /attestations/{fileId}/observable` does the same for the old
+and replacement observables. When an observable no longer has attestations in
+the text, its frequency object is removed. Mutation responses expose the final
+values in a `frequencies` map keyed by observable IRI, using `0` for a removed
+frequency.
 
 ## License
 

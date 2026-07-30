@@ -179,6 +179,13 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Endpoint `PATCH /attestations/{fileId}/observable` per sostituire atomicamente
   il collegamento inverso `frac:attestation` di una o più attestazioni dopo la
   validazione completa del batch e del nuovo tipo OntoLex.
+- I servizi di creazione mantengono un oggetto `frac:Frequency` per coppia
+  observable/testo nel named graph documentale, con `rdf:value` `xsd:int` e
+  `frac:observedIn` sul contesto NIF specifico. Cancellazioni per observable o
+  locus e sostituzione dell'observable riallineano tutti i conteggi coinvolti e
+  rimuovono la frequenza quando il valore residuo è zero. I JSON di creazione e
+  consultazione espongono `frequency`; gli altri JSON di mutazione espongono la
+  mappa `frequencies`.
 - Endpoint `DELETE /attestations/{fileId}/by-observable` e
   `DELETE /attestations/{fileId}/by-locus` per cancellare atomicamente una lista
   esplicita di attestazioni oppure tutte quelle che corrispondono al criterio
@@ -355,7 +362,7 @@ validata di attestazioni nello stesso named graph. I DTO dedicati documentano
 input e risultati, inclusi `updateGloss`, locus precedente e observable
 precedenti.
 
-Lo stesso lavoro non ancora committato aggiunge inoltre
+Lo stesso lavoro precedente aggiunge inoltre
 `POST /attestations/by-observable` e il DTO ricorsivo
 `AttestationFilter`, condiviso con `POST /attestations/{fileId}`. I filtri
 combinano creator, metadata RDF del contesto testuale e tipi OntoLex, preservano
