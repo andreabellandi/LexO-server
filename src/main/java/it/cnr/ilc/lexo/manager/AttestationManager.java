@@ -5,11 +5,15 @@ import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionItem;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
@@ -58,6 +62,7 @@ public class AttestationManager implements Manager {
     private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema#";
     private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
     private static final String NO_LABEL = "no label";
+    private static final String ATTESTATION_SERVICE = "AttestationService";
     private static final String DEFAULT_STRUCTURE_NAMESPACE =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
     private static final Set<String> RESERVED_METADATA_PROPERTIES =
@@ -324,6 +329,294 @@ public class AttestationManager implements Manager {
             throw new ManagerException(
                     "INVALID_OFFSETS: start and end must satisfy 0 <= start <= end");
         }
+    }
+
+    /** Atomically deletes selected or all attestations of one observable. */
+    public AttestationDeletionResult deleteByObservable(String fileIdValue,
+            AttestationDeleteByObservableInput input) throws ManagerException {
+        String fileId = required("fileId", fileIdValue);
+        if (input == null) {
+            throw new ManagerException("MISSING_PARAMETER: deletion is required");
+        }
+        IRI observable = iri("observable", required("observable", input.observable));
+        return deleteAttestations(fileId, observable, null, input.all,
+                input.attestations);
+    }
+
+    /** Atomically deletes selected or all attestations at one NIF locus. */
+    public AttestationDeletionResult deleteByLocus(String fileIdValue,
+            AttestationDeleteByLocusInput input) throws ManagerException {
+        String fileId = required("fileId", fileIdValue);
+        if (input == null) {
+            throw new ManagerException("MISSING_PARAMETER: deletion is required");
+        }
+        IRI locus = iri("locus", required("locus", input.locus));
+        return deleteAttestations(fileId, null, locus, input.all,
+                input.attestations);
+    }
+
+    private AttestationDeletionResult deleteAttestations(String fileId,
+            IRI expectedObservable, IRI expectedLocus, Boolean allValue,
+            List<String> requestedValues) throws ManagerException {
+        final IRI attestationGraph;
+        try {
+            attestationGraph = vf.createIRI(
+                    LexicalNamedGraphs.attestationGraphUri(fileId));
+        } catch (IllegalArgumentException e) {
+            throw new ManagerException(
+                    "INVALID_FILE_ID: fileId contains unsupported characters");
+        }
+        boolean all = Boolean.TRUE.equals(allValue);
+        if (all && requestedValues != null && !requestedValues.isEmpty()) {
+            throw new ManagerException("INVALID_DELETE_SELECTION: all=true cannot be combined with an attestation list");
+        }
+        if (!all && (requestedValues == null || requestedValues.isEmpty())) {
+            throw new ManagerException("MISSING_ATTESTATIONS: provide at least one attestation or set all=true");
+        }
+
+        RepositoryConnection lexical = null;
+        RepositoryConnection text = null;
+        try {
+            lexical = connections.acquire(RepositoryTarget.LEXICON);
+            text = connections.acquire(RepositoryTarget.TEXT);
+            List<IRI> requested = all
+                    ? matchingAttestations(lexical, attestationGraph,
+                            expectedObservable, expectedLocus)
+                    : explicitAttestations(requestedValues);
+            List<PendingDeletion> pending = validateDeletions(lexical,
+                    attestationGraph, requested, expectedObservable, expectedLocus);
+            List<PendingLocusDeletion> loci = orphanGeneratedLoci(lexical, text,
+                    fileId, pending);
+            persistDeletion(lexical, text, attestationGraph, pending, loci);
+            return deletionResult(fileId, pending, loci);
+        } catch (ManagerException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ManagerException("ATTESTATION_DELETE_FAILED: "
+                    + message(e), e);
+        } finally {
+            connections.release(RepositoryTarget.TEXT, text);
+            connections.release(RepositoryTarget.LEXICON, lexical);
+        }
+    }
+
+    private List<IRI> explicitAttestations(List<String> values)
+            throws ManagerException {
+        List<IRI> result = new ArrayList<IRI>();
+        Set<String> unique = new HashSet<String>();
+        for (int index = 0; index < values.size(); index++) {
+            IRI attestation = iri("attestations[" + index + "]",
+                    required("attestations[" + index + "]", values.get(index)));
+            if (!unique.add(attestation.stringValue())) {
+                throw new ManagerException("DUPLICATE_ATTESTATION: "
+                        + attestation.stringValue());
+            }
+            result.add(attestation);
+        }
+        return result;
+    }
+
+    private List<IRI> matchingAttestations(RepositoryConnection connection,
+            Resource graph, IRI observable, IRI locus) {
+        Set<String> values = new HashSet<String>();
+        IRI relation = observable == null ? vf.createIRI(FRAC + "locus")
+                : vf.createIRI(FRAC + "attestation");
+        Resource subject = observable == null ? null : observable;
+        Value object = observable == null ? locus : null;
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                subject, relation, object, false, graph)) {
+            while (statements.hasNext()) {
+                Value candidate = observable == null
+                        ? statements.next().getSubject()
+                        : statements.next().getObject();
+                if (candidate instanceof IRI
+                        && connection.hasStatement((IRI) candidate, RDF.TYPE,
+                                vf.createIRI(FRAC + "Attestation"), false, graph)) {
+                    values.add(candidate.stringValue());
+                }
+            }
+        }
+        List<String> sorted = new ArrayList<String>(values);
+        Collections.sort(sorted);
+        List<IRI> result = new ArrayList<IRI>();
+        for (String value : sorted) {
+            result.add(vf.createIRI(value));
+        }
+        return result;
+    }
+
+    private List<PendingDeletion> validateDeletions(
+            RepositoryConnection connection, Resource graph, List<IRI> requested,
+            IRI expectedObservable, IRI expectedLocus) throws ManagerException {
+        List<PendingDeletion> result = new ArrayList<PendingDeletion>();
+        IRI attestationType = vf.createIRI(FRAC + "Attestation");
+        IRI attestationRelation = vf.createIRI(FRAC + "attestation");
+        IRI locusRelation = vf.createIRI(FRAC + "locus");
+        for (IRI attestation : requested) {
+            if (!connection.hasStatement(attestation, RDF.TYPE, attestationType,
+                    false, graph)) {
+                throw new ManagerException("ATTESTATION_NOT_FOUND: "
+                        + attestation.stringValue()
+                        + " is not an attestation in the graph for fileId");
+            }
+            if (expectedObservable != null && !connection.hasStatement(
+                    expectedObservable, attestationRelation, attestation, false,
+                    graph)) {
+                throw new ManagerException("ATTESTATION_OBSERVABLE_MISMATCH: "
+                        + attestation.stringValue());
+            }
+            Value locusValue = firstObject(connection, attestation,
+                    locusRelation, graph);
+            if (!(locusValue instanceof IRI)) {
+                throw new ManagerException("ATTESTATION_LOCUS_MISSING: "
+                        + attestation.stringValue());
+            }
+            IRI locus = (IRI) locusValue;
+            if (expectedLocus != null && !expectedLocus.equals(locus)) {
+                throw new ManagerException("ATTESTATION_LOCUS_MISMATCH: "
+                        + attestation.stringValue());
+            }
+            Resource observable = expectedObservable == null
+                    ? firstSubject(connection, attestationRelation, attestation,
+                            graph) : expectedObservable;
+            PendingDeletion item = new PendingDeletion(attestation,
+                    observable instanceof IRI ? (IRI) observable : null, locus);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private Resource firstSubject(RepositoryConnection connection, IRI predicate,
+                                  Value object, Resource graph) {
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                null, predicate, object, false, graph)) {
+            return statements.hasNext() ? statements.next().getSubject() : null;
+        }
+    }
+
+    private List<PendingLocusDeletion> orphanGeneratedLoci(
+            RepositoryConnection lexical, RepositoryConnection text, String fileId,
+            List<PendingDeletion> pending) {
+        Set<String> selected = new HashSet<String>();
+        Set<String> locusValues = new HashSet<String>();
+        for (PendingDeletion item : pending) {
+            selected.add(item.attestation.stringValue());
+            locusValues.add(item.locus.stringValue());
+        }
+        Resource textGraph = vf.createIRI(textGraphBase + "documents/" + fileId);
+        IRI generatedBy = vf.createIRI(PROV + "wasGeneratedBy");
+        IRI service = attestationServiceIri();
+        List<String> sorted = new ArrayList<String>(locusValues);
+        Collections.sort(sorted);
+        List<PendingLocusDeletion> result =
+                new ArrayList<PendingLocusDeletion>();
+        for (String value : sorted) {
+            IRI locus = vf.createIRI(value);
+            if (!hasRemainingAttestation(lexical, locus, selected)
+                    && text.hasStatement(locus, generatedBy, service, false,
+                            textGraph)) {
+                Model statements = new LinkedHashModel();
+                try (RepositoryResult<Statement> existing = text.getStatements(
+                        locus, null, null, false, textGraph)) {
+                    while (existing.hasNext()) {
+                        statements.add(existing.next());
+                    }
+                }
+                result.add(new PendingLocusDeletion(locus, textGraph, statements));
+            }
+        }
+        return result;
+    }
+
+    private boolean hasRemainingAttestation(RepositoryConnection connection,
+            IRI locus, Set<String> selected) {
+        String graphBase = LexicalNamedGraphs.attestationGraphBaseUri();
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                null, vf.createIRI(FRAC + "locus"), locus, false)) {
+            while (statements.hasNext()) {
+                Statement statement = statements.next();
+                Resource context = statement.getContext();
+                if (context != null
+                        && context.stringValue().startsWith(graphBase)
+                        && !selected.contains(statement.getSubject().stringValue())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void persistDeletion(RepositoryConnection lexical,
+            RepositoryConnection text, Resource attestationGraph,
+            List<PendingDeletion> pending, List<PendingLocusDeletion> loci)
+            throws ManagerException {
+        boolean textCommitted = false;
+        try {
+            lexical.begin();
+            text.begin();
+            IRI attestationRelation = vf.createIRI(FRAC + "attestation");
+            for (PendingDeletion item : pending) {
+                lexical.remove((Resource) null, attestationRelation,
+                        item.attestation,
+                        attestationGraph);
+                lexical.remove(item.attestation, null, null, attestationGraph);
+            }
+            for (PendingLocusDeletion locus : loci) {
+                text.remove(locus.locus, null, null, locus.textGraph);
+            }
+            text.commit();
+            textCommitted = true;
+            lexical.commit();
+        } catch (RuntimeException e) {
+            rollback(lexical);
+            rollback(text);
+            if (textCommitted) {
+                compensateDeletedLoci(text, loci);
+            }
+            throw new ManagerException("ATTESTATION_DELETE_FAILED: "
+                    + message(e), e);
+        }
+    }
+
+    private void compensateDeletedLoci(RepositoryConnection connection,
+                                       List<PendingLocusDeletion> loci) {
+        try {
+            connection.begin();
+            for (PendingLocusDeletion locus : loci) {
+                connection.add(locus.statements, locus.textGraph);
+            }
+            connection.commit();
+        } catch (RuntimeException compensationFailure) {
+            rollback(connection);
+            throw compensationFailure;
+        }
+    }
+
+    private AttestationDeletionResult deletionResult(String fileId,
+            List<PendingDeletion> pending, List<PendingLocusDeletion> loci) {
+        Set<String> deletedLoci = new HashSet<String>();
+        for (PendingLocusDeletion locus : loci) {
+            deletedLoci.add(locus.locus.stringValue());
+        }
+        AttestationDeletionResult result = new AttestationDeletionResult();
+        result.fileId = fileId;
+        for (PendingDeletion pendingItem : pending) {
+            AttestationDeletionItem item = new AttestationDeletionItem();
+            item.attestation = pendingItem.attestation.stringValue();
+            item.observable = pendingItem.observable == null ? null
+                    : pendingItem.observable.stringValue();
+            item.locus = pendingItem.locus.stringValue();
+            result.deleted.add(item);
+            if (!deletedLoci.contains(item.locus)
+                    && !result.retainedLoci.contains(item.locus)) {
+                result.retainedLoci.add(item.locus);
+            }
+        }
+        result.deletedCount = result.deleted.size();
+        result.deletedLoci.addAll(deletedLoci);
+        Collections.sort(result.deletedLoci);
+        Collections.sort(result.retainedLoci);
+        return result;
     }
 
     private String timestamp(Timestamp value) {
@@ -1067,6 +1360,8 @@ public class AttestationManager implements Manager {
         Model model = new LinkedHashModel();
         model.add(locus, RDF.TYPE, vf.createIRI(NIF + "Phrase"));
         model.add(locus, RDF.TYPE, vf.createIRI(NIF + "RFC5147String"));
+        model.add(locus, vf.createIRI(PROV + "wasGeneratedBy"),
+                attestationServiceIri());
         model.add(locus, vf.createIRI(NIF + "anchorOf"), language == null
                 ? vf.createLiteral(value) : vf.createLiteral(value, language));
         model.add(locus, vf.createIRI(NIF + "beginIndex"),
@@ -1075,6 +1370,11 @@ public class AttestationManager implements Manager {
                 vf.createLiteral(Integer.toString(end), XSD.NON_NEGATIVE_INTEGER));
         model.add(locus, vf.createIRI(NIF + "referenceContext"), referenceContext);
         return model;
+    }
+
+    private IRI attestationServiceIri() {
+        return vf.createIRI(namespace(configured("repository.lexicon.namespace",
+                "https://lexo.ilc.cnr.it#")) + ATTESTATION_SERVICE);
     }
 
     private Model attestationModel(IRI attestation, IRI observable, IRI locus,
@@ -1398,6 +1698,30 @@ public class AttestationManager implements Manager {
             this.attestationStatements = attestationStatements;
             this.phraseStatements = phraseStatements;
             this.result = result;
+        }
+    }
+
+    private static final class PendingDeletion {
+        final IRI attestation;
+        final IRI observable;
+        final IRI locus;
+
+        PendingDeletion(IRI attestation, IRI observable, IRI locus) {
+            this.attestation = attestation;
+            this.observable = observable;
+            this.locus = locus;
+        }
+    }
+
+    private static final class PendingLocusDeletion {
+        final IRI locus;
+        final Resource textGraph;
+        final Model statements;
+
+        PendingLocusDeletion(IRI locus, Resource textGraph, Model statements) {
+            this.locus = locus;
+            this.textGraph = textGraph;
+            this.statements = statements;
         }
     }
 

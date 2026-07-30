@@ -1,9 +1,8 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 29 luglio 2026 dopo l'aggiunta dei metadata RDF batch alle
-attestazioni e dell'import/conversione bulk TXT/CommonMark, sul branch
-`codex/attestation-list-without-description`, basato su `origin/master`
-(`e5cd107`).
+Aggiornato al 30 luglio 2026 dopo l'aggiunta della cancellazione batch delle
+attestazioni per observable e per locus, sul branch
+`codex/attestation-deletion`, basato su `origin/master` (`9ab5a4e`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -128,8 +127,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 82 test unitari/repository passati il 29 luglio 2026, inclusi
-  i 6 test mirati del bulk testuale, i 24 test delle attestazioni, i 2 test del
+- Suite corrente: 86 test unitari/repository passati il 30 luglio 2026, inclusi
+  i 6 test mirati del bulk testuale, i 28 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -156,6 +155,15 @@ appartenenza ai corpora sono persistiti in GraphDB.
   graph del documento. Il contratto conserva valori multipli, IRI, letterali con
   lingua e letterali tipizzati, protegge i predicati strutturali e aggiorna
   `dcterms:modified`.
+- Endpoint `DELETE /attestations/{fileId}/by-observable` e
+  `DELETE /attestations/{fileId}/by-locus` per cancellare atomicamente una lista
+  esplicita di attestazioni oppure tutte quelle che corrispondono al criterio
+  con `all: true`, sempre nel named graph selezionato da `fileId`.
+- I loci creati dai servizi di attestazione sono marcati con
+  `prov:wasGeneratedBy lexo:AttestationService`. La cancellazione elimina da
+  `LexOTexts` soltanto i loci marcati rimasti senza attestazioni in tutta la
+  famiglia dei graph di attestazione; i loci preesistenti o ancora referenziati
+  vengono conservati.
 - Le risposte di creazione e consultazione non espongono `description`.
 - La consultazione paginata espone i metadata personalizzati in una mappa per
   IRI di proprietà, senza includere i predicati strutturali o la legacy
@@ -290,24 +298,22 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-list-without-description`.
-- Base aggiornata: `origin/master` al commit `e5cd107`.
+- Branch locale corrente: `codex/attestation-deletion`.
+- Base aggiornata: `origin/master` al commit `9ab5a4e`.
 - Le modifiche applicative sono organizzate in commit consecutivi e focalizzati;
   log runtime e `nb-configuration.xml` restano esclusi dai commit.
 
 ## Ultimi file modificati
 
-Il lavoro corrente elimina `description` dai contratti JSON e Swagger delle API
-di attestazione, aggiunge `POST /attestations/by-locus` e introduce
-`PATCH /attestations/{fileId}/metadata`. La PATCH sostituisce insiemi di valori
-RDF diversi per attestazioni diverse in un batch atomico, supporta cancellazione
-con lista vuota e protegge le proprietà strutturali; la lista paginata restituisce
-i metadata personalizzati con tipo RDF, lingua e datatype. Le nuove attestazioni
-non persistono più `dcterms:description`; eventuali triple storiche non vengono
-modificate né esposte come metadata. I test del 29 luglio 2026 comprendono 24 test
-mirati delle attestazioni e la suite Maven completa di 82 test, tutti passati.
-Gli end-to-end REST restano da eseguire in un ambiente GraphDB e filesystem
-dedicato.
+Il lavoro corrente aggiunge i due endpoint `DELETE` delle attestazioni, i DTO di
+input/output e una sola implementazione manager condivisa per validazione,
+selezione esplicita o completa, cancellazione RDF e compensazione fra repository.
+I nuovi loci ricevono il marcatore
+`prov:wasGeneratedBy lexo:AttestationService`; un locus viene eliminato soltanto
+quando è marcato e non è più referenziato da attestazioni. I test del 30 luglio
+2026 comprendono 28 test mirati delle attestazioni e la suite Maven completa di
+86 test, tutti passati. Gli end-to-end REST restano da eseguire in un ambiente
+GraphDB e filesystem dedicato.
 
 La creazione dei lexical concept accetta ora i parametri facoltativi `label` e
 `language`; quando la label è presente la lingua è obbligatoria, validata sulla
@@ -327,7 +333,7 @@ Nello stesso branch l'upload testuale è stato esteso con la lingua ISO 639
 obbligatoria. I file principali coinvolti sono `Texts.java`, `TextJobManager.java`,
 `Iso639LanguageValidator.java`, `ControlledCommonMarkParser.java`, la lista CSV
 in `src/main/resources/iso639`, i test testuali e la relativa documentazione.
-La suite completa conta ora 82 test; gli end-to-end `*IT` restano esclusi da
+La suite completa conta ora 86 test; gli end-to-end `*IT` restano esclusi da
 `mvn test` e richiedono un deployment dedicato.
 
 L'ultimo commit (`9f77676`, supporto a `description`) ha modificato:
@@ -353,16 +359,15 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere test end-to-end dei nuovi endpoint di attestazione e della
+1. Aggiungere test end-to-end dei nuovi endpoint di creazione, cancellazione e
+   metadata delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
 2. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
-3. Implementare i successivi servizi di attestazione sulla base delle specifiche
-   fornite, riutilizzando manager, validazioni e selezione del graph per testo.
-4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
-5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
+3. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
+4. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
    completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi di
    lingua upload mancante/non valida e il relativo `dcterms:language` nel NIF.
-6. Allineare README e POM sul requisito Java ufficiale.
-7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
+5. Allineare README e POM sul requisito Java ufficiale.
+6. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.
