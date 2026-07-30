@@ -194,11 +194,62 @@ reused without receiving this marker.
 `POST /service/attestations/{fileId}` returns the attestations of one text as a
 paginated JSON response. `observableType` and `author` optionally filter the RDF
 type of the observed lexical entity and the exact `dcterms:creator` value.
-`limit` defaults to 200 and `offset` defaults to 0. Each result combines FRAC
+`limit` defaults to 50 and `offset` defaults to 0. Each result combines FRAC
 metadata from `LexOLexica` with anchor, offsets, language, RDF types and reference
 context read from the corresponding NIF locus in `LexOTexts`. The response does
-not expose attestation descriptions. The creation endpoint likewise neither
-accepts nor persists them. The `observableLabel` field is resolved according to
+not expose attestation descriptions; the creation endpoint likewise neither
+accepts nor persists them.
+
+The same endpoint also accepts an optional JSON filter tree. Group nodes use
+`AND` or `OR`; leaf nodes filter exact attestation creator values, RDF metadata
+of the containing text, or one or more observable type IRIs. Values within one
+`creator` or `observableType` leaf are OR alternatives. Observable type matching
+follows `rdfs:subClassOf`, so a `LexicalEntry` condition also finds instances of
+its subclasses. Text metadata comparisons preserve whether the RDF value is an
+IRI or a literal and, for literals, its language or datatype.
+
+```json
+{
+  "operator": "AND",
+  "filters": [
+    {
+      "operator": "IN",
+      "field": "creator",
+      "values": ["user7", "user8"]
+    },
+    {
+      "operator": "EQ",
+      "field": "textMetadata",
+      "property": "http://purl.org/dc/terms/title",
+      "rdfValues": [
+        {"type": "literal", "value": "Intervista", "language": "it"}
+      ]
+    },
+    {
+      "operator": "IN",
+      "field": "observableType",
+      "values": [
+        "http://www.w3.org/ns/lemon/ontolex#LexicalEntry",
+        "http://www.w3.org/ns/lemon/ontolex#Form"
+      ]
+    }
+  ]
+}
+```
+
+`textMetadata` also supports `EXISTS` without `rdfValues`. Filter trees are
+limited to 50 nodes and five levels. The legacy `author` and `observableType`
+query parameters remain supported and are combined with the JSON filter using
+`AND`.
+
+`POST /service/attestations/by-observable?observable={iri}` returns the same
+paginated response across every configured per-text attestation graph. It uses
+the same optional filter body and the same `limit` and `offset` query parameters.
+Only graph IRIs that are valid members of the configured attestation graph
+family are considered; locus data is resolved from the matching document graph
+in `LexOTexts`.
+
+The `observableLabel` field is resolved according to
 the observable type: lexical
 entries prefer `rdfs:label` and then their canonical form's
 `ontolex:writtenRep`; forms prefer `ontolex:writtenRep` and then `rdfs:label`;
@@ -206,6 +257,43 @@ lexical senses combine their entry label or canonical written representation
 with `skos:definition`; lexical concepts prefer `skos:prefLabel` and then
 `rdfs:label`. Language tags are preserved in the compact `value@language`
 format (for example, `casa@it`); missing values fall back to `"no label"`.
+
+`PATCH /service/attestations/{fileId}/locus` changes the locus of one
+attestation. `start` and `end` are Unicode code-point offsets on the canonical
+`nif:isString`; the service derives the replacement text rather than accepting
+it from the client. It moves the NIF resource to the corresponding deterministic
+`#char=start,end` IRI and updates `nif:anchorOf`, `nif:beginIndex`,
+`nif:endIndex`, `rdf:value`, and `dcterms:modified`. `frac:gloss` is updated by
+default and is preserved when `updateGloss` is `false`.
+
+```json
+{
+  "attestation": "https://lexo.ilc.cnr.it#LexO_attestation1",
+  "start": 42,
+  "end": 60,
+  "updateGloss": true
+}
+```
+
+Only a locus marked `prov:wasGeneratedBy lexo:AttestationService` and referenced
+exclusively by the selected attestation can be changed. A reused/imported or
+shared locus produces `LOCUS_NOT_MODIFIABLE` without modifying either
+repository. A pre-existing destination IRI produces `LOCUS_CONFLICT`.
+
+`PATCH /service/attestations/{fileId}/observable` replaces the inverse
+`observable frac:attestation attestation` relation for one or more attestations.
+The replacement must be a supported OntoLex observable in the lexical graph.
+The complete list is validated before a single `LexOLexica` transaction.
+
+```json
+{
+  "observable": "https://lexo.ilc.cnr.it#LexO_entry2",
+  "attestations": [
+    "https://lexo.ilc.cnr.it#LexO_attestation1",
+    "https://lexo.ilc.cnr.it#LexO_attestation2"
+  ]
+}
+```
 
 `PATCH /service/attestations/{fileId}/metadata` atomically replaces selected RDF
 metadata properties on one or more attestations in that text's attestation named
