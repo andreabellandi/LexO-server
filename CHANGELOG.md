@@ -19,6 +19,9 @@ starts from the ongoing `Unreleased` work.
 - A `PATCH /attestations/{fileId}/metadata` service now atomically replaces or
   removes selected RDF metadata properties on multiple attestations, preserving
   IRI values, language-tagged literals, typed literals, and multiple values.
+- `DELETE /attestations/{fileId}/by-observable` and
+  `DELETE /attestations/{fileId}/by-locus` services now atomically remove an
+  explicit attestation list or all matching attestations in one text graph.
 - Plain-text TXT import and NIF conversion for documents without CommonMark
   headings.
 - Front matter support for `id`, `title`, `author`, `date`, `description`,
@@ -56,6 +59,9 @@ starts from the ongoing `Unreleased` work.
   creates all corresponding FRAC attestations and NIF loci as one validated
   batch. NIF anchors, FRAC glosses, and RDF values now inherit the text's
   language metadata when available.
+- NIF loci created by attestation services are now marked with
+  `prov:wasGeneratedBy lexo:AttestationService`; deletion removes such a locus
+  only after its final attestation is removed, while reused loci are preserved.
 - The default LexO application namespace is now `https://lexo.ilc.cnr.it#`.
 - Text persistence now uses a dedicated GraphDB repository instead of the
   lexical repository.

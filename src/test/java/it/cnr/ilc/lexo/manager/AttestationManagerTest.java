@@ -6,10 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
@@ -141,6 +144,9 @@ class AttestationManagerTest {
                     textGraph)).isTrue();
             assertThat(connection.hasStatement(locus, iri(NIF + "endIndex"),
                     vf.createLiteral("3", XSD.NON_NEGATIVE_INTEGER), false,
+                    textGraph)).isTrue();
+            assertThat(connection.hasStatement(locus, iri(PROV + "wasGeneratedBy"),
+                    iri("https://lexo.ilc.cnr.it#AttestationService"), false,
                     textGraph)).isTrue();
             assertDefaultGraphEmpty(connection);
         }
@@ -365,6 +371,8 @@ class AttestationManagerTest {
                     false, textGraph)).isFalse();
             assertThat(text.hasStatement(locus, RDF.TYPE,
                     iri(NIF + "RFC5147String"), false, textGraph)).isFalse();
+            assertThat(text.hasStatement(locus, iri(PROV + "wasGeneratedBy"),
+                    null, false, textGraph)).isFalse();
             assertThat(count(text, locus, iri(NIF + "anchorOf"), null,
                     textGraph)).isEqualTo(1);
             assertDefaultGraphEmpty(lexical);
@@ -870,6 +878,170 @@ class AttestationManagerTest {
                 null, null))
                 .isInstanceOf(ManagerException.class)
                 .hasMessageContaining("INVALID_FILE_ID");
+    }
+
+    @Test
+    void deletesSelectedThenAllAttestationsByObservableAndGeneratedLoci()
+            throws Exception {
+        List<Attestation> created = manager.createBatch(observable.stringValue(),
+                context.stringValue(), false, "user7", Arrays.asList(
+                        new AttestationOccurrence("A", 0, 1),
+                        new AttestationOccurrence("gli", 4, 7)));
+        IRI firstLocus = iri(created.get(0).locus);
+        IRI secondLocus = iri(created.get(1).locus);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+
+        AttestationDeleteByObservableInput selected =
+                new AttestationDeleteByObservableInput();
+        selected.observable = observable.stringValue();
+        selected.attestations = Collections.singletonList(
+                created.get(0).attestation);
+        AttestationDeletionResult firstResult = manager.deleteByObservable(
+                "file-a", selected);
+
+        assertThat(firstResult.deletedCount).isEqualTo(1);
+        assertThat(firstResult.deletedLoci).containsExactly(firstLocus.stringValue());
+        assertThat(firstResult.retainedLoci).isEmpty();
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(created.get(0).attestation), null,
+                    null, false, graph)).isFalse();
+            assertThat(lexical.hasStatement(iri(created.get(1).attestation),
+                    RDF.TYPE, iri(FRAC + "Attestation"), false, graph)).isTrue();
+            assertThat(text.hasStatement(firstLocus, null, null, false,
+                    textGraph)).isFalse();
+            assertThat(text.hasStatement(secondLocus, RDF.TYPE,
+                    iri(NIF + "Phrase"), false, textGraph)).isTrue();
+            assertDefaultGraphEmpty(lexical);
+            assertDefaultGraphEmpty(text);
+        }
+
+        AttestationDeleteByObservableInput all =
+                new AttestationDeleteByObservableInput();
+        all.observable = observable.stringValue();
+        all.all = Boolean.TRUE;
+        AttestationDeletionResult allResult = manager.deleteByObservable(
+                "file-a", all);
+
+        assertThat(allResult.deletedCount).isEqualTo(1);
+        assertThat(allResult.deletedLoci).containsExactly(secondLocus.stringValue());
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), false, graph)).isFalse();
+            assertThat(text.hasStatement(secondLocus, null, null, false,
+                    textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void deletesSelectedThenAllAttestationsByLocusAndRemovesItWhenOrphaned()
+            throws Exception {
+        IRI form = iri("https://example.org/lexicon/form-delete");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+        }
+        List<Attestation> created = manager.createByLocus(context.stringValue(),
+                false, "user7", new AttestationByLocusInput("A", 0, 1,
+                        Arrays.asList(observable.stringValue(), form.stringValue())));
+        IRI locus = iri(created.get(0).locus);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+
+        AttestationDeleteByLocusInput selected =
+                new AttestationDeleteByLocusInput();
+        selected.locus = locus.stringValue();
+        selected.attestations = Collections.singletonList(
+                created.get(0).attestation);
+        AttestationDeletionResult firstResult = manager.deleteByLocus(
+                "file-a", selected);
+
+        assertThat(firstResult.deletedCount).isEqualTo(1);
+        assertThat(firstResult.deletedLoci).isEmpty();
+        assertThat(firstResult.retainedLoci).containsExactly(locus.stringValue());
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(created.get(1).attestation),
+                    RDF.TYPE, iri(FRAC + "Attestation"), false, graph)).isTrue();
+            assertThat(text.hasStatement(locus, RDF.TYPE, iri(NIF + "Phrase"),
+                    false, textGraph)).isTrue();
+        }
+
+        AttestationDeleteByLocusInput all = new AttestationDeleteByLocusInput();
+        all.locus = locus.stringValue();
+        all.all = Boolean.TRUE;
+        AttestationDeletionResult allResult = manager.deleteByLocus("file-a", all);
+
+        assertThat(allResult.deletedCount).isEqualTo(1);
+        assertThat(allResult.deletedLoci).containsExactly(locus.stringValue());
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), false, graph)).isFalse();
+            assertThat(text.hasStatement(locus, null, null, false,
+                    textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void keepsOrphanLocusWhenItWasReusedWithoutGenerationMarker()
+            throws Exception {
+        IRI locus = iri("https://example.org/text/interview#char=0,1");
+        try (RepositoryConnection connection = textRepository.getConnection()) {
+            connection.add(locus, RDF.TYPE, iri(NIF + "Phrase"), textGraph);
+            connection.add(locus, RDF.TYPE, iri(NIF + "RFC5147String"), textGraph);
+            connection.add(locus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("A", "it"), textGraph);
+            connection.add(locus, iri(NIF + "beginIndex"),
+                    vf.createLiteral("0", XSD.NON_NEGATIVE_INTEGER), textGraph);
+            connection.add(locus, iri(NIF + "endIndex"),
+                    vf.createLiteral("1", XSD.NON_NEGATIVE_INTEGER), textGraph);
+            connection.add(locus, iri(NIF + "referenceContext"), context,
+                    textGraph);
+        }
+        Attestation created = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        AttestationDeleteByLocusInput deletion = new AttestationDeleteByLocusInput();
+        deletion.locus = locus.stringValue();
+        deletion.all = Boolean.TRUE;
+
+        AttestationDeletionResult result = manager.deleteByLocus("file-a", deletion);
+
+        assertThat(result.deletedCount).isEqualTo(1);
+        assertThat(result.deleted.get(0).attestation).isEqualTo(created.attestation);
+        assertThat(result.deletedLoci).isEmpty();
+        assertThat(result.retainedLoci).containsExactly(locus.stringValue());
+        try (RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(text.hasStatement(locus, RDF.TYPE, iri(NIF + "Phrase"),
+                    false, textGraph)).isTrue();
+            assertThat(text.hasStatement(locus, iri(PROV + "wasGeneratedBy"),
+                    null, false, textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void rejectsInvalidDeletionBatchBeforeRemovingAnyAttestation() {
+        addPersistedAttestation("file-a", "delete-a", observable, "user7",
+                "A", 0, 1);
+        IRI form = iri("https://example.org/lexicon/delete-form");
+        addPersistedAttestation("file-a", "delete-b", form, "user7",
+                "A", 0, 1);
+        AttestationDeleteByObservableInput deletion =
+                new AttestationDeleteByObservableInput();
+        deletion.observable = observable.stringValue();
+        deletion.attestations = Arrays.asList(
+                "https://example.org/attestation/delete-a",
+                "https://example.org/attestation/delete-b");
+
+        assertThatThrownBy(() -> manager.deleteByObservable("file-a", deletion))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("ATTESTATION_OBSERVABLE_MISMATCH");
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertThat(count(lexical, null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), graph)).isEqualTo(2);
+        }
     }
 
     private void addPersistedAttestation(String fileId, String suffix,

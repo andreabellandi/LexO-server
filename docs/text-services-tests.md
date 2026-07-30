@@ -251,6 +251,25 @@ nel named graph del documento, assenza di scritture nel default graph, rollback
 del batch non valido e rifiuto dei predicati strutturali. Non costituiscono un
 test end-to-end del routing HTTP della PATCH.
 
+### Cancellazione delle attestazioni
+
+I test repository in `AttestationManagerTest` verificano inoltre che i servizi
+di cancellazione per observable e per locus:
+
+- accettino sia una lista esplicita di IRI sia la selezione completa `all`;
+- validino atomicamente appartenenza al named graph, observable e locus prima di
+  rimuovere qualsiasi tripla;
+- cancellino risorsa FRAC e collegamento entrante `frac:attestation` soltanto
+  dal graph selezionato da `fileId`;
+- conservino un locus ancora referenziato;
+- eliminino un locus orfano soltanto in presenza di
+  `prov:wasGeneratedBy lexo:AttestationService`;
+- non aggiungano il marcatore e non eliminino loci NIF compatibili preesistenti;
+- non scrivano o cancellino dati nel default graph.
+
+Questi test non costituiscono ancora un test end-to-end del routing HTTP dei due
+endpoint `DELETE`.
+
 ### Catalogo dei testi
 
 - elenco di tutti i documenti presenti nei named graph di `LexOTexts`;

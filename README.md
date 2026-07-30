@@ -187,6 +187,9 @@ single shared NIF locus, and returns the same JSON attestation array produced by
 already exists as a compatible NIF word, sentence, or other structural span,
 the service reuses it without changing its RDF types. A `LOCUS_CONFLICT` is
 returned only when its anchor, offsets, or reference context differ.
+New loci created by either attestation endpoint are marked with
+`prov:wasGeneratedBy lexo:AttestationService`; pre-existing compatible loci are
+reused without receiving this marker.
 
 `POST /service/attestations/{fileId}` returns the attestations of one text as a
 paginated JSON response. `observableType` and `author` optionally filter the RDF
@@ -250,6 +253,41 @@ transaction, and every updated attestation receives a new `dcterms:modified`
 value. Paginated attestation results expose custom properties in a `metadata`
 object keyed by property IRI while preserving multiple values and their RDF
 kind, language or datatype.
+
+`DELETE /service/attestations/{fileId}/by-observable` atomically deletes
+attestations of one observable from the per-text attestation graph. The JSON
+body must provide `observable` and exactly one selection mode: either a
+non-empty `attestations` IRI list or `all: true`.
+
+```json
+{
+  "observable": "https://lexo.ilc.cnr.it#LexO_entry1",
+  "attestations": [
+    "https://lexo.ilc.cnr.it#LexO_attestation1",
+    "https://lexo.ilc.cnr.it#LexO_attestation2"
+  ]
+}
+```
+
+`DELETE /service/attestations/{fileId}/by-locus` provides the corresponding
+operation for one shared NIF locus. Its body must provide `locus` and either an
+`attestations` IRI list or `all: true`:
+
+```json
+{
+  "locus": "https://lexo.ilc.cnr.it/texts/example#char=42,60",
+  "all": true
+}
+```
+
+Both services validate the complete selection before writing and remove the
+attestation resource together with every incoming `frac:attestation` link in
+the graph selected by `fileId`. After deletion, a locus is removed from
+`LexOTexts` only when no attestation in the configured attestation graph family
+still references it and it carries the exact generation marker
+`prov:wasGeneratedBy lexo:AttestationService`. Reused or still-attested loci are
+retained. The response reports deleted attestations plus `deletedLoci` and
+`retainedLoci`.
 
 ## License
 
