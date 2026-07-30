@@ -8,13 +8,18 @@ import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationFilter;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationLocusUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationObservableUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
@@ -511,7 +516,7 @@ class AttestationManagerTest {
         AttestationPage page = manager.list("file-a", null, null, null, null);
 
         assertThat(page.totalHits).isEqualTo(3);
-        assertThat(page.limit).isEqualTo(200);
+        assertThat(page.limit).isEqualTo(50);
         assertThat(page.offset).isZero();
         assertThat(page.list).extracting(item -> item.attestation)
                 .containsExactly("https://example.org/attestation/a",
@@ -699,6 +704,169 @@ class AttestationManagerTest {
     }
 
     @Test
+    void listsOneObservableAcrossTextGraphsAndPaginates() throws Exception {
+        IRI secondTextGraph = iri(TEXT_GRAPH_BASE + "file-b");
+        try (RepositoryConnection connection = textRepository.getConnection()) {
+            connection.add(context, iri(NIFS + "fileId"),
+                    vf.createLiteral("file-b"), secondTextGraph);
+        }
+        addPersistedAttestation("file-a", "observable-a", observable,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-b", "observable-b", observable,
+                "user8", "A", 0, 1);
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            IRI foreignAttestation = iri("https://example.org/attestation/foreign");
+            IRI malformedFamilyGraph = iri(
+                    LexicalNamedGraphs.attestationGraphBaseUri() + "file-a/extra");
+            connection.add(observable, iri(FRAC + "attestation"),
+                    foreignAttestation, malformedFamilyGraph);
+            connection.add(foreignAttestation, RDF.TYPE,
+                    iri(FRAC + "Attestation"), malformedFamilyGraph);
+        }
+
+        AttestationPage page = manager.listByObservable(observable.stringValue(),
+                null, "1", "1");
+        AttestationPage defaultPage = manager.listByObservable(
+                observable.stringValue(), null, null, null);
+
+        assertThat(page.totalHits).isEqualTo(2);
+        assertThat(page.limit).isEqualTo(1);
+        assertThat(page.offset).isEqualTo(1);
+        assertThat(page.list).hasSize(1);
+        assertThat(page.list.get(0).attestation)
+                .isEqualTo("https://example.org/attestation/observable-b");
+        assertThat(page.list.get(0).fileId).isEqualTo("file-b");
+        assertThat(defaultPage.limit).isEqualTo(50);
+    }
+
+    @Test
+    void appliesNestedCreatorTextMetadataAndObservableTypeFilters() throws Exception {
+        IRI form = iri("https://example.org/lexicon/filter-form");
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            lexical.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+        }
+        try (RepositoryConnection text = textRepository.getConnection()) {
+            text.add(context, DCTERMS.TITLE,
+                    vf.createLiteral("Intervista", "it"), textGraph);
+        }
+        addPersistedAttestation("file-a", "filter-a", observable,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "filter-b", form,
+                "user8", "A", 0, 1);
+        addPersistedAttestation("file-a", "filter-c", observable,
+                "user9", "A", 0, 1);
+
+        AttestationFilter creators = filterGroup("OR",
+                stringFilter("creator", "user7"),
+                stringFilter("creator", "user8"));
+        AttestationFilter metadata = metadataFilter(DCTERMS.TITLE.stringValue(),
+                metadataLiteral("Intervista", "it", null));
+        AttestationFilter types = stringFilter("observableType",
+                ONTOLEX + "LexicalEntry", ONTOLEX + "Form");
+        AttestationFilter filter = filterGroup("AND", creators, metadata, types);
+
+        AttestationPage page = manager.list("file-a", null, null, filter,
+                null, null);
+
+        assertThat(page.totalHits).isEqualTo(2);
+        assertThat(page.list).extracting(item -> item.attestation)
+                .containsExactly("https://example.org/attestation/filter-a",
+                        "https://example.org/attestation/filter-b");
+    }
+
+    @Test
+    void filtersLexicalEntrySubclassesAndExactRdfTextMetadata() throws Exception {
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI schemaGraph = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
+        IRI customType = iri("https://example.org/ontology/SpecialEntry");
+        IRI customEntry = iri("https://example.org/lexicon/special-entry");
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            lexical.add(customType, iri(RDFS + "subClassOf"),
+                    iri(ONTOLEX + "LexicalEntry"), schemaGraph);
+            lexical.add(customEntry, RDF.TYPE, customType, lexicalGraph);
+        }
+        try (RepositoryConnection text = textRepository.getConnection()) {
+            text.add(context, DCTERMS.TITLE,
+                    vf.createLiteral("Titolo", "it"), textGraph);
+        }
+        addPersistedAttestation("file-a", "subclass", customEntry,
+                "user7", "A", 0, 1);
+
+        AttestationFilter matching = filterGroup("AND",
+                stringFilter("observableType", ONTOLEX + "LexicalEntry"),
+                metadataFilter(DCTERMS.TITLE.stringValue(),
+                        metadataLiteral("Titolo", "it", null)));
+        AttestationFilter wrongLanguage = metadataFilter(
+                DCTERMS.TITLE.stringValue(),
+                metadataLiteral("Titolo", "en", null));
+
+        assertThat(manager.list("file-a", null, null, matching,
+                null, null).list).extracting(item -> item.observable)
+                .containsExactly(customEntry.stringValue());
+        assertThat(manager.list("file-a", null, null, wrongLanguage,
+                null, null).totalHits).isZero();
+        assertThat(manager.listByObservable(customEntry.stringValue(), matching,
+                null, null).totalHits).isEqualTo(1);
+    }
+
+    @Test
+    void filtersAllSupportedOntolexObservableCategoriesInOr() throws Exception {
+        IRI form = iri("https://example.org/lexicon/category-form");
+        IRI sense = iri("https://example.org/lexicon/category-sense");
+        IRI concept = iri("https://example.org/lexicon/category-concept");
+        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"), lexicalGraph);
+            connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"),
+                    lexicalGraph);
+            connection.add(concept, RDF.TYPE, iri(ONTOLEX + "LexicalConcept"),
+                    lexicalGraph);
+        }
+        addPersistedAttestation("file-a", "category-entry", observable,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "category-form", form,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "category-sense", sense,
+                "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "category-concept", concept,
+                "user7", "A", 0, 1);
+        AttestationFilter filter = stringFilter("observableType",
+                ONTOLEX + "LexicalEntry", ONTOLEX + "Form",
+                ONTOLEX + "LexicalSense", ONTOLEX + "LexicalConcept");
+
+        AttestationPage page = manager.list("file-a", null, null, filter,
+                null, null);
+
+        assertThat(page.totalHits).isEqualTo(4);
+        assertThat(page.list).extracting(item -> item.observable)
+                .containsExactlyInAnyOrder(observable.stringValue(),
+                        form.stringValue(), sense.stringValue(), concept.stringValue());
+    }
+
+    @Test
+    void validatesBooleanAttestationFilters() {
+        AttestationFilter emptyGroup = new AttestationFilter();
+        emptyGroup.operator = "AND";
+        emptyGroup.filters = Collections.emptyList();
+        AttestationFilter invalidMetadata = new AttestationFilter();
+        invalidMetadata.operator = "EQ";
+        invalidMetadata.field = "textMetadata";
+        invalidMetadata.property = "not an IRI";
+        invalidMetadata.rdfValues = Collections.singletonList(
+                metadataLiteral("value", null, null));
+
+        assertThatThrownBy(() -> manager.list("file-a", null, null,
+                emptyGroup, null, null))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_FILTER");
+        assertThatThrownBy(() -> manager.list("file-a", null, null,
+                invalidMetadata, null, null))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_IRI");
+    }
+
+    @Test
     void resolvesLexicalEntryLabelsIncludingSubclassAndFallbacks() throws Exception {
         IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
         IRI schemaGraph = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
@@ -878,6 +1046,201 @@ class AttestationManagerTest {
                 null, null))
                 .isInstanceOf(ManagerException.class)
                 .hasMessageContaining("INVALID_FILE_ID");
+    }
+
+    @Test
+    void updatesGeneratedUnsharedLocusUsingUnicodeCodePointOffsets()
+            throws Exception {
+        Attestation created = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = created.attestation;
+        update.start = Integer.valueOf(1);
+        update.end = Integer.valueOf(3);
+
+        AttestationLocusUpdateResult result = manager.updateLocus("file-a", update);
+
+        IRI attestation = iri(created.attestation);
+        IRI oldLocus = iri(created.locus);
+        IRI newLocus = iri("https://example.org/text/interview#char=1,3");
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        assertThat(result.previousLocus).isEqualTo(oldLocus.stringValue());
+        assertThat(result.locus).isEqualTo(newLocus.stringValue());
+        assertThat(result.value).isEqualTo("😀B");
+        assertThat(result.glossUpdated).isTrue();
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "locus"),
+                    newLocus, false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, RDF.VALUE,
+                    vf.createLiteral("😀B", "it"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "gloss"),
+                    vf.createLiteral("😀B", "it"), false, graph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, null, null, false,
+                    textGraph)).isFalse();
+            assertThat(text.hasStatement(newLocus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("😀B", "it"), false, textGraph)).isTrue();
+            assertThat(text.hasStatement(newLocus, iri(NIF + "beginIndex"),
+                    vf.createLiteral("1", XSD.NON_NEGATIVE_INTEGER), false,
+                    textGraph)).isTrue();
+            assertThat(text.hasStatement(newLocus, iri(NIF + "endIndex"),
+                    vf.createLiteral("3", XSD.NON_NEGATIVE_INTEGER), false,
+                    textGraph)).isTrue();
+            assertThat(text.hasStatement(newLocus,
+                    iri(PROV + "wasGeneratedBy"),
+                    iri("https://lexo.ilc.cnr.it#AttestationService"), false,
+                    textGraph)).isTrue();
+            assertDefaultGraphEmpty(lexical);
+            assertDefaultGraphEmpty(text);
+        }
+    }
+
+    @Test
+    void updatesLocusValueButPreservesGlossWhenRequested() throws Exception {
+        Attestation created = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = created.attestation;
+        update.start = Integer.valueOf(1);
+        update.end = Integer.valueOf(3);
+        update.updateGloss = Boolean.FALSE;
+
+        AttestationLocusUpdateResult result = manager.updateLocus("file-a", update);
+
+        IRI attestation = iri(created.attestation);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        assertThat(result.glossUpdated).isFalse();
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertThat(lexical.hasStatement(attestation, RDF.VALUE,
+                    vf.createLiteral("😀B", "it"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "gloss"),
+                    vf.createLiteral("A", "it"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "gloss"),
+                    vf.createLiteral("😀B", "it"), false, graph)).isFalse();
+        }
+    }
+
+    @Test
+    void rejectsSharedOrNonGeneratedLocusWithoutChangingAnything()
+            throws Exception {
+        IRI form = iri("https://example.org/lexicon/shared-form");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+        }
+        List<Attestation> shared = manager.createByLocus(context.stringValue(),
+                false, "user7", new AttestationByLocusInput("A", 0, 1,
+                        Arrays.asList(observable.stringValue(), form.stringValue())));
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = shared.get(0).attestation;
+        update.start = Integer.valueOf(1);
+        update.end = Integer.valueOf(3);
+
+        assertThatThrownBy(() -> manager.updateLocus("file-a", update))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("LOCUS_NOT_MODIFIABLE")
+                .hasMessageContaining("shared");
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        IRI oldLocus = iri(shared.get(0).locus);
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(shared.get(0).attestation),
+                    iri(FRAC + "locus"), oldLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("A", "it"), false, textGraph)).isTrue();
+        }
+
+        IRI importedLocus = iri("https://example.org/text/interview#char=4,7");
+        try (RepositoryConnection text = textRepository.getConnection()) {
+            text.add(importedLocus, RDF.TYPE, iri(NIF + "Phrase"), textGraph);
+            text.add(importedLocus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("gli", "it"), textGraph);
+            text.add(importedLocus, iri(NIF + "beginIndex"),
+                    vf.createLiteral("4", XSD.NON_NEGATIVE_INTEGER), textGraph);
+            text.add(importedLocus, iri(NIF + "endIndex"),
+                    vf.createLiteral("7", XSD.NON_NEGATIVE_INTEGER), textGraph);
+            text.add(importedLocus, iri(NIF + "referenceContext"), context,
+                    textGraph);
+        }
+        Attestation imported = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+        update.attestation = imported.attestation;
+
+        assertThatThrownBy(() -> manager.updateLocus("file-a", update))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("LOCUS_NOT_MODIFIABLE")
+                .hasMessageContaining("not generated");
+    }
+
+    @Test
+    void atomicallyUpdatesObservableForOneOrMoreAttestations() throws Exception {
+        List<Attestation> created = manager.createBatch(observable.stringValue(),
+                context.stringValue(), false, "user7", Arrays.asList(
+                        new AttestationOccurrence("A", 0, 1),
+                        new AttestationOccurrence("gli", 4, 7)));
+        IRI replacement = iri("https://example.org/lexicon/replacement-form");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(replacement, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+        }
+        AttestationObservableUpdate update = new AttestationObservableUpdate();
+        update.observable = replacement.stringValue();
+        update.attestations = Arrays.asList(created.get(0).attestation,
+                created.get(1).attestation);
+
+        AttestationObservableUpdateResult result = manager.updateObservable(
+                "file-a", update);
+
+        assertThat(result.updated).hasSize(2);
+        assertThat(result.updated.get(0).previousObservables)
+                .containsExactly(observable.stringValue());
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            for (Attestation item : created) {
+                IRI attestation = iri(item.attestation);
+                assertThat(lexical.hasStatement(observable,
+                        iri(FRAC + "attestation"), attestation, false,
+                        graph)).isFalse();
+                assertThat(lexical.hasStatement(replacement,
+                        iri(FRAC + "attestation"), attestation, false,
+                        graph)).isTrue();
+                assertThat(lexical.hasStatement(attestation, DCTERMS.MODIFIED,
+                        vf.createLiteral(result.updated.get(0).lastUpdate), false,
+                        graph)).isTrue();
+            }
+            assertDefaultGraphEmpty(lexical);
+        }
+    }
+
+    @Test
+    void rejectsInvalidObservableBatchBeforeChangingAnyLink() throws Exception {
+        Attestation created = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        IRI replacement = iri("https://example.org/lexicon/replacement-sense");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(replacement, RDF.TYPE, iri(ONTOLEX + "LexicalSense"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+        }
+        AttestationObservableUpdate update = new AttestationObservableUpdate();
+        update.observable = replacement.stringValue();
+        update.attestations = Arrays.asList(created.attestation,
+                "https://example.org/attestation/missing");
+
+        assertThatThrownBy(() -> manager.updateObservable("file-a", update))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("ATTESTATION_NOT_FOUND");
+
+        IRI attestation = iri(created.attestation);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertThat(lexical.hasStatement(observable,
+                    iri(FRAC + "attestation"), attestation, false,
+                    graph)).isTrue();
+            assertThat(lexical.hasStatement(replacement,
+                    iri(FRAC + "attestation"), attestation, false,
+                    graph)).isFalse();
+        }
     }
 
     @Test
@@ -1132,6 +1495,32 @@ class AttestationManagerTest {
 
     private AttestationMetadataValue metadataIri(String value) {
         return new AttestationMetadataValue(value, "iri", null, null);
+    }
+
+    private AttestationFilter filterGroup(String operator,
+                                          AttestationFilter... filters) {
+        AttestationFilter result = new AttestationFilter();
+        result.operator = operator;
+        result.filters = Arrays.asList(filters);
+        return result;
+    }
+
+    private AttestationFilter stringFilter(String field, String... values) {
+        AttestationFilter result = new AttestationFilter();
+        result.operator = "IN";
+        result.field = field;
+        result.values = Arrays.asList(values);
+        return result;
+    }
+
+    private AttestationFilter metadataFilter(String property,
+                                             AttestationMetadataValue... values) {
+        AttestationFilter result = new AttestationFilter();
+        result.operator = "EQ";
+        result.field = "textMetadata";
+        result.property = property;
+        result.rdfValues = Arrays.asList(values);
+        return result;
     }
 
     private String labelFor(AttestationPage page, IRI observed) {

@@ -1,8 +1,10 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 30 luglio 2026 dopo l'aggiunta della cancellazione batch delle
-attestazioni per observable e per locus, sul branch
-`codex/attestation-deletion`, basato su `origin/master` (`9ab5a4e`).
+Aggiornato al 30 luglio 2026 dopo l'aggiunta degli aggiornamenti del locus e
+dell'observable delle attestazioni, oltre alla ricerca paginata per observable
+e ai filtri booleani condivisi, sul branch
+`codex/attestation-filter-search`, derivato da `codex/attestation-deletion`
+(`d726ef3`) e basato su `origin/master` (`9ab5a4e`).
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -127,8 +129,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 86 test unitari/repository passati il 30 luglio 2026, inclusi
-  i 6 test mirati del bulk testuale, i 28 test delle attestazioni, i 2 test del
+- Suite corrente: 96 test unitari/repository passati il 30 luglio 2026, inclusi
+  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -150,11 +152,29 @@ appartenenza ai corpora sono persistiti in GraphDB.
   `description` e le nuove attestazioni non scrivono `dcterms:description`.
 - Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per tipo
   dell'osservabile e creator, arricchito con i dati del locus da `LexOTexts`.
+- Endpoint paginato `POST /attestations/by-observable` per recuperare le
+  attestazioni di un observable attraverso tutti i named graph per documento,
+  con lo stesso output arricchito del servizio per testo.
+- Entrambi gli endpoint di consultazione accettano un albero limitato di filtri
+  `AND`/`OR` su creator dell'attestazione, metadati RDF esatti del testo e più
+  tipi dell'observable in alternativa. Il filtro dei tipi segue anche
+  `rdfs:subClassOf`; i parametri legacy `author` e `observableType` del servizio
+  per testo restano compatibili e vengono combinati in `AND`. Entrambi usano 50
+  risultati come dimensione predefinita della pagina.
 - Endpoint `PATCH /attestations/{fileId}/metadata` per sostituire o cancellare
   atomicamente proprietà RDF personalizzate su una o più attestazioni del named
   graph del documento. Il contratto conserva valori multipli, IRI, letterali con
   lingua e letterali tipizzati, protegge i predicati strutturali e aggiorna
   `dcterms:modified`.
+- Endpoint `PATCH /attestations/{fileId}/locus` per spostare il locus di una
+  singola attestazione a nuovi offset Unicode. Il valore viene ricalcolato dal
+  `nif:isString`, l'IRI RFC5147 e le triple NIF vengono aggiornati in
+  `LexOTexts`, mentre `rdf:value`, `dcterms:modified` e, per default,
+  `frac:gloss` vengono aggiornati in `LexOLexica`. I loci condivisi o non
+  marcati come generati da LexO sono rifiutati senza modifiche.
+- Endpoint `PATCH /attestations/{fileId}/observable` per sostituire atomicamente
+  il collegamento inverso `frac:attestation` di una o più attestazioni dopo la
+  validazione completa del batch e del nuovo tipo OntoLex.
 - Endpoint `DELETE /attestations/{fileId}/by-observable` e
   `DELETE /attestations/{fileId}/by-locus` per cancellare atomicamente una lista
   esplicita di attestazioni oppure tutte quelle che corrispondono al criterio
@@ -198,9 +218,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   le proprietà sono commentate nella configurazione predefinita.
 - Ampliare i test automatici dei servizi lessicali: la copertura più completa al
   momento riguarda il dominio testuale e i named graph.
-- Completare gli ulteriori servizi di gestione delle attestazioni quando saranno
-  disponibili le rispettive specifiche; al momento sono implementate creazione
-  batch e consultazione paginata per testo.
+- Aggiungere test end-to-end REST per ricerca filtrata, aggiornamento locus e
+  aggiornamento observable delle attestazioni; al momento la logica è coperta
+  da test repository.
 
 ## Decisioni tecniche importanti
 
@@ -298,22 +318,40 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/attestation-deletion`.
+- Branch locale corrente: `codex/attestation-filter-search`.
 - Base aggiornata: `origin/master` al commit `9ab5a4e`.
 - Le modifiche applicative sono organizzate in commit consecutivi e focalizzati;
   log runtime e `nb-configuration.xml` restano esclusi dai commit.
 
 ## Ultimi file modificati
 
-Il lavoro corrente aggiunge i due endpoint `DELETE` delle attestazioni, i DTO di
-input/output e una sola implementazione manager condivisa per validazione,
-selezione esplicita o completa, cancellazione RDF e compensazione fra repository.
-I nuovi loci ricevono il marcatore
+Il lavoro corrente aggiunge `PATCH /attestations/{fileId}/locus` e
+`PATCH /attestations/{fileId}/observable`. Il primo modifica soltanto loci
+LexO non condivisi, ricava la nuova anchor dal testo canonico con offset Unicode,
+sposta l'IRI `#char=start,end` e coordina le transazioni sui due repository con
+compensazione. Il secondo sostituisce atomicamente l'observable per una lista
+validata di attestazioni nello stesso named graph. I DTO dedicati documentano
+input e risultati, inclusi `updateGloss`, locus precedente e observable
+precedenti. I 38 test mirati delle attestazioni e la suite completa di 96 test
+sono passati il 30 luglio 2026; gli end-to-end REST restano da eseguire in un
+ambiente dedicato.
+
+Lo stesso lavoro non ancora committato aggiunge inoltre
+`POST /attestations/by-observable` e il DTO ricorsivo
+`AttestationFilter`, condiviso con `POST /attestations/{fileId}`. I filtri
+combinano creator, metadata RDF del contesto testuale e tipi OntoLex, preservano
+la semantica esatta di IRI/literal, lingua e datatype, e riconoscono le
+sottoclassi dichiarate nei graph lessicale e schema. La ricerca per observable
+accetta soltanto membri validi della famiglia dei graph di attestazione e
+arricchisce dopo la paginazione i risultati tramite `LexOTexts`.
+
+Il branch di base aggiunge inoltre i due endpoint `DELETE` delle attestazioni e
+una sola implementazione manager condivisa per validazione, selezione esplicita
+o completa, cancellazione RDF e compensazione fra repository. I nuovi loci
+ricevono il marcatore
 `prov:wasGeneratedBy lexo:AttestationService`; un locus viene eliminato soltanto
 quando è marcato e non è più referenziato da attestazioni. I test del 30 luglio
-2026 comprendono 28 test mirati delle attestazioni e la suite Maven completa di
-86 test, tutti passati. Gli end-to-end REST restano da eseguire in un ambiente
-GraphDB e filesystem dedicato.
+2026 ne verificano anche la cancellazione e la conservazione dei loci condivisi.
 
 La creazione dei lexical concept accetta ora i parametri facoltativi `label` e
 `language`; quando la label è presente la lingua è obbligatoria, validata sulla
@@ -333,7 +371,7 @@ Nello stesso branch l'upload testuale è stato esteso con la lingua ISO 639
 obbligatoria. I file principali coinvolti sono `Texts.java`, `TextJobManager.java`,
 `Iso639LanguageValidator.java`, `ControlledCommonMarkParser.java`, la lista CSV
 in `src/main/resources/iso639`, i test testuali e la relativa documentazione.
-La suite completa conta ora 86 test; gli end-to-end `*IT` restano esclusi da
+La suite completa conta ora 91 test; gli end-to-end `*IT` restano esclusi da
 `mvn test` e richiedono un deployment dedicato.
 
 L'ultimo commit (`9f77676`, supporto a `description`) ha modificato:

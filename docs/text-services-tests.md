@@ -251,6 +251,27 @@ nel named graph del documento, assenza di scritture nel default graph, rollback
 del batch non valido e rifiuto dei predicati strutturali. Non costituiscono un
 test end-to-end del routing HTTP della PATCH.
 
+La stessa classe verifica l'aggiornamento del locus di una singola attestazione:
+gli offset sono interpretati come code point Unicode, il nuovo valore viene
+estratto da `nif:isString`, l'IRI RFC5147 e le triple NIF vengono spostati nel
+graph documento e `rdf:value`/`frac:gloss` vengono aggiornati nel graph delle
+attestazioni. Sono coperti anche `updateGloss=false` e il rifiuto senza effetti
+dei loci condivisi o privi del marcatore LexO. L'aggiornamento observable è
+verificato sia come bulk riuscito sia come batch interamente respinto quando una
+delle attestazioni non appartiene al graph selezionato.
+
+### Ricerca filtrata delle attestazioni
+
+I test repository in `AttestationManagerTest` verificano anche la ricerca
+paginata delle attestazioni di un observable attraverso più named graph e il
+filtro condiviso con la consultazione per testo. La copertura comprende gruppi
+`AND`/`OR` annidati, più autori in alternativa, metadati del testo confrontati
+come valori RDF esatti, più tipi OntoLex in `OR` e sottoclassi transitive di
+`ontolex:LexicalEntry`. Sono verificati inoltre `totalHits`, `limit`, `offset`,
+ordinamento deterministico ed esclusione dei graph che non sono membri validi
+della famiglia configurata delle attestazioni. Non è ancora presente un test
+end-to-end del nuovo routing HTTP.
+
 ### Cancellazione delle attestazioni
 
 I test repository in `AttestationManagerTest` verificano inoltre che i servizi

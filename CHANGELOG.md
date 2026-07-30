@@ -16,9 +16,16 @@ starts from the ongoing `Unreleased` work.
 - A paginated `POST /attestations/{fileId}` service now retrieves one text's
   attestations with optional observable-type and creator filters and includes
   the corresponding NIF locus data.
+- A paginated `POST /attestations/by-observable` service now retrieves one
+  observable's attestations across all configured per-text attestation graphs.
 - A `PATCH /attestations/{fileId}/metadata` service now atomically replaces or
   removes selected RDF metadata properties on multiple attestations, preserving
   IRI values, language-tagged literals, typed literals, and multiple values.
+- A `PATCH /attestations/{fileId}/locus` service now moves one unshared,
+  LexO-generated NIF locus to new Unicode code-point offsets and recalculates
+  the attested value from the canonical text, with optional gloss preservation.
+- A `PATCH /attestations/{fileId}/observable` service now atomically replaces
+  the observable of one or more attestations in one per-document graph.
 - `DELETE /attestations/{fileId}/by-observable` and
   `DELETE /attestations/{fileId}/by-locus` services now atomically remove an
   explicit attestation list or all matching attestations in one text graph.
@@ -52,6 +59,11 @@ starts from the ongoing `Unreleased` work.
 - Paginated attestation results now expose custom attestation metadata grouped
   by property IRI, excluding protected structural FRAC, RDF, and Dublin Core
   properties.
+- Both paginated attestation services now accept bounded, nested `AND`/`OR`
+  filters for exact attestation creators, typed text metadata, and multiple
+  observable types; type matching includes `rdfs:subClassOf` hierarchies.
+- Both paginated attestation retrieval services now default to 50 results per
+  page when `limit` is omitted.
 - TXT and CommonMark uploads now require an ISO 639-1, ISO 639-2, or ISO 639-3
   language code. The validated code is written as `dcterms:language` in the NIF;
   `language` values in file front matter are ignored.
