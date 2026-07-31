@@ -100,7 +100,6 @@ public final class LexicalEntryManager implements Manager {
                 model.add(lexicon, iri(LIME + "language"),
                         vf.createLiteral(input.language));
                 addAudit(model, lexicon, creatorValue, date);
-                model.add(lexicon, iri(LEXO + "status"), vf.createLiteral(WORKING));
             }
             model.add(lexicon, iri(LIME + "entry"), entry);
 
@@ -265,8 +264,8 @@ public final class LexicalEntryManager implements Manager {
 
     private void validateEntryType(RepositoryConnection connection, IRI type,
                                    Resource graph, Resource schemaGraph) {
-        if (!isSubclassOf(connection, type, iri(ONTOLEX + "LexicalEntry"),
-                new HashSet<String>(), graph, schemaGraph)) {
+        if (!LexiconCrudSupport.isSubclassOf(connection, type,
+                iri(ONTOLEX + "LexicalEntry"), graph, schemaGraph)) {
             throw invalid("INVALID_ENTRY_TYPE",
                     "type must be ontolex:LexicalEntry or one of its subclasses");
         }
@@ -282,36 +281,14 @@ public final class LexicalEntryManager implements Manager {
                 pos, RDF.TYPE, null, false, graph, schemaGraph)) {
             while (types.hasNext()) {
                 Value type = types.next().getObject();
-                if (type instanceof IRI && isSubclassOf(connection, (IRI) type,
-                        partOfSpeech, new HashSet<String>(), graph, schemaGraph)) {
+                if (type instanceof IRI && LexiconCrudSupport.isSubclassOf(
+                        connection, (IRI) type, partOfSpeech, graph, schemaGraph)) {
                     return;
                 }
             }
         }
         throw invalid("INVALID_PART_OF_SPEECH",
                 "pos must identify a lexinfo:PartOfSpeech individual");
-    }
-
-    private boolean isSubclassOf(RepositoryConnection connection, IRI candidate,
-                                 IRI expected, Set<String> visited,
-                                 Resource graph, Resource schemaGraph) {
-        if (candidate.equals(expected)) {
-            return true;
-        }
-        if (!visited.add(candidate.stringValue())) {
-            return false;
-        }
-        try (RepositoryResult<Statement> parents = connection.getStatements(
-                candidate, RDFS.SUBCLASSOF, null, false, graph, schemaGraph)) {
-            while (parents.hasNext()) {
-                Value parent = parents.next().getObject();
-                if (parent instanceof IRI && isSubclassOf(connection, (IRI) parent,
-                        expected, visited, graph, schemaGraph)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private IRI findLexicon(RepositoryConnection connection, Resource graph,

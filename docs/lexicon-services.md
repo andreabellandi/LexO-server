@@ -144,9 +144,9 @@ Within the selected language graph, the manager deterministically reuses the
 first IRI typed `lime:Lexicon` whose `lime:language` or `dcterms:language`
 literal equals the normalized input code. A lexicon with no language or a
 different language is not reused. If no matching lexicon exists, the manager
-creates one with creator, created/modified timestamps, `lexo:status "working"`,
-and the first `lime:entry` relation. Existing lexica receive only the new
-`lime:entry` relation.
+creates one with creator, created/modified timestamps and the first
+`lime:entry` relation. Workflow status is not assigned to a `lime:Lexicon`.
+Existing lexica receive only the new `lime:entry` relation.
 
 Every entry receives its requested RDF type, creator, created/modified
 timestamps, language-tagged `rdfs:label`, and `lexo:status "working"`. Optional
@@ -174,3 +174,39 @@ the transaction. Stable error prefixes include `MISSING_ENTRY`, `MISSING_LABEL`,
 Success returns HTTP `201` with the entry IRI in `Location`. The JSON response
 contains `lexicon`, `lexiconCreated`, `entry`, optional `canonicalForm`, the
 created `senses`, normalized `language`, `status`, and `created` timestamp.
+
+## PATCH `/lexica/entries/status`
+
+This endpoint atomically changes the workflow status of one or more lexical
+entries in one language-specific named graph. Its JSON body contains the
+required `language` and a non-empty `entries` list. Every list item contains
+the absolute entry IRI, the expected `fromStatus`, and the requested
+`toStatus`. `author` is an optional query parameter and follows the shared
+authenticated-user and `anonymous` fallback rule.
+
+The only status values are `working`, `completed`, and `revised`. Legal
+transitions are `working` to `completed`, `completed` to `working`, `completed`
+to `revised`, and `revised` to `completed`. Repeating the current state and
+jumping directly between `working` and `revised` are rejected. `fromStatus`
+must match the stored value, preventing a client with stale state from
+overwriting a newer transition.
+
+Every target must exist in the selected graph and be typed as
+`ontolex:LexicalEntry` or a transitive subclass declared in the language or
+schema graph. It must have exactly one supported literal `lexo:status`. The
+complete batch is validated before writing; any invalid item rolls back the
+whole transaction. A successful transition replaces `lexo:status`, updates
+`dcterms:modified`, and records the resolved account in
+`lexo:statusChangedBy`. No status triple is written on the containing
+`lime:Lexicon`.
+
+Stable error prefixes include `MISSING_STATUS_CHANGE`,
+`MISSING_STATUS_ENTRIES`, `INVALID_STATUS`, `DUPLICATE_STATUS_ENTRY`,
+`ENTRY_NOT_FOUND`, `UNSUPPORTED_STATUS_RESOURCE_TYPE`, `STATUS_MISMATCH`,
+`STATUS_TRANSITION_NOT_ALLOWED`, `INVALID_STATUS_CARDINALITY`, and
+`INVALID_CURRENT_STATUS`. Conflicts return HTTP `409`; a resource absent from
+the selected graph returns `404` and an unsupported RDF type returns `422`.
+
+Success returns HTTP `200`. The JSON response contains normalized `language`,
+resolved `author`, the shared `modified` timestamp, and one result item per
+entry with its IRI, previous status, and new status.

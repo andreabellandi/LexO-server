@@ -6,9 +6,11 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import javax.ws.rs.POST;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.Path;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +44,23 @@ class LexiconTest {
         assertThat(method.getAnnotation(Path.class).value()).isEqualTo("entry");
         assertThat(method.getAnnotation(ApiOperation.class).value())
                 .isEqualTo("Lexical entry creation");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
+    void exposesDocumentedPatchEntryStatusesEndpointAndEveryParameter()
+            throws Exception {
+        Method method = Lexicon.class.getMethod("changeEntryStatuses", String.class,
+                String.class, LexicalEntryStatusChangeRequest.class);
+
+        assertThat(method.getAnnotation(PATCH.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value())
+                .isEqualTo("entries/status");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Lexical entry status change");
         Annotation[][] annotations = method.getParameterAnnotations();
         for (Annotation[] parameterAnnotations : annotations) {
             assertThat(hasApiParam(parameterAnnotations)).isTrue();

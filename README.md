@@ -124,6 +124,40 @@ The service returns HTTP `201`, sets `Location` to the new entry IRI, and return
 the lexicon, entry, optional canonical form, sense IRIs, normalized language,
 initial `working` status, timestamp, and a `lexiconCreated` flag.
 
+The created lexical entry receives `lexo:status "working"`; the containing
+`lime:Lexicon` does not receive a workflow status.
+
+## Lexical entry status changes
+
+`PATCH /service/lexica/entries/status` atomically changes the status of one or
+more lexical entries in the same language graph. The optional `author` query
+parameter follows authenticated-user resolution and defaults to `anonymous`.
+
+```json
+{
+  "language": "it",
+  "entries": [
+    {
+      "entry": "https://lexo.ilc.cnr.it#lexo_entry_1",
+      "fromStatus": "working",
+      "toStatus": "completed"
+    },
+    {
+      "entry": "https://lexo.ilc.cnr.it#lexo_entry_2",
+      "fromStatus": "completed",
+      "toStatus": "revised"
+    }
+  ]
+}
+```
+
+Supported transitions are `working` to `completed`, `completed` to `working`,
+`completed` to `revised`, and `revised` to `completed`. `fromStatus` must match
+the stored value. Every entry must be an `ontolex:LexicalEntry` or subclass and
+must have exactly one supported `lexo:status`; otherwise the entire batch is
+rolled back. Successful changes update `dcterms:modified` and store the resolved
+account in `lexo:statusChangedBy`.
+
 ## Text upload language
 
 `POST /service/texts/upload` requires a multipart `language` field in addition

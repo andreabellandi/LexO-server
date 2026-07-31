@@ -90,7 +90,7 @@ class LexicalEntryManagerTest {
             assertThat(connection.hasStatement(lexicon, iri(LIME + "entry"),
                     entry, false, graph)).isTrue();
             assertThat(connection.hasStatement(lexicon, iri(LEXO + "status"),
-                    vf.createLiteral("working"), false, graph)).isTrue();
+                    null, false, graph)).isFalse();
 
             assertThat(connection.hasStatement(entry, RDF.TYPE, word,
                     false, graph)).isTrue();
@@ -104,6 +104,8 @@ class LexicalEntryManagerTest {
                     null, false, graph)).isTrue();
             assertThat(connection.hasStatement(entry, DCTERMS.MODIFIED,
                     null, false, graph)).isTrue();
+            assertThat(connection.hasStatement(entry, iri(LEXO + "status"),
+                    vf.createLiteral("working"), false, graph)).isTrue();
             assertThat(createdLiteral(connection, entry, graph).getDatatype())
                     .isEqualTo(XSD.DATETIME);
 

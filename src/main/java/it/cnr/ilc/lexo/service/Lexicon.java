@@ -7,12 +7,16 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.LexiconCrudSupport;
 import it.cnr.ilc.lexo.manager.LexicalEntryManager;
+import it.cnr.ilc.lexo.manager.LexicalEntryStatusManager;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryCreationResult;
+import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryStatusChangeResult;
 import java.net.URI;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.HeaderParam;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -33,13 +37,67 @@ public class Lexicon extends Service {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final LexicalEntryManager entryManager;
+    private final LexicalEntryStatusManager statusManager;
 
     public Lexicon() {
-        this(ManagerFactory.getManager(LexicalEntryManager.class));
+        this(ManagerFactory.getManager(LexicalEntryManager.class),
+                ManagerFactory.getManager(LexicalEntryStatusManager.class));
     }
 
-    Lexicon(LexicalEntryManager entryManager) {
+    Lexicon(LexicalEntryManager entryManager,
+            LexicalEntryStatusManager statusManager) {
         this.entryManager = entryManager;
+        this.statusManager = statusManager;
+    }
+
+    @PATCH
+    @Path("entries/status")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Lexical entry status change",
+            notes = "Atomically changes the workflow status of one or more lexical entries in one language-specific LexOLexica named graph")
+    public Response changeEntryStatuses(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header when LexO user management is enabled",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "author",
+                    value = "account changing the lexical entry statuses when LexO user management is disabled",
+                    example = "editor", required = false)
+            @QueryParam("author") String author,
+            @ApiParam(name = "statusChanges",
+                    value = "one or more expected lexical entry workflow transitions",
+                    required = true)
+            LexicalEntryStatusChangeRequest request) {
+        try {
+            checkKey(key);
+            String updater = resolveAuthor(author);
+            log(Level.INFO, "/lexica/entries/status: changing lexical entry statuses");
+            LexicalEntryStatusChangeResult result = statusManager.change(
+                    request, updater);
+            log(Level.INFO, "/lexica/entries/status: changed entries="
+                    + result.entries.size());
+            return jsonOk(result);
+        } catch (IllegalArgumentException e) {
+            log(Level.ERROR, "/lexica/entries/status: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (LexicalEntryStatusManager.StatusChangeException e) {
+            log(Level.ERROR, "/lexica/entries/status: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/lexica/entries/status: " + username
+                    + " not authorized");
+            return plain(Response.Status.BAD_REQUEST,
+                    username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/lexica/entries/status: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
     }
 
     @POST
@@ -108,7 +166,21 @@ public class Lexicon extends Service {
         }
     }
 
+    private static Response jsonOk(Object body) {
+        try {
+            return Response.ok(MAPPER.writeValueAsString(body),
+                    MediaType.APPLICATION_JSON).build();
+        } catch (JsonProcessingException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
     private static Response plain(Response.Status status, String message) {
+        return Response.status(status).type(MediaType.TEXT_PLAIN)
+                .entity(message == null ? "" : message).build();
+    }
+
+    private static Response plain(int status, String message) {
         return Response.status(status).type(MediaType.TEXT_PLAIN)
                 .entity(message == null ? "" : message).build();
     }

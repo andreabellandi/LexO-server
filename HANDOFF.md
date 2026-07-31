@@ -1,9 +1,10 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 31 luglio 2026 dopo l'implementazione del primo nuovo CRUD
-lessicale, `POST /lexica/entry`, direttamente sul branch `master`. Il servizio
-usa il connettore GraphDB esistente verso `LexOLexica` e isola ogni operazione
-nel named graph della lingua validata. Il POM risolve inoltre l'artefatto Maven
+Aggiornato al 31 luglio 2026 dopo l'implementazione del servizio batch
+`PATCH /lexica/entries/status`, direttamente sul branch `master`, accanto al
+primo nuovo CRUD lessicale `POST /lexica/entry`. I servizi usano il connettore
+GraphDB esistente verso `LexOLexica` e isolano ogni operazione nel named graph
+della lingua validata. Il POM risolve inoltre l'artefatto Maven
 non pubblico `klab.ilc.cnr.it:OntoApi:1.0` dal repository file-based versionato
 sotto `vendor/maven`, senza richiedere una preventiva installazione locale.
 Questo documento descrive lo stato osservato del repository; prima di iniziare
@@ -103,6 +104,12 @@ appartenenza ai corpora sono persistiti in GraphDB.
   crea il `lime:Lexicon` della lingua e restituisce tutti gli IRI creati. Tipo
   dell'entrata e parte del discorso vengono validati nei graph linguistico e di
   schema; i metadata dei sensi proteggono le proprietà strutturali.
+- Nuovo endpoint `PATCH /lexica/entries/status`: cambia atomicamente lo stato di
+  una o più entrate dello stesso graph linguistico, controlla lo stato atteso e
+  le sole transizioni `working`/`completed`/`revised` consentite, aggiorna
+  `dcterms:modified` e registra l'account in `lexo:statusChangedBy`. Lo status
+  iniziale `working` resta assegnato all'entrata creata, ma non al
+  `lime:Lexicon` contenitore.
 - Configurazione senza profili Maven: GraphDB locale, repository fissi
   `LexOLexica` e `LexOTexts`.
 - Bootstrap idempotente all'avvio: creazione dei due repository GraphDB Free,
@@ -141,8 +148,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 115 test unitari/repository passati il 31 luglio 2026, inclusi
-  i 14 test mirati del nuovo servizio lessicale e del supporto condiviso, i 3
+- Suite corrente: 122 test unitari/repository passati il 31 luglio 2026, inclusi
+  i 21 test mirati dei nuovi servizi lessicali e del supporto condiviso, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
@@ -346,9 +353,9 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 ## Stato Git
 
 - Branch locale corrente: `master`.
-- `origin/master` aggiornato il 31 luglio 2026 al commit `b20f641`; il branch
-  locale è avanti di un commit (`f6ed358`) e contiene il nuovo servizio ancora
-  non committato.
+- `origin/master` aggiornato e allineato il 31 luglio 2026 al commit `d54cc21`;
+  le modifiche al servizio batch di status sono presenti nel worktree e non
+  sono ancora committate.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
@@ -356,7 +363,12 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 È stata predisposta e usata la base della riscrittura incrementale dei CRUD
 lessicali, senza rimuovere o modificare gli endpoint legacy. La nuova risorsa
 `service/Lexicon.java` risponde alla radice `lexica`, espone il tag Swagger
-`Lexica` e contiene ora `POST /lexica/entry`.
+`Lexica` e contiene `POST /lexica/entry` e
+`PATCH /lexica/entries/status`. `LexicalEntryStatusManager` valida l'intero
+batch prima di scrivere, limita i target alle entrate OntoLex del graph
+linguistico, applica il rollback su ogni errore e mantiene autore e timestamp
+della transizione. I relativi DTO sono sotto `service/data/lexicon` e
+`LexicalWorkflowStatus` centralizza valori e transizioni ammesse.
 `LexiconCrudSupport` centralizza la selezione del named graph specifico per
 lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
 generazione delle IRI tramite namespace, instance id e timestamp configurati
@@ -375,10 +387,12 @@ Le collezioni `properties` e `metadata` di ogni senso condividono ora la stessa
 struttura JSON: una lista di oggetti con `property` e `values`, dove `values` è
 multivalore. I vincoli aggiuntivi sui predicati strutturali restano applicati a
 `metadata`.
-I 14 test mirati e la suite completa di 115 test unitari/repository sono passati
-il 31 luglio 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
-riportato soltanto i warning ambientali già noti su SLF4J e su codice legacy
-deprecato/unchecked.
+I 21 test mirati e la suite completa di 122 test unitari/repository sono passati
+il 31 luglio 2026. Una prima suite completa ha incontrato la collisione
+millisecondale legacy `ATTESTATION_ID_CONFLICT` già nota; il test isolato e il
+successivo rilancio completo sono passati. Gli end-to-end `*IT` non sono stati
+eseguiti; Maven ha riportato soltanto i warning ambientali già noti su SLF4J e
+su codice legacy deprecato/unchecked.
 
 Il lavoro corrente aggiunge due endpoint `PUT` in `Texts`, i DTO
 `TextTotalInput`/`TextTotalResult`, il manager condiviso `TextTotalManager` e la
@@ -461,8 +475,9 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere un end-to-end REST dedicato a `POST /lexica/entry` contro un
-   repository `LexOLexica` isolato, inclusi riuso del lessico e rollback.
+1. Aggiungere end-to-end REST dedicati a `POST /lexica/entry` e
+   `PATCH /lexica/entries/status` contro un repository `LexOLexica` isolato,
+   inclusi riuso del lessico, transizioni batch e rollback.
 2. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
    cancellazione e metadata delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.

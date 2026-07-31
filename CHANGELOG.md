@@ -13,6 +13,10 @@ starts from the ongoing `Unreleased` work.
   canonical form, and RDF-valued senses in the ISO-language-specific
   `LexOLexica` named graph, reusing or creating its `lime:Lexicon` and returning
   every created resource IRI.
+- `PATCH /lexica/entries/status` now atomically changes the workflow status of
+  one or more lexical entries in a language-specific named graph, validates
+  the expected current status and legal transitions, and records the resolved
+  author and modification timestamp.
 - The non-public `OntoApi:1.0` Maven artifact is now bundled in the repository,
   allowing clean checkouts to resolve the dependency without a manual local
   Maven installation.
@@ -56,6 +60,9 @@ starts from the ongoing `Unreleased` work.
   type, lemma, and sentence units in their respective LexOTexts named graphs.
 
 ### Changed
+
+- Newly created `lime:Lexicon` resources no longer receive a workflow status;
+  `lexo:status` is assigned only to lexical entries.
 
 - New lexical CRUD resource IRIs now normalize timestamp colons and decimal
   separators with `_` instead of `*`, producing identifiers that are safer to

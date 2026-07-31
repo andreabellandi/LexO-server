@@ -7,6 +7,15 @@ import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
+import org.eclipse.rdf4j.repository.RepositoryConnection;
+import org.eclipse.rdf4j.repository.RepositoryResult;
 
 /**
  * Shared invariants for the new lexical CRUD services.
@@ -126,5 +135,36 @@ public final class LexiconCrudSupport {
         prefixes.put("lime", "http://www.w3.org/ns/lemon/lime#");
         prefixes.put("lexicog", "http://www.w3.org/ns/lemon/lexicog#");
         return Collections.unmodifiableMap(prefixes);
+    }
+
+    /** Tests a transitive RDF subclass relation in the supplied named graphs. */
+    public static boolean isSubclassOf(RepositoryConnection connection,
+                                       IRI candidate, IRI expected,
+                                       Resource... graphs) {
+        return isSubclassOf(connection, candidate, expected,
+                new HashSet<String>(), graphs);
+    }
+
+    private static boolean isSubclassOf(RepositoryConnection connection,
+                                        IRI candidate, IRI expected,
+                                        Set<String> visited,
+                                        Resource... graphs) {
+        if (candidate.equals(expected)) {
+            return true;
+        }
+        if (!visited.add(candidate.stringValue())) {
+            return false;
+        }
+        try (RepositoryResult<Statement> parents = connection.getStatements(
+                candidate, RDFS.SUBCLASSOF, null, false, graphs)) {
+            while (parents.hasNext()) {
+                Value parent = parents.next().getObject();
+                if (parent instanceof IRI && isSubclassOf(connection, (IRI) parent,
+                        expected, visited, graphs)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
