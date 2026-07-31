@@ -57,6 +57,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Lexical sense `metadata` in `POST /lexica/entry` now uses the same
+  `{property, values}` list structure as `properties`, with multiple RDF values
+  supported for every metadata property.
 - Attestation creation, deletion, and observable replacement now maintain one
   `frac:Frequency` per observable and specific text in the document attestation
   graph. Creation and retrieval items expose `frequency`; deletion and

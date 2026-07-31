@@ -92,15 +92,18 @@ user resolution.
           ]
         }
       ],
-      "metadata": {
-        "https://example.org/vocabulary/confidence": [
-          {
-            "value": "0.92",
-            "type": "literal",
-            "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
-          }
-        ]
-      }
+      "metadata": [
+        {
+          "property": "https://example.org/vocabulary/confidence",
+          "values": [
+            {
+              "value": "0.92",
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
@@ -109,10 +112,11 @@ user resolution.
 `label`, `type`, and `language` are required. `type` must be
 `ontolex:LexicalEntry` or a subclass declared in the language or schema graph;
 `pos`, when supplied, must identify a `lexinfo:PartOfSpeech` individual.
-`lemma=true` creates the canonical `ontolex:Form`. Sense property values support
-IRIs, plain literals, language-tagged literals, and typed literals. Custom
-`metadata` rejects structural predicates including RDF type/value, creator and
-timestamps, `skos:definition`, `ontolex:reference`, and
+`lemma=true` creates the canonical `ontolex:Form`. Both `properties` and
+`metadata` are lists of `{property, values}` objects, and every `values` list is
+multivalued. Values support IRIs, plain literals, language-tagged literals, and
+typed literals. Custom `metadata` rejects structural predicates including RDF
+type/value, creator and timestamps, `skos:definition`, `ontolex:reference`, and
 `ontolex:isLexicalizedSenseOf`; semantic properties such as definitions belong
 in `properties`.
 

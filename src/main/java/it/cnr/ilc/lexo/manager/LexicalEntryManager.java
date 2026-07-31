@@ -17,7 +17,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.eclipse.rdf4j.model.IRI;
@@ -189,10 +188,14 @@ public final class LexicalEntryManager implements Manager {
             }
         }
         if (sense.metadata != null) {
-            for (Map.Entry<String, List<LexicalRdfValue>> metadata
-                    : sense.metadata.entrySet()) {
-                addPropertyValues(values, metadata.getKey(), metadata.getValue(),
-                        true, "senses[" + index + "].metadata");
+            for (int i = 0; i < sense.metadata.size(); i++) {
+                LexicalSenseProperty metadata = sense.metadata.get(i);
+                if (metadata == null) {
+                    throw invalid("INVALID_SENSE_METADATA", "metadata at sense "
+                            + index + ", index " + i + " must be an object");
+                }
+                addPropertyValues(values, metadata.property, metadata.values,
+                        true, "senses[" + index + "].metadata[" + i + "]");
             }
         }
         return new ValidatedSense(values);

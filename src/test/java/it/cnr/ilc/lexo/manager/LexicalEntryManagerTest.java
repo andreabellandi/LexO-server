@@ -11,8 +11,6 @@ import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryCreationResult;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
@@ -197,9 +195,11 @@ class LexicalEntryManagerTest {
 
         LexicalEntryCreationRequest invalidMetadata = request("it");
         LexicalSenseCreation sense = new LexicalSenseCreation();
-        sense.metadata = new LinkedHashMap<String, List<LexicalRdfValue>>();
-        sense.metadata.put(SKOS + "definition", Arrays.asList(
-                new LexicalRdfValue("not metadata", "literal", "it", null)));
+        LexicalSenseProperty metadata = new LexicalSenseProperty();
+        metadata.property = SKOS + "definition";
+        metadata.values = Arrays.asList(
+                new LexicalRdfValue("not metadata", "literal", "it", null));
+        sense.metadata = Arrays.asList(metadata);
         invalidMetadata.senses = Arrays.asList(sense);
         assertThatThrownBy(() -> manager.create(invalidMetadata, "editor"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -236,6 +236,35 @@ class LexicalEntryManagerTest {
                 .hasMessageStartingWith("INVALID_LITERAL_VALUE:");
     }
 
+    @Test
+    void readsMetadataAsAPropertyListAndPersistsMultipleValues() throws Exception {
+        String metadataProperty = "https://example.org/vocabulary/source";
+        String json = "{\"label\":\"casa\","
+                + "\"type\":\"ontolex:LexicalEntry\",\"language\":\"it\","
+                + "\"senses\":[{\"metadata\":[{\"property\":\""
+                + metadataProperty + "\",\"values\":["
+                + "{\"value\":\"fonte primaria\",\"type\":\"literal\",\"language\":\"it\"},"
+                + "{\"value\":\"https://example.org/source/1\",\"type\":\"iri\"}]}]}]}";
+        LexicalEntryCreationRequest request = new ObjectMapper().readValue(
+                json, LexicalEntryCreationRequest.class);
+
+        assertThat(request.senses.get(0).metadata).hasSize(1);
+        assertThat(request.senses.get(0).metadata.get(0).values).hasSize(2);
+        LexicalEntryCreationResult result = manager.create(request, "editor");
+
+        IRI graph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI sense = iri(result.senses.get(0));
+        IRI property = iri(metadataProperty);
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(sense, property,
+                    vf.createLiteral("fonte primaria", "it"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(sense, property,
+                    iri("https://example.org/source/1"), false, graph)).isTrue();
+            assertThat(count(connection, sense, property, null, graph)).isEqualTo(2);
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
     private LexicalEntryCreationRequest request(String language) {
         LexicalEntryCreationRequest request = new LexicalEntryCreationRequest();
         request.label = "casa";
@@ -252,10 +281,11 @@ class LexicalEntryManagerTest {
                 "edificio adibito ad abitazione", "literal", "it", null));
         LexicalSenseCreation sense = new LexicalSenseCreation();
         sense.properties = Arrays.asList(definition);
-        sense.metadata = new LinkedHashMap<String, List<LexicalRdfValue>>();
-        sense.metadata.put("https://example.org/vocabulary/confidence",
-                Arrays.asList(new LexicalRdfValue("0.92", "literal", null,
-                        XSD.DECIMAL.stringValue())));
+        LexicalSenseProperty confidence = new LexicalSenseProperty();
+        confidence.property = "https://example.org/vocabulary/confidence";
+        confidence.values = Arrays.asList(new LexicalRdfValue(
+                "0.92", "literal", null, XSD.DECIMAL.stringValue()));
+        sense.metadata = Arrays.asList(confidence);
         return sense;
     }
 

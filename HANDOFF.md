@@ -141,8 +141,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 114 test unitari/repository passati il 31 luglio 2026, inclusi
-  i 13 test mirati del nuovo servizio lessicale e del supporto condiviso, i 3
+- Suite corrente: 115 test unitari/repository passati il 31 luglio 2026, inclusi
+  i 14 test mirati del nuovo servizio lessicale e del supporto condiviso, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
@@ -371,7 +371,11 @@ regole permanenti in `AGENTS.md`. `LexicalEntryManager` usa
 prima delle scritture e persiste l'intero modello in una singola transazione del
 graph linguistico. Lo stesso contratto fissa i namespace `decomp`, `vartrans`,
 `ontolex`, `synsem`, `lexinfo` 3.0, `lime` e `lexicog`.
-I 13 test mirati e la suite completa di 114 test unitari/repository sono passati
+Le collezioni `properties` e `metadata` di ogni senso condividono ora la stessa
+struttura JSON: una lista di oggetti con `property` e `values`, dove `values` è
+multivalore. I vincoli aggiuntivi sui predicati strutturali restano applicati a
+`metadata`.
+I 14 test mirati e la suite completa di 115 test unitari/repository sono passati
 il 31 luglio 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
 riportato soltanto i warning ambientali già noti su SLF4J e su codice legacy
 deprecato/unchecked.

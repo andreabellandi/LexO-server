@@ -155,11 +155,12 @@ timestamps, language-tagged `rdfs:label`, and `lexo:status "working"`. Optional
 the language-tagged `ontolex:writtenRep`.
 
 Each item in `senses` creates an `ontolex:LexicalSense` linked through
-`ontolex:sense`, with creator and created/modified timestamps. `properties` is
-a list of property/value groups; `metadata` is an object keyed by property IRI.
-Both preserve multiple IRI, plain literal, language-tagged literal, and typed
-literal values. Service-managed type, creator, timestamp, and status predicates
-cannot be supplied through `properties`. In addition, `metadata` excludes
+`ontolex:sense`, with creator and created/modified timestamps. Both `properties`
+and `metadata` are lists of `{property, values}` groups, and each group has a
+non-empty, multivalued `values` list. Both preserve multiple IRI, plain literal,
+language-tagged literal, and typed literal values. Service-managed type,
+creator, timestamp, and status predicates cannot be supplied through
+`properties`. In addition, `metadata` excludes
 `rdf:type`, `rdf:value`, creator and timestamps, `skos:definition`,
 `ontolex:reference`, and `ontolex:isLexicalizedSenseOf`; these structural or
 semantic relations belong to the service-managed triples or `properties`.
