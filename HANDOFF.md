@@ -1,8 +1,8 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 31 luglio 2026 dopo l'implementazione del servizio batch
-`PATCH /lexica/entries/status`, direttamente sul branch `master`, accanto al
-primo nuovo CRUD lessicale `POST /lexica/entry`. I servizi usano il connettore
+Aggiornato al 31 luglio 2026 dopo l'estensione dei metadata RDF dell'entrata in
+`POST /lexica/entry`, direttamente sul branch `master`, accanto al servizio
+batch `PATCH /lexica/entries/status`. I servizi usano il connettore
 GraphDB esistente verso `LexOLexica` e isolano ogni operazione nel named graph
 della lingua validata. Il POM risolve inoltre l'artefatto Maven
 non pubblico `klab.ilc.cnr.it:OntoApi:1.0` dal repository file-based versionato
@@ -103,7 +103,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   atomicamente un'entrata, l'eventuale forma canonica e più sensi RDF, riusa o
   crea il `lime:Lexicon` della lingua e restituisce tutti gli IRI creati. Tipo
   dell'entrata e parte del discorso vengono validati nei graph linguistico e di
-  schema; i metadata dei sensi proteggono le proprietà strutturali.
+  schema. Entrata e sensi accettano metadata RDF multivalore con IRI e letterali;
+  i rispettivi insiemi di predicati riservati proteggono le proprietà
+  strutturali gestite dal servizio.
 - Nuovo endpoint `PATCH /lexica/entries/status`: cambia atomicamente lo stato di
   una o più entrate dello stesso graph linguistico, controlla lo stato atteso e
   le sole transizioni `working`/`completed`/`revised` consentite, aggiorna
@@ -148,8 +150,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 122 test unitari/repository passati il 31 luglio 2026, inclusi
-  i 21 test mirati dei nuovi servizi lessicali e del supporto condiviso, i 3
+- Suite corrente: 125 test unitari/repository passati il 31 luglio 2026, inclusi
+  i 24 test mirati dei nuovi servizi lessicali e del supporto condiviso, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei

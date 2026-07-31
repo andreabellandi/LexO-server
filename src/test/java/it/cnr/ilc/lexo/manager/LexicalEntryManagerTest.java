@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfValue;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseCreation;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseProperty;
@@ -265,6 +266,89 @@ class LexicalEntryManagerTest {
             assertThat(count(connection, sense, property, null, graph)).isEqualTo(2);
             assertDefaultGraphEmpty(connection);
         }
+    }
+
+    @Test
+    void readsEntryMetadataAsAPropertyListAndPersistsMultipleValues()
+            throws Exception {
+        String metadataProperty = "https://example.org/vocabulary/source";
+        String json = "{\"label\":\"casa\","
+                + "\"type\":\"ontolex:LexicalEntry\",\"language\":\"it\","
+                + "\"metadata\":[{\"property\":\"" + metadataProperty
+                + "\",\"values\":["
+                + "{\"value\":\"fonte primaria\",\"type\":\"literal\",\"language\":\"it\"},"
+                + "{\"value\":\"https://example.org/source/1\",\"type\":\"iri\"}]}]}";
+        LexicalEntryCreationRequest request = new ObjectMapper().readValue(
+                json, LexicalEntryCreationRequest.class);
+
+        assertThat(request.metadata).hasSize(1);
+        assertThat(request.metadata.get(0).values).hasSize(2);
+        LexicalEntryCreationResult result = manager.create(request, "editor");
+
+        IRI graph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI entry = iri(result.entry);
+        IRI property = iri(metadataProperty);
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(entry, property,
+                    vf.createLiteral("fonte primaria", "it"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(entry, property,
+                    iri("https://example.org/source/1"), false, graph)).isTrue();
+            assertThat(count(connection, entry, property, null, graph)).isEqualTo(2);
+            assertThat(connection.hasStatement(entry, property, null, false,
+                    iri(LexiconCrudSupport.lexicalGraphUri("en")))).isFalse();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void rejectsEveryStructuralEntryMetadataPropertyBeforeWriting() {
+        String[] reserved = {
+            RDF.TYPE.stringValue(),
+            RDF.VALUE.stringValue(),
+            RDFS.LABEL.stringValue(),
+            DCTERMS.CREATOR.stringValue(),
+            DCTERMS.CREATED.stringValue(),
+            DCTERMS.MODIFIED.stringValue(),
+            ONTOLEX + "otherForm",
+            ONTOLEX + "canonicalForm",
+            ONTOLEX + "sense",
+            ONTOLEX + "denotes",
+            ONTOLEX + "evokes"
+        };
+
+        for (String predicate : reserved) {
+            LexicalEntryCreationRequest invalid = request("it");
+            LexicalRdfProperty metadata = new LexicalRdfProperty();
+            metadata.property = predicate;
+            metadata.values = Arrays.asList(new LexicalRdfValue(
+                    "structural value", "literal", null, null));
+            invalid.metadata = Arrays.asList(metadata);
+
+            assertThatThrownBy(() -> manager.create(invalid, "editor"))
+                    .as(predicate)
+                    .hasMessageStartingWith("RESERVED_ENTRY_METADATA_PROPERTY:");
+        }
+
+        try (RepositoryConnection connection = repository.getConnection()) {
+            IRI graph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+            assertThat(connection.hasStatement(null, null, null, false, graph)).isFalse();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void rejectsMalformedEntryMetadata() {
+        LexicalEntryCreationRequest nullItem = request("it");
+        nullItem.metadata = Arrays.asList((LexicalRdfProperty) null);
+        assertThatThrownBy(() -> manager.create(nullItem, "editor"))
+                .hasMessageStartingWith("INVALID_ENTRY_METADATA:");
+
+        LexicalEntryCreationRequest missingValues = request("it");
+        LexicalRdfProperty metadata = new LexicalRdfProperty();
+        metadata.property = "https://example.org/vocabulary/source";
+        missingValues.metadata = Arrays.asList(metadata);
+        assertThatThrownBy(() -> manager.create(missingValues, "editor"))
+                .hasMessageStartingWith("MISSING_ENTRY_METADATA_VALUES:");
     }
 
     private LexicalEntryCreationRequest request(String language) {

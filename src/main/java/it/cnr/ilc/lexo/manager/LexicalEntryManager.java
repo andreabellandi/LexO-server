@@ -4,6 +4,7 @@ import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfValue;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseCreation;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseProperty;
@@ -46,8 +47,10 @@ public final class LexicalEntryManager implements Manager {
     private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
     private static final String LEXO = "https://lexo.ilc.cnr.it#";
     private static final String WORKING = "working";
-    private static final Set<String> RESERVED_METADATA_PROPERTIES =
-            reservedMetadataProperties();
+    private static final Set<String> RESERVED_ENTRY_METADATA_PROPERTIES =
+            reservedEntryMetadataProperties();
+    private static final Set<String> RESERVED_SENSE_METADATA_PROPERTIES =
+            reservedSenseMetadataProperties();
     private static final Set<String> MANAGED_SENSE_PROPERTIES =
             managedSenseProperties();
 
@@ -111,6 +114,9 @@ public final class LexicalEntryManager implements Manager {
             if (input.pos != null) {
                 model.add(entry, iri(LEXINFO + "partOfSpeech"), input.pos);
             }
+            for (PropertyValue value : input.metadata) {
+                model.add(entry, value.property, value.value);
+            }
 
             if (form != null) {
                 model.add(entry, iri(ONTOLEX + "canonicalForm"), form);
@@ -159,6 +165,7 @@ public final class LexicalEntryManager implements Manager {
             pos = requireIri("pos", LexiconCrudSupport.expandLexicalIri(
                     request.pos.trim()), "INVALID_PART_OF_SPEECH_IRI");
         }
+        List<PropertyValue> metadata = validateEntryMetadata(request.metadata);
         List<ValidatedSense> senses = new ArrayList<ValidatedSense>();
         if (request.senses != null) {
             for (int i = 0; i < request.senses.size(); i++) {
@@ -170,7 +177,29 @@ public final class LexicalEntryManager implements Manager {
                 senses.add(validateSense(sense, i));
             }
         }
-        return new ValidatedRequest(language, type, pos, senses);
+        return new ValidatedRequest(language, type, pos, metadata, senses);
+    }
+
+    private List<PropertyValue> validateEntryMetadata(
+            List<LexicalRdfProperty> metadata) {
+        List<PropertyValue> values = new ArrayList<PropertyValue>();
+        if (metadata == null) {
+            return values;
+        }
+        for (int i = 0; i < metadata.size(); i++) {
+            LexicalRdfProperty property = metadata.get(i);
+            if (property == null) {
+                throw invalid("INVALID_ENTRY_METADATA", "metadata at entry index "
+                        + i + " must be an object");
+            }
+            addPropertyValues(values, property.property, property.values,
+                    RESERVED_ENTRY_METADATA_PROPERTIES,
+                    "RESERVED_ENTRY_METADATA_PROPERTY",
+                    "INVALID_ENTRY_METADATA_PROPERTY_IRI",
+                    "MISSING_ENTRY_METADATA_VALUES", false,
+                    "metadata[" + i + "]");
+        }
+        return values;
     }
 
     private ValidatedSense validateSense(LexicalSenseCreation sense, int index) {
@@ -183,7 +212,10 @@ public final class LexicalEntryManager implements Manager {
                             + index + ", index " + i + " must be an object");
                 }
                 addPropertyValues(values, property.property, property.values,
-                        false, "senses[" + index + "].properties[" + i + "]");
+                        null, null,
+                        "INVALID_SENSE_PROPERTY_IRI",
+                        "MISSING_SENSE_PROPERTY_VALUES", true,
+                        "senses[" + index + "].properties[" + i + "]");
             }
         }
         if (sense.metadata != null) {
@@ -194,27 +226,38 @@ public final class LexicalEntryManager implements Manager {
                             + index + ", index " + i + " must be an object");
                 }
                 addPropertyValues(values, metadata.property, metadata.values,
-                        true, "senses[" + index + "].metadata[" + i + "]");
+                        RESERVED_SENSE_METADATA_PROPERTIES,
+                        "RESERVED_SENSE_METADATA_PROPERTY",
+                        "INVALID_SENSE_PROPERTY_IRI",
+                        "MISSING_SENSE_PROPERTY_VALUES", false,
+                        "senses[" + index + "].metadata[" + i + "]");
             }
         }
         return new ValidatedSense(values);
     }
 
     private void addPropertyValues(List<PropertyValue> target, String propertyValue,
-                                   List<LexicalRdfValue> values, boolean metadata,
+                                   List<LexicalRdfValue> values,
+                                   Set<String> reservedMetadataProperties,
+                                   String reservedMetadataCode,
+                                   String invalidPropertyCode,
+                                   String missingValuesCode,
+                                   boolean enforceManagedSenseProperties,
                                    String path) {
         IRI property = requireIri(path + ".property", propertyValue,
-                "INVALID_SENSE_PROPERTY_IRI");
-        if (metadata && RESERVED_METADATA_PROPERTIES.contains(property.stringValue())) {
-            throw invalid("RESERVED_SENSE_METADATA_PROPERTY",
+                invalidPropertyCode);
+        if (reservedMetadataProperties != null
+                && reservedMetadataProperties.contains(property.stringValue())) {
+            throw invalid(reservedMetadataCode,
                     property.stringValue() + " is structural and cannot be metadata");
         }
-        if (!metadata && MANAGED_SENSE_PROPERTIES.contains(property.stringValue())) {
+        if (enforceManagedSenseProperties
+                && MANAGED_SENSE_PROPERTIES.contains(property.stringValue())) {
             throw invalid("MANAGED_SENSE_PROPERTY",
                     property.stringValue() + " is managed by the service");
         }
         if (values == null || values.isEmpty()) {
-            throw invalid("MISSING_SENSE_PROPERTY_VALUES",
+            throw invalid(missingValuesCode,
                     path + ".values must not be empty");
         }
         for (int i = 0; i < values.size(); i++) {
@@ -415,7 +458,16 @@ public final class LexicalEntryManager implements Manager {
         }
     }
 
-    private static Set<String> reservedMetadataProperties() {
+    private static Set<String> reservedEntryMetadataProperties() {
+        return Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+                RDF.TYPE.stringValue(), RDF.VALUE.stringValue(),
+                RDFS.LABEL.stringValue(), DCTERMS.CREATOR.stringValue(),
+                DCTERMS.CREATED.stringValue(), DCTERMS.MODIFIED.stringValue(),
+                ONTOLEX + "otherForm", ONTOLEX + "canonicalForm",
+                ONTOLEX + "sense", ONTOLEX + "denotes", ONTOLEX + "evokes")));
+    }
+
+    private static Set<String> reservedSenseMetadataProperties() {
         return Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
                 RDF.TYPE.stringValue(), RDF.VALUE.stringValue(),
                 DCTERMS.CREATOR.stringValue(), DCTERMS.CREATED.stringValue(),
@@ -434,13 +486,16 @@ public final class LexicalEntryManager implements Manager {
         final String language;
         final IRI type;
         final IRI pos;
+        final List<PropertyValue> metadata;
         final List<ValidatedSense> senses;
 
         ValidatedRequest(String language, IRI type, IRI pos,
+                         List<PropertyValue> metadata,
                          List<ValidatedSense> senses) {
             this.language = language;
             this.type = type;
             this.pos = pos;
+            this.metadata = metadata;
             this.senses = senses;
         }
     }

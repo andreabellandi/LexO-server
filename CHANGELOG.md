@@ -61,6 +61,8 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- `POST /lexica/entry` now accepts multivalued RDF `metadata` directly on the
+  lexical entry, while rejecting service-managed structural entry predicates.
 - Newly created `lime:Lexicon` resources no longer receive a workflow status;
   `lexo:status` is assigned only to lexical entries.
 

@@ -6,7 +6,8 @@ import it.cnr.ilc.lexo.service.data.Data;
 import java.util.List;
 
 /** Request body for atomic lexical entry creation. */
-@ApiModel(description = "A lexical entry, its optional canonical form, and senses")
+@ApiModel(description = "A lexical entry with custom metadata, its optional "
+        + "canonical form, and senses")
 public class LexicalEntryCreationRequest implements Data {
 
     @ApiModelProperty(value = "entry label", required = true, example = "casa")
@@ -27,6 +28,10 @@ public class LexicalEntryCreationRequest implements Data {
     @ApiModelProperty(value = "create a canonical form using the label",
             example = "true")
     public Boolean lemma;
+
+    @ApiModelProperty(value = "custom RDF metadata properties of the entry, "
+            + "each with a non-empty value list")
+    public List<LexicalRdfProperty> metadata;
 
     @ApiModelProperty(value = "optional lexical senses created with the entry")
     public List<LexicalSenseCreation> senses;

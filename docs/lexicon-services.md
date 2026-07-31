@@ -130,15 +130,24 @@ For each new CRUD endpoint:
 
 This endpoint creates one lexical entry and all requested child resources in a
 single transaction in `RepositoryTarget.LEXICON`. Its JSON body contains the
-required `label`, `type`, and `language`, plus optional `pos`, `lemma`, and
-`senses`. `author` is an optional query parameter and follows the shared
-authenticated-user and `anonymous` fallback rule.
+required `label`, `type`, and `language`, plus optional `pos`, `lemma`,
+entry-level `metadata`, and `senses`. `author` is an optional query parameter
+and follows the shared authenticated-user and `anonymous` fallback rule.
 
 `type` accepts an absolute IRI or one of the exact supported compact prefixes
 and must resolve to `ontolex:LexicalEntry` or a transitive subclass declared in
 the language-specific graph or schema graph. `pos` follows the same IRI rules
 and must be an individual whose RDF type is `lexinfo:PartOfSpeech` or a subclass.
 The input language is validated and normalized before any repository write.
+
+Entry-level `metadata` uses the same multivalued RDF shape as sense metadata: a
+list of `{property, values}` groups, each with a non-empty `values` list. It
+preserves IRI, plain literal, language-tagged literal, and typed literal values.
+The service rejects `rdf:type`, `rdf:value`, `rdfs:label`, `dcterms:creator`,
+`dcterms:created`, `dcterms:modified`, `ontolex:otherForm`,
+`ontolex:canonicalForm`, `ontolex:sense`, `ontolex:denotes`, and
+`ontolex:evokes` from this field because these predicates are structurally
+managed by the top-level request or by the service.
 
 Within the selected language graph, the manager deterministically reuses the
 first IRI typed `lime:Lexicon` whose `lime:language` or `dcterms:language`
@@ -152,7 +161,8 @@ Every entry receives its requested RDF type, creator, created/modified
 timestamps, language-tagged `rdfs:label`, and `lexo:status "working"`. Optional
 `pos` is stored with `lexinfo:partOfSpeech`. `lemma=true` creates an
 `ontolex:Form`, links it with `ontolex:canonicalForm`, and writes the label as
-the language-tagged `ontolex:writtenRep`.
+the language-tagged `ontolex:writtenRep`. Accepted entry metadata is written on
+the entry itself in the same language-specific named graph.
 
 Each item in `senses` creates an `ontolex:LexicalSense` linked through
 `ontolex:sense`, with creator and created/modified timestamps. Both `properties`
@@ -168,7 +178,8 @@ semantic relations belong to the service-managed triples or `properties`.
 Validation is completed before adding statements, and every failure rolls back
 the transaction. Stable error prefixes include `MISSING_ENTRY`, `MISSING_LABEL`,
 `MISSING_TYPE`, `MISSING_LANGUAGE`, `INVALID_LANGUAGE`, `INVALID_ENTRY_TYPE`,
-`INVALID_PART_OF_SPEECH`, `INVALID_RDF_VALUE_TYPE`, and
+`INVALID_PART_OF_SPEECH`, `INVALID_RDF_VALUE_TYPE`,
+`RESERVED_ENTRY_METADATA_PROPERTY`, `MISSING_ENTRY_METADATA_VALUES`, and
 `RESERVED_SENSE_METADATA_PROPERTY`.
 
 Success returns HTTP `201` with the entry IRI in `Location`. The JSON response

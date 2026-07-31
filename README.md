@@ -82,6 +82,15 @@ user resolution.
   "pos": "lexinfo:noun",
   "language": "it",
   "lemma": true,
+  "metadata": [
+    {
+      "property": "https://example.org/vocabulary/source",
+      "values": [
+        {"value": "https://example.org/source/1", "type": "iri"},
+        {"value": "fonte primaria", "type": "literal", "language": "it"}
+      ]
+    }
+  ],
   "senses": [
     {
       "properties": [
@@ -112,13 +121,15 @@ user resolution.
 `label`, `type`, and `language` are required. `type` must be
 `ontolex:LexicalEntry` or a subclass declared in the language or schema graph;
 `pos`, when supplied, must identify a `lexinfo:PartOfSpeech` individual.
-`lemma=true` creates the canonical `ontolex:Form`. Both `properties` and
-`metadata` are lists of `{property, values}` objects, and every `values` list is
-multivalued. Values support IRIs, plain literals, language-tagged literals, and
-typed literals. Custom `metadata` rejects structural predicates including RDF
-type/value, creator and timestamps, `skos:definition`, `ontolex:reference`, and
-`ontolex:isLexicalizedSenseOf`; semantic properties such as definitions belong
-in `properties`.
+`lemma=true` creates the canonical `ontolex:Form`. Entry `metadata`, and sense
+`properties` and `metadata`, are lists of `{property, values}` objects; every
+`values` list is multivalued. Values support IRIs, plain literals,
+language-tagged literals, and typed literals. Entry metadata rejects
+`rdf:type`, `rdf:value`, `rdfs:label`, creator and service timestamps,
+`ontolex:otherForm`, `ontolex:canonicalForm`, `ontolex:sense`,
+`ontolex:denotes`, and `ontolex:evokes`. Sense metadata keeps its own protected
+predicate set; semantic properties such as definitions belong in sense
+`properties`.
 
 The service returns HTTP `201`, sets `Location` to the new entry IRI, and returns
 the lexicon, entry, optional canonical form, sense IRIs, normalized language,

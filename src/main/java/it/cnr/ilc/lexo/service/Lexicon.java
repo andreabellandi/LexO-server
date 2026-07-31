@@ -116,7 +116,8 @@ public class Lexicon extends Service {
                     example = "editor", required = false)
             @QueryParam("author") String author,
             @ApiParam(name = "entry",
-                    value = "lexical entry, optional canonical form, and optional senses",
+                    value = "lexical entry with optional metadata, canonical form, "
+                            + "and senses",
                     required = true)
             LexicalEntryCreationRequest entry) {
         try {
