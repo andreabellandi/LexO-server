@@ -40,6 +40,10 @@ MySQL or another relational database.
    `LexOTexts`, imports the schema resources and creates the lexical indexes.
 5. Open http://localhost:8080/LexO-server/ to access Swagger.
 
+The non-public `klab.ilc.cnr.it:OntoApi:1.0` dependency is versioned under
+`vendor/maven` and resolved automatically by Maven; a separate installation in
+the developer's local Maven repository is not required.
+
 The two GraphDB repositories are fixed in `src/main/resources/lexo-server.properties`:
 
 ```properties
