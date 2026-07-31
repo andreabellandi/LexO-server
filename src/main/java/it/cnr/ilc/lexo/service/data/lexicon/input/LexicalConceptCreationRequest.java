@@ -1,0 +1,35 @@
+package it.cnr.ilc.lexo.service.data.lexicon.input;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import it.cnr.ilc.lexo.service.data.Data;
+import java.util.List;
+
+/** Request body for atomic lexical concept creation. */
+@ApiModel(description = "A lexical concept with multilingual labels, definitions, and optional links")
+public class LexicalConceptCreationRequest implements Data {
+
+    @ApiModelProperty(value = "one or more preferred labels", required = true)
+    public List<LexicalConceptLabel> label;
+
+    @ApiModelProperty(value = "optional alternative labels")
+    public List<LexicalConceptLabel> alternativeLabel;
+
+    @ApiModelProperty(value = "optional hidden labels")
+    public List<LexicalConceptLabel> hiddenLabel;
+
+    @ApiModelProperty(value = "optional definitions")
+    public List<LexicalConceptLabel> definition;
+
+    @ApiModelProperty(value = "optional existing ontolex:LexicalSense IRIs")
+    public List<String> senseId;
+
+    @ApiModelProperty(value = "optional existing parent ontolex:LexicalConcept IRI")
+    public String parent;
+
+    @ApiModelProperty(value = "optional existing ontolex:ConceptSet IRI")
+    public String conceptSetId;
+
+    public LexicalConceptCreationRequest() {
+    }
+}

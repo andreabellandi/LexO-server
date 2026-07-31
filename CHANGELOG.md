@@ -9,6 +9,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `POST /lexica/lexicalConcept` now atomically creates a multilingual lexical
+  concept with audit metadata and optional validated links to lexical senses,
+  a parent concept, and a concept set in the fixed LexOLexica lexical-concept
+  named graph.
 - `GET /lexica/{language}/entries` now returns the language lexicon's entries
   with conjunctive filters for fallback label text, type, part of speech,
   creator, workflow status, and exact sense count.

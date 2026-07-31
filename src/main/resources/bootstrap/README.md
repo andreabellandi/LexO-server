@@ -30,6 +30,8 @@ bootstrap phase to run again; unchanged resources are skipped.
 - `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}` contains data
   created by the incremental lexical CRUD API, isolated by validated ISO 639
   language code;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept` contains lexical
+  concepts and concept sets created by the incremental lexical CRUD API;
 - `https://lexo.ilc.cnr.it/graphs/lexical/attestations/documents/{fileId}`
   contains the FRAC attestations of one text;
 - `https://lexo.ilc.cnr.it/graphs/lexical/annotations/documents/{fileId}`

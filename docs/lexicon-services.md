@@ -296,3 +296,48 @@ the selected graph returns `404` and an unsupported RDF type returns `422`.
 Success returns HTTP `200`. The JSON response contains normalized `language`,
 resolved `author`, the shared `modified` timestamp, and one result item per
 entry with its IRI, previous status, and new status.
+
+## POST `/lexica/lexicalConcept`
+
+This endpoint atomically creates one lexical concept in `RepositoryTarget.LEXICON`
+and exclusively in the fixed named graph
+`https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`. `author` is an optional
+query parameter and follows the shared authenticated-user and `anonymous`
+fallback rule.
+
+The JSON body requires a non-empty `label` list. `label`, `alternativeLabel`,
+`hiddenLabel`, and `definition` contain `{label, language}` pairs; optional
+lists may be omitted or empty. Text values must be non-blank. Languages are
+validated against the first four columns of the bundled ISO 639 list,
+case-insensitively, and normalized to lowercase for RDF language tags.
+
+Optional `senseId` is a list of absolute IRIs, while `parent` and `conceptSetId`
+are single absolute IRIs. Every supplied resource must already exist as a
+subject in the fixed lexical-concept graph. Senses must have exact type
+`ontolex:LexicalSense`, the parent must have exact type
+`ontolex:LexicalConcept`, and the concept set must have exact type
+`ontolex:ConceptSet`. Validation does not consult a language-specific graph or
+the default graph.
+
+The created resource receives type `ontolex:LexicalConcept`, the resolved
+`dcterms:creator`, and one shared `xsd:dateTime` value for `dcterms:created` and
+`dcterms:modified`. The service writes every preferred label with
+`skos:prefLabel`, alternative label with the requested
+`skos:alternativeLabel`, hidden label with `skos:hiddenLabel`, and definition
+with `skos:definition`. It writes each sense through
+`ontolex:isLexicalizedSenseOf`, the optional parent through `skos:broader`, and
+the optional concept set through `skos:inScheme`.
+
+The complete request is validated before any statement is added, and every
+failure rolls back the transaction. Stable error prefixes include
+`MISSING_LEXICAL_CONCEPT`, `MISSING_LABEL`, `INVALID_LABEL`,
+`MISSING_LABEL_VALUE`, `INVALID_LABEL_LANGUAGE`, `INVALID_SENSE_IRI`,
+`INVALID_PARENT_IRI`, `INVALID_CONCEPT_SET_IRI`, `SENSE_NOT_FOUND`,
+`INVALID_SENSE_TYPE`, `PARENT_NOT_FOUND`, `INVALID_PARENT_TYPE`,
+`CONCEPT_SET_NOT_FOUND`, and `INVALID_CONCEPT_SET_TYPE`. Shape and IRI errors
+return HTTP `400`, absent linked resources return `404`, and wrong RDF types
+return `422`.
+
+Success returns HTTP `201` with the created lexical concept IRI in `Location`.
+The JSON response contains `lexicalConcept`, `author`, `created`, `senseId`,
+and the optional `parent` and `conceptSetId`.

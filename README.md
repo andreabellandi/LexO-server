@@ -62,9 +62,12 @@ documented in [docs/text-services-tests.md](docs/text-services-tests.md).
 The shared contract for the incremental rewrite of lexical CRUD services is
 documented in [docs/lexicon-services.md](docs/lexicon-services.md). New lexical
 endpoints use `/service/lexica`, while the legacy endpoint classes remain
-available during the migration. New lexical data is isolated in one named graph
-per language under `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`;
-the language must occur in the first four columns of the bundled ISO 639 list.
+available during the migration. Language-scoped lexical data is isolated in one
+named graph per language under
+`https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`; lexical concepts and
+concept sets use the fixed graph
+`https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`. Label languages must
+occur in the first four columns of the bundled ISO 639 list.
 
 ## Lexical entry creation
 
@@ -137,6 +140,46 @@ initial `working` status, timestamp, and a `lexiconCreated` flag.
 
 The created lexical entry receives `lexo:status "working"`; the containing
 `lime:Lexicon` does not receive a workflow status.
+
+## Lexical concept creation
+
+`POST /service/lexica/lexicalConcept?author=editor` atomically creates one
+`ontolex:LexicalConcept` in the fixed LexOLexica named graph
+`https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`. The JSON body contains
+one or more required preferred labels and optional alternative labels, hidden
+labels, definitions, lexical senses, parent concept, and concept set:
+
+```json
+{
+  "label": [
+    {"label": "casa", "language": "it"},
+    {"label": "house", "language": "en"}
+  ],
+  "alternativeLabel": [
+    {"label": "dimora", "language": "it"}
+  ],
+  "hiddenLabel": [],
+  "definition": [
+    {"label": "Edificio destinato ad abitazione", "language": "it"}
+  ],
+  "senseId": ["https://example.org/sense/1"],
+  "parent": "https://example.org/concept/parent",
+  "conceptSetId": "https://example.org/concept-set/1"
+}
+```
+
+Every label language is validated against the bundled ISO 639 list and
+normalized to lowercase. Every linked IRI must already exist with the exact
+requested OntoLex type in the same fixed graph. The manager validates the whole
+request before writing and rolls back on any failure. It writes creator and
+shared `xsd:dateTime` created/modified timestamps, `skos:prefLabel`,
+`skos:alternativeLabel`, `skos:hiddenLabel`, `skos:definition`,
+`ontolex:isLexicalizedSenseOf`, `skos:broader`, and `skos:inScheme` as applicable.
+
+Success returns HTTP `201`, sets `Location` to the new concept IRI, and returns
+the IRI, resolved author, timestamp, and accepted links. Malformed input returns
+`400`, missing linked resources return `404`, and incompatible RDF types return
+`422`. A blank author resolves to `anonymous`.
 
 ## Advanced lexical entry list
 

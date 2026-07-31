@@ -9,6 +9,14 @@ import org.junit.jupiter.api.Test;
 class LexiconCrudSupportTest {
 
     @Test
+    void exposesTheFixedLexicalConceptGraphAndSkosPrefix() {
+        assertThat(LexiconCrudSupport.lexicalConceptGraphUri())
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept");
+        assertThat(LexiconCrudSupport.lexicalPrefixes().get("skos"))
+                .isEqualTo("http://www.w3.org/2004/02/skos/core#");
+    }
+
+    @Test
     void createsResourceUriWithConfiguredPartsAndNormalizedTimestamp() {
         Timestamp timestamp = Timestamp.valueOf("2026-07-31 14:05:06.789");
         String uri = LexiconCrudSupport.newResourceUri(

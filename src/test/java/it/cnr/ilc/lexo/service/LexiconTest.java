@@ -6,6 +6,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -45,6 +46,23 @@ class LexiconTest {
         assertThat(method.getAnnotation(Path.class).value()).isEqualTo("entry");
         assertThat(method.getAnnotation(ApiOperation.class).value())
                 .isEqualTo("Lexical entry creation");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
+    void exposesDocumentedPostLexicalConceptEndpointAndEveryParameter()
+            throws Exception {
+        Method method = Lexicon.class.getMethod("createLexicalConcept",
+                String.class, String.class, LexicalConceptCreationRequest.class);
+
+        assertThat(method.getAnnotation(POST.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value())
+                .isEqualTo("lexicalConcept");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Lexical concept creation");
         Annotation[][] annotations = method.getParameterAnnotations();
         for (Annotation[] parameterAnnotations : annotations) {
             assertThat(hasApiParam(parameterAnnotations)).isTrue();

@@ -24,6 +24,8 @@ public final class LexiconCrudSupport {
 
     public static final String LEXICAL_GRAPH_BASE_URI =
             "https://lexo.ilc.cnr.it/graphs/lexical/lexica/";
+    public static final String LEXICAL_CONCEPT_GRAPH_URI =
+            "https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept";
 
     private static final Map<String, String> LEXICAL_PREFIXES = lexicalPrefixes();
 
@@ -40,6 +42,11 @@ public final class LexiconCrudSupport {
         String canonicalLanguage = Iso639LanguageValidator.get()
                 .requireValid(language);
         return LEXICAL_GRAPH_BASE_URI + canonicalLanguage;
+    }
+
+    /** Returns the fixed named graph shared by lexical concepts and concept sets. */
+    public static String lexicalConceptGraphUri() {
+        return LEXICAL_CONCEPT_GRAPH_URI;
     }
 
     /**
@@ -134,6 +141,7 @@ public final class LexiconCrudSupport {
         prefixes.put("lexinfo", "http://www.lexinfo.net/ontology/3.0/lexinfo#");
         prefixes.put("lime", "http://www.w3.org/ns/lemon/lime#");
         prefixes.put("lexicog", "http://www.w3.org/ns/lemon/lexicog#");
+        prefixes.put("skos", "http://www.w3.org/2004/02/skos/core#");
         return Collections.unmodifiableMap(prefixes);
     }
 
