@@ -8,9 +8,14 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
 
 - Eseguire `git status -sb`, identificare il branch e preservare ogni modifica
   preesistente dell'utente.
-- Aggiornare i riferimenti remoti prima di creare un branch. Non continuare a
-  sviluppare su un branch già mergiato: creare un branch dedicato da
-  `origin/master`.
+- Usare esclusivamente il branch principale del repository, attualmente
+  `master`. Non creare branch dedicati, feature branch o branch temporanei per
+  le modifiche. Se il branch remoto predefinito verrà rinominato, usare il suo
+  nuovo nome al posto di `master`.
+- Prima di modificare, aggiornare `origin/master` e allineare il branch locale
+  con un fast-forward. Se modifiche locali o una divergenza impediscono
+  l'allineamento sicuro, fermarsi e chiedere istruzioni senza scartare o
+  riscrivere il lavoro esistente.
 - Non aggiungere ai commit `logs/`, `data/`, `target/`, `.DS_Store`,
   `nb-configuration.xml` o altri artefatti runtime/IDE.
 - Cercare prima implementazioni, test e convenzioni esistenti; non duplicare
@@ -89,14 +94,17 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
 
 - Creare commit focalizzati con messaggi descrittivi; non usare `git add -A` in
   un worktree misto.
-- Quando l'utente chiede un commit, eseguire anche il push dello stesso branch,
+- Creare i commit direttamente sul branch principale, attualmente `master`, e
+  non creare branch separati per prepararli.
+- Quando l'utente chiede un commit, eseguire anche il push su `origin/master`,
   salvo impedimenti di autenticazione o rete da comunicare esplicitamente.
-- Per integrare in `master`, preferire una pull request e verificare stato CI,
-  mergeability e diff prima del merge.
+- Non aprire una pull request per integrare modifiche preparate localmente,
+  salvo richiesta esplicita dell'utente; il flusso ordinario usa direttamente
+  il branch principale.
 - Non riscrivere storia pubblicata senza autorizzazione. Se un rebase autorizzato
   richiede un push forzato, usare esclusivamente `--force-with-lease`.
-- Dopo un merge, il lavoro successivo deve partire da un nuovo branch basato sul
-  nuovo `origin/master`; questo evita di riproporre commit già integrati.
+- Prima di ogni nuovo lavoro sul branch principale, aggiornare i riferimenti
+  remoti e applicare soltanto un allineamento fast-forward sicuro.
 
 ## Documentazione e handoff
 
