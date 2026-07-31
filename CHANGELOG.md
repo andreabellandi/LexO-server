@@ -9,6 +9,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- The non-public `OntoApi:1.0` Maven artifact is now bundled in the repository,
+  allowing clean checkouts to resolve the dependency without a manual local
+  Maven installation.
 - A `POST /attestations` service now creates FRAC attestations and validated NIF
   loci for local or external textual evidence.
 - A `POST /attestations/by-locus` batch service now creates one FRAC attestation

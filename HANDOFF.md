@@ -1,8 +1,10 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 30 luglio 2026 dopo l'aggiunta dei servizi di sostituzione dei
-totali FRAC per testi e corpora, sul branch `codex/text-corpus-totals`, basato su
-`origin/master` (`56850c2`).
+Aggiornato al 31 luglio 2026 dopo l'inclusione dell'artefatto Maven non pubblico
+`klab.ilc.cnr.it:OntoApi:1.0` nel repository, sul branch
+`codex/vendor-ontoapi`, basato su `origin/master` (`4e61b46`). Il POM risolve
+ora l'artefatto dal repository file-based versionato sotto `vendor/maven`, senza
+richiedere una preventiva installazione nella repository Maven locale.
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -85,6 +87,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
 │   └── lexo-server.properties    configurazione runtime principale
 ├── src/main/webapp/              Swagger UI, web.xml e context.xml Tomcat
 ├── src/test/java/                test unitari, repository ed end-to-end
+├── vendor/maven/                 artefatti Maven non pubblici versionati
 ├── data/texts/                   dati runtime locali, non da versionare
 ├── logs/                         log runtime, non da versionare
 └── target/                       output Maven, non da versionare
@@ -132,7 +135,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 99 test unitari/repository passati il 30 luglio 2026, inclusi
+- Suite corrente: 101 test unitari/repository passati il 31 luglio 2026, inclusi
   i 3 test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
