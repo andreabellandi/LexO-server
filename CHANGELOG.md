@@ -9,6 +9,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `POST /lexica/entry` now atomically creates a lexical entry, an optional
+  canonical form, and RDF-valued senses in the ISO-language-specific
+  `LexOLexica` named graph, reusing or creating its `lime:Lexicon` and returning
+  every created resource IRI.
 - The non-public `OntoApi:1.0` Maven artifact is now bundled in the repository,
   allowing clean checkouts to resolve the dependency without a manual local
   Maven installation.

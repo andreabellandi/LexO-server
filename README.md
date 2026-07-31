@@ -59,6 +59,67 @@ Run the unit suite with `mvn test`. Tests for the text services, including the
 optional end-to-end tests for a deployed LexO-server and GraphDB Free, are
 documented in [docs/text-services-tests.md](docs/text-services-tests.md).
 
+The shared contract for the incremental rewrite of lexical CRUD services is
+documented in [docs/lexicon-services.md](docs/lexicon-services.md). New lexical
+endpoints use `/service/lexica`, while the legacy endpoint classes remain
+available during the migration. New lexical data is isolated in one named graph
+per language under `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`;
+the language must occur in the first four columns of the bundled ISO 639 list.
+
+## Lexical entry creation
+
+`POST /service/lexica/entry` atomically creates a lexical entry in `LexOLexica`,
+inside the named graph selected by its required ISO 639 `language`. It reuses a
+`lime:Lexicon` in that graph when either `lime:language` or `dcterms:language`
+matches the normalized input code; otherwise it creates the lexicon. The
+optional `author` query parameter defaults to `anonymous` after authenticated
+user resolution.
+
+```json
+{
+  "label": "casa",
+  "type": "ontolex:Word",
+  "pos": "lexinfo:noun",
+  "language": "it",
+  "lemma": true,
+  "senses": [
+    {
+      "properties": [
+        {
+          "property": "http://www.w3.org/2004/02/skos/core#definition",
+          "values": [
+            {"value": "edificio adibito ad abitazione", "type": "literal", "language": "it"}
+          ]
+        }
+      ],
+      "metadata": {
+        "https://example.org/vocabulary/confidence": [
+          {
+            "value": "0.92",
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+`label`, `type`, and `language` are required. `type` must be
+`ontolex:LexicalEntry` or a subclass declared in the language or schema graph;
+`pos`, when supplied, must identify a `lexinfo:PartOfSpeech` individual.
+`lemma=true` creates the canonical `ontolex:Form`. Sense property values support
+IRIs, plain literals, language-tagged literals, and typed literals. Custom
+`metadata` rejects structural predicates including RDF type/value, creator and
+timestamps, `skos:definition`, `ontolex:reference`, and
+`ontolex:isLexicalizedSenseOf`; semantic properties such as definitions belong
+in `properties`.
+
+The service returns HTTP `201`, sets `Location` to the new entry IRI, and returns
+the lexicon, entry, optional canonical form, sense IRIs, normalized language,
+initial `working` status, timestamp, and a `lexiconCreated` flag.
+
 ## Text upload language
 
 `POST /service/texts/upload` requires a multipart `language` field in addition

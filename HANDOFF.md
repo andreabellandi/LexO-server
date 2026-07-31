@@ -1,10 +1,11 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 31 luglio 2026 dopo l'inclusione dell'artefatto Maven non pubblico
-`klab.ilc.cnr.it:OntoApi:1.0` nel repository, sul branch
-`codex/vendor-ontoapi`, basato su `origin/master` (`4e61b46`). Il POM risolve
-ora l'artefatto dal repository file-based versionato sotto `vendor/maven`, senza
-richiedere una preventiva installazione nella repository Maven locale.
+Aggiornato al 31 luglio 2026 dopo l'implementazione del primo nuovo CRUD
+lessicale, `POST /lexica/entry`, direttamente sul branch `master`. Il servizio
+usa il connettore GraphDB esistente verso `LexOLexica` e isola ogni operazione
+nel named graph della lingua validata. Il POM risolve inoltre l'artefatto Maven
+non pubblico `klab.ilc.cnr.it:OntoApi:1.0` dal repository file-based versionato
+sotto `vendor/maven`, senza richiedere una preventiva installazione locale.
 Questo documento descrive lo stato osservato del repository; prima di iniziare
 nuovo lavoro verificare sempre `git status`, il branch remoto e la
 configurazione effettivamente usata dall'installazione.
@@ -97,6 +98,11 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 - Servizi CRUD e di consultazione per lessici OntoLex-Lemon, dizionari Lexicog,
   forme, sensi, concetti SKOS, relazioni, ECD, statistiche ed export RDF.
+- Nuovo endpoint `POST /lexica/entry` nella risorsa incrementale `Lexicon`: crea
+  atomicamente un'entrata, l'eventuale forma canonica e più sensi RDF, riusa o
+  crea il `lime:Lexicon` della lingua e restituisce tutti gli IRI creati. Tipo
+  dell'entrata e parte del discorso vengono validati nei graph linguistico e di
+  schema; i metadata dei sensi proteggono le proprietà strutturali.
 - Configurazione senza profili Maven: GraphDB locale, repository fissi
   `LexOLexica` e `LexOTexts`.
 - Bootstrap idempotente all'avvio: creazione dei due repository GraphDB Free,
@@ -135,9 +141,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 101 test unitari/repository passati il 31 luglio 2026, inclusi
-  i 3 test repository dei totali FRAC,
-  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
+- Suite corrente: 114 test unitari/repository passati il 31 luglio 2026, inclusi
+  i 13 test mirati del nuovo servizio lessicale e del supporto condiviso, i 3
+  test repository dei totali FRAC,
+  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -338,12 +345,36 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `codex/text-corpus-totals`.
-- Base aggiornata: `origin/master` al commit `56850c2`.
-- Le modifiche dei totali FRAC non sono ancora committate; log runtime e
-  `nb-configuration.xml` restano esclusi dal lavoro.
+- Branch locale corrente: `master`.
+- `origin/master` aggiornato il 31 luglio 2026 al commit `b20f641`; il branch
+  locale è avanti di un commit (`f6ed358`) e contiene il nuovo servizio ancora
+  non committato.
+- Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+È stata predisposta e usata la base della riscrittura incrementale dei CRUD
+lessicali, senza rimuovere o modificare gli endpoint legacy. La nuova risorsa
+`service/Lexicon.java` risponde alla radice `lexica`, espone il tag Swagger
+`Lexica` e contiene ora `POST /lexica/entry`.
+`LexiconCrudSupport` centralizza la selezione del named graph specifico per
+lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
+generazione delle IRI tramite namespace, instance id e timestamp configurati
+con la normalizzazione `*`, e il fallback `anonymous` per autori nulli o vuoti.
+I codici lingua vengono validati contro le prime quattro colonne della lista
+ISO 639 versionata nelle risorse e normalizzati in minuscolo tramite
+`Iso639LanguageValidator`, così valori sintatticamente plausibili ma non
+presenti nel file vengono rifiutati e lingue diverse restano in graph distinti.
+Il contratto completo è in `docs/lexicon-services.md` ed è richiamato dalle
+regole permanenti in `AGENTS.md`. `LexicalEntryManager` usa
+`GraphDbUtil.getConnection(RepositoryTarget.LEXICON)`, completa le validazioni
+prima delle scritture e persiste l'intero modello in una singola transazione del
+graph linguistico. Lo stesso contratto fissa i namespace `decomp`, `vartrans`,
+`ontolex`, `synsem`, `lexinfo` 3.0, `lime` e `lexicog`.
+I 13 test mirati e la suite completa di 114 test unitari/repository sono passati
+il 31 luglio 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
+riportato soltanto i warning ambientali già noti su SLF4J e su codice legacy
+deprecato/unchecked.
 
 Il lavoro corrente aggiunge due endpoint `PUT` in `Texts`, i DTO
 `TextTotalInput`/`TextTotalResult`, il manager condiviso `TextTotalManager` e la
@@ -426,15 +457,17 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
+1. Aggiungere un end-to-end REST dedicato a `POST /lexica/entry` contro un
+   repository `LexOLexica` isolato, inclusi riuso del lessico e rollback.
+2. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
    cancellazione e metadata delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
-2. Gestire esplicitamente i body non-array di `POST /attestations` con una
+3. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
-3. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
-4. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
+4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
+5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
    completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi di
    lingua upload mancante/non valida e il relativo `dcterms:language` nel NIF.
-5. Allineare README e POM sul requisito Java ufficiale.
-6. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
+6. Allineare README e POM sul requisito Java ufficiale.
+7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.

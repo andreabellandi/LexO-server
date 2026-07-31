@@ -2,7 +2,8 @@
 
 Queste regole valgono per tutte le attività future nel repository LexO-server.
 Leggere anche `HANDOFF.md`, `README.md`, `src/main/resources/bootstrap/README.md`
-e, per il dominio testuale, `docs/text-services-tests.md`.
+e, per il dominio testuale, `docs/text-services-tests.md`. Per ogni nuovo
+servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 
 ## Prima di modificare
 
@@ -31,7 +32,8 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
   - `LEXICON` per lessico, schema, attestazioni e annotazioni;
   - `TEXT` per NIF, corpora e record testuali.
 - Non scrivere dati applicativi nel default graph.
-- Le update lessicali ordinarie devono usare il graph `lexica`.
+- Le update lessicali legacy continuano a usare il graph `lexica`; i nuovi CRUD
+  usano il graph specifico della lingua definito nella sezione dedicata.
 - Attestazioni e annotazioni devono usare il graph per documento e richiedere il
   `fileId`; la cancellazione di un testo deve eliminare entrambi i graph.
 - Conservare il bootstrap GraphDB idempotente e guidato da template/manifest in
@@ -59,6 +61,39 @@ e, per il dominio testuale, `docs/text-services-tests.md`.
   directory create; non eliminare artefatti appartenenti ad altri testi.
 - La cancellazione di un corpus non deve cancellare i testi membri: deve
   scollegarli. La cancellazione di un testo deve aggiornare il corpus.
+
+## Nuovi servizi CRUD del lessico
+
+- Mantenere disponibili e invariati i servizi lessicali legacy durante la
+  riscrittura; collocare tutti i nuovi endpoint nella classe `Lexicon.java`,
+  annotata con `@javax.ws.rs.Path("lexica")` e `@Api("Lexica")`.
+- Tutte le letture e scritture applicative dei nuovi servizi CRUD lessicali
+  devono operare esclusivamente nel named graph specifico della lingua, con IRI
+  `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, mai nel default
+  graph. Validare il codice lingua contro le prime quattro colonne della lista
+  ISO 639 versionata in `src/main/resources/iso639`, normalizzarlo in minuscolo
+  e creare/selezionare un graph distinto per ogni lingua diversa tramite il
+  supporto centralizzato; non limitarsi a verificarne la forma sintattica.
+- Generare ogni nuova IRI concatenando, nell'ordine, i valori di
+  `repository.lexicon.namespace`, `repository.instance.id` e il timestamp con
+  millisecondi formattato tramite `manager.operationTimestampFormat`; sul
+  timestamp formattato applicare
+  `.replaceAll("\\s+", "").replaceAll(":", "*").replaceAll("\\.", "*")`.
+  Riutilizzare il supporto centralizzato dedicato, senza duplicare la regola.
+- Usare nei nuovi servizi CRUD lessicali esclusivamente queste associazioni di
+  prefisso, senza ridefinizioni locali divergenti:
+  - `decomp: <http://www.w3.org/ns/lemon/decomp#>`
+  - `vartrans: <http://www.w3.org/ns/lemon/vartrans#>`
+  - `ontolex: <http://www.w3.org/ns/lemon/ontolex#>`
+  - `synsem: <http://www.w3.org/ns/lemon/synsem#>`
+  - `lexinfo: <http://www.lexinfo.net/ontology/3.0/lexinfo#>`
+  - `lime: <http://www.w3.org/ns/lemon/lime#>`
+  - `lexicog: <http://www.w3.org/ns/lemon/lexicog#>`
+- Ogni nuovo endpoint lessicale deve accettare il parametro opzionale `author`;
+  dopo l'eventuale risoluzione dell'utente autenticato, un valore nullo, vuoto o
+  composto soltanto da spazi deve diventare `anonymous`.
+- Scrivere in inglese `@ApiOperation` per ogni nuovo endpoint e `@ApiParam` per
+  ciascun suo parametro, seguendo lo stile delle API esistenti.
 
 ## Codice e API
 
