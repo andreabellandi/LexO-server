@@ -57,8 +57,8 @@ The formatted timestamp is normalized with:
 
 ```java
 .replaceAll("\\s+", "")
-.replaceAll(":", "*")
-.replaceAll("\\.", "*")
+.replaceAll(":", "_")
+.replaceAll("\\.", "_")
 ```
 
 New managers must reuse `LexiconCrudSupport.newResourceUri()` so that timestamp

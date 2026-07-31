@@ -78,7 +78,7 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
   `repository.lexicon.namespace`, `repository.instance.id` e il timestamp con
   millisecondi formattato tramite `manager.operationTimestampFormat`; sul
   timestamp formattato applicare
-  `.replaceAll("\\s+", "").replaceAll(":", "*").replaceAll("\\.", "*")`.
+  `.replaceAll("\\s+", "").replaceAll(":", "_").replaceAll("\\.", "_")`.
   Riutilizzare il supporto centralizzato dedicato, senza duplicare la regola.
 - Usare nei nuovi servizi CRUD lessicali esclusivamente queste associazioni di
   prefisso, senza ridefinizioni locali divergenti:

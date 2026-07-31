@@ -68,8 +68,8 @@ public final class LexiconCrudSupport {
         }
         String localTimestamp = formatTimestamp(timestamp, timestampPattern)
                 .replaceAll("\\s+", "")
-                .replaceAll(":", "*")
-                .replaceAll("\\.", "*");
+                .replaceAll(":", "_")
+                .replaceAll("\\.", "_");
         return namespace + instanceId + localTimestamp;
     }
 

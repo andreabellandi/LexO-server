@@ -57,6 +57,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- New lexical CRUD resource IRIs now normalize timestamp colons and decimal
+  separators with `_` instead of `*`, producing identifiers that are safer to
+  use in HTTP paths and downstream tools.
 - Lexical sense `metadata` in `POST /lexica/entry` now uses the same
   `{property, values}` list structure as `properties`, with multiple RDF values
   supported for every metadata property.

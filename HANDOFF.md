@@ -360,7 +360,7 @@ lessicali, senza rimuovere o modificare gli endpoint legacy. La nuova risorsa
 `LexiconCrudSupport` centralizza la selezione del named graph specifico per
 lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
 generazione delle IRI tramite namespace, instance id e timestamp configurati
-con la normalizzazione `*`, e il fallback `anonymous` per autori nulli o vuoti.
+con la normalizzazione `_`, e il fallback `anonymous` per autori nulli o vuoti.
 I codici lingua vengono validati contro le prime quattro colonne della lista
 ISO 639 versionata nelle risorse e normalizzati in minuscolo tramite
 `Iso639LanguageValidator`, così valori sintatticamente plausibili ma non

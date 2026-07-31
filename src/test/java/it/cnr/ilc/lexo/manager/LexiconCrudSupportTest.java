@@ -18,7 +18,7 @@ class LexiconCrudSupportTest {
                 "yyyy MM dd HH:mm:ss.SSS");
 
         assertThat(uri).isEqualTo(
-                "https://example.org/lexicon#LexO_2026073114*05*06*789");
+                "https://example.org/lexicon#LexO_2026073114_05_06_789");
         assertThat(LexiconCrudSupport.formatTimestamp(timestamp,
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"))
                 .matches("2026-07-31T14:05:06\\.789[+-][0-9]{2}:[0-9]{2}");
