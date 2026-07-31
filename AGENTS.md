@@ -33,7 +33,10 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
   - `TEXT` per NIF, corpora e record testuali.
 - Non scrivere dati applicativi nel default graph.
 - Le update lessicali legacy continuano a usare il graph `lexica`; i nuovi CRUD
-  usano il graph specifico della lingua definito nella sezione dedicata.
+  usano il named graph previsto per la categoria indicata dall'utente: le
+  risorse lessicali dipendenti dalla lingua usano il graph specifico della
+  lingua, mentre lexical concepts e concept sets usano il graph fisso definito
+  nella sezione dedicata.
 - Attestazioni e annotazioni devono usare il graph per documento e richiedere il
   `fileId`; la cancellazione di un testo deve eliminare entrambi i graph.
 - Conservare il bootstrap GraphDB idempotente e guidato da template/manifest in
@@ -67,13 +70,22 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 - Mantenere disponibili e invariati i servizi lessicali legacy durante la
   riscrittura; collocare tutti i nuovi endpoint nella classe `Lexicon.java`,
   annotata con `@javax.ws.rs.Path("lexica")` e `@Api("Lexica")`.
-- Tutte le letture e scritture applicative dei nuovi servizi CRUD lessicali
-  devono operare esclusivamente nel named graph specifico della lingua, con IRI
+- Le letture e scritture applicative dei nuovi servizi CRUD per risorse
+  lessicali dipendenti dalla lingua devono operare esclusivamente nel named
+  graph specifico della lingua, con IRI
   `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, mai nel default
   graph. Validare il codice lingua contro le prime quattro colonne della lista
   ISO 639 versionata in `src/main/resources/iso639`, normalizzarlo in minuscolo
   e creare/selezionare un graph distinto per ogni lingua diversa tramite il
   supporto centralizzato; non limitarsi a verificarne la forma sintattica.
+- Tutti i nuovi servizi CRUD della categoria lexical concepts e concept sets
+  devono leggere e scrivere esclusivamente nel named graph fisso
+  `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept` di `LexOLexica`, mai
+  nel default graph o nei graph lessicali specifici della lingua. Questa regola
+  di categoria prevale sulla regola generale dei graph per lingua.
+- Per ogni nuovo servizio applicare la categoria specificata dall'utente e le
+  relative regole di persistenza, sommandole alle regole condivise dei CRUD
+  lessicali senza alterare i contratti delle altre categorie.
 - Generare ogni nuova IRI concatenando, nell'ordine, i valori di
   `repository.lexicon.namespace`, `repository.instance.id` e il timestamp con
   millisecondi formattato tramite `manager.operationTimestampFormat`; sul
@@ -89,6 +101,7 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
   - `lexinfo: <http://www.lexinfo.net/ontology/3.0/lexinfo#>`
   - `lime: <http://www.w3.org/ns/lemon/lime#>`
   - `lexicog: <http://www.w3.org/ns/lemon/lexicog#>`
+  - `skos: <http://www.w3.org/2004/02/skos/core#>`
 - Ogni nuovo endpoint lessicale deve accettare il parametro opzionale `author`;
   dopo l'eventuale risoluzione dell'utente autenticato, un valore nullo, vuoto o
   composto soltanto da spazi deve diventare `anonymous`.

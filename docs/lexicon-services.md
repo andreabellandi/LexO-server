@@ -2,7 +2,10 @@
 
 This document defines the shared contract for the gradual replacement of the
 legacy lexical CRUD API. The legacy endpoint classes remain available while the
-new API is introduced incrementally.
+new API is introduced incrementally. Contracts are cumulative: every endpoint
+follows the shared lexical rules in this document plus the rules of the category
+specified by the user. Category-specific persistence rules take precedence over
+the general language-scoped graph rule.
 
 ## Service class and route
 
@@ -17,10 +20,16 @@ All new lexical CRUD endpoints belong to
 Do not move, rename, or remove the legacy lexical endpoint classes as part of an
 incremental CRUD rewrite.
 
-## Repository and named graph
+## Repository and named graphs
 
-New lexical CRUD services use `RepositoryTarget.LEXICON`. Every application
-read and write is restricted to the named graph of the resource language:
+All new lexical CRUD services use `RepositoryTarget.LEXICON`. The selected named
+graph depends on the service category.
+
+### Language-scoped lexical resources
+
+CRUD services for lexical resources whose persistence is scoped by language
+restrict every application read and write to the named graph of the resource
+language:
 
 ```text
 https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}
@@ -37,11 +46,34 @@ own graph; for example, Italian data uses
 graph IRI through `LexiconCrudSupport.lexicalGraphUri(language)` instead of
 constructing it directly.
 
-No new lexical CRUD service may read application data from, or write it to, the
-default graph. Every persistence test must verify both the expected statements
-in the language-specific lexical named graph, isolation from the graphs of
-other languages, and the absence of application statements in the default
-graph.
+Every persistence test for this category must verify the expected statements in
+the language-specific lexical named graph, isolation from the graphs of other
+languages, and the absence of application statements in the default graph.
+
+### Lexical concepts and concept sets
+
+Every future CRUD service in the lexical-concepts and concept-sets category
+restricts all application reads and writes to this exact, fixed named graph:
+
+```text
+https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept
+```
+
+The graph belongs to `LexOLexica` and is not derived from a language code. Even
+when an endpoint accepts a language for labels or other RDF values, it must not
+append that language to the graph IRI or use
+`https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`. The fixed category
+graph rule takes precedence over the general language-scoped rule above.
+
+Persistence tests for this category must verify the expected statements in the
+fixed `lexicalConcept` graph, the absence of those statements from every
+language-specific lexical graph, and an empty default graph. Future endpoint
+sections will define their individual request, response, validation, and RDF
+contracts when the user requests each service; those details must not be
+inferred from the legacy API.
+
+No new lexical CRUD service in any category may read application data from, or
+write it to, the default graph.
 
 ## Resource IRI generation
 
@@ -76,6 +108,7 @@ PREFIX synsem:  <http://www.w3.org/ns/lemon/synsem#>
 PREFIX lexinfo: <http://www.lexinfo.net/ontology/3.0/lexinfo#>
 PREFIX lime:    <http://www.w3.org/ns/lemon/lime#>
 PREFIX lexicog: <http://www.w3.org/ns/lemon/lexicog#>
+PREFIX skos:    <http://www.w3.org/2004/02/skos/core#>
 ```
 
 Reuse centralized prefix declarations where available. Do not introduce local
@@ -116,13 +149,16 @@ For each new CRUD endpoint:
 
 - preserve the legacy endpoint that it will eventually replace;
 - keep the `service` to `manager` to persistence/query separation;
-- use the lexical repository and the language-specific lexical named graph;
-- validate the language against the bundled ISO 639 list;
+- use the lexical repository and the named graph prescribed by the category;
+- for language-scoped categories, validate the language against the bundled ISO
+  639 list;
+- for lexical concepts and concept sets, use only the fixed `lexicalConcept`
+  graph and never derive the graph IRI from a language;
 - use the required lexical prefix mappings;
 - use the centralized resource IRI and author rules;
 - document the endpoint and every parameter in English;
-- add tests for validation, response compatibility, language graph isolation,
-  and the empty default graph;
+- add tests for validation, response compatibility, isolation of the graph
+  prescribed by the category, and the empty default graph;
 - update API documentation, `HANDOFF.md`, and the `Unreleased` changelog when
   the endpoint becomes user-visible.
 

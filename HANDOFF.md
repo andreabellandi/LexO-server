@@ -241,6 +241,11 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 ## Funzionalità ancora da completare o validare
 
+- Implementare progressivamente i nuovi CRUD per lexical concepts e concept
+  sets nella classe `Lexicon.java`. La categoria userà esclusivamente il named
+  graph fisso `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept` in
+  `LexOLexica`; i contratti dei singoli endpoint saranno definiti nelle future
+  richieste senza modificare i servizi legacy.
 - Eseguire regolarmente `TextServicesIT` e `TextServiceUseCasesIT` contro una
   coppia di repository e una directory filesystem dedicati ai test. Questi test
   sono esclusi da `mvn test` e non sono stati eseguiti nell'ultima validazione;
@@ -269,6 +274,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   attestazioni e annotazioni usano `RepositoryTarget.LEXICON`.
 - Le normali update lessicali operano nel graph `lexica`. Attestazioni e
   annotazioni richiedono sempre il `fileId` per selezionare il graph del testo.
+- I nuovi CRUD lessicali selezionano il graph in base alla categoria dichiarata:
+  le risorse dipendenti dalla lingua usano `lexica/{language}`, mentre lexical
+  concepts e concept sets usano esclusivamente il graph fisso
+  `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`.
 - Non scrivere dati applicativi nel default graph.
 - Gli offset delle attestazioni sono riferiti al valore canonico `nif:isString`,
   con conteggio per code point Unicode, non al sorgente CommonMark renderizzato.
