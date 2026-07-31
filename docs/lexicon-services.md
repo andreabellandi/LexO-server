@@ -186,6 +186,45 @@ Success returns HTTP `201` with the entry IRI in `Location`. The JSON response
 contains `lexicon`, `lexiconCreated`, `entry`, optional `canonicalForm`, the
 created `senses`, normalized `language`, `status`, and `created` timestamp.
 
+## GET `/lexica/{language}/entries`
+
+This endpoint returns the complete list of lexical entries linked through
+`lime:entry` from a `lime:Lexicon` whose `lime:language` or `dcterms:language`
+matches the required ISO 639 path parameter, in that language's named graph. It
+accepts optional `key`, `searchMode`, `case`, `type`, `pos`, `author`, `status`,
+and `senseNumber` query parameters. Missing, empty, or whitespace-only filters
+are ignored; all populated filters are combined with logical `AND`.
+
+When `key` is present, its candidate text is selected with an exclusive
+fallback. The service first uses `rdfs:label`; it considers canonical-form
+`ontolex:writtenRep` values only if the entry has no `rdfs:label`; it considers
+other-form written representations only if the entry has neither a label nor
+an `ontolex:canonicalForm` relation. An existing canonical form without a
+written representation therefore prevents fallback to `ontolex:otherForm`.
+`searchMode` accepts `startsWith`, `contains`, or `endsWith` and defaults to
+`startsWith`. `case` accepts `sensitive` or `insensitive` and defaults to
+`sensitive`.
+
+`type` must be an absolute IRI that exists as a resource in the selected
+language graph or schema graph; matching uses the entry's exact `rdf:type`.
+`pos` must be an absolute IRI typed as `lexinfo:PartOfSpeech` or a transitive
+subclass in those graphs. `author` performs an exact literal match. `status`
+accepts `working`, `completed`, or `revised`. `senseNumber` is the exact count
+of distinct `ontolex:sense` objects and must be an integer greater than or equal
+to zero.
+
+The response is a JSON array ordered by the effective label and then by entry
+IRI. Each compact item exposes `entry`, `label`, `type`, `pos`, `author`,
+`status`, and `senseNumber`. Entries without any effective label remain visible
+when `key` is absent. The endpoint does not apply implicit pagination.
+
+Stable error prefixes include `INVALID_LANGUAGE`, `INVALID_SEARCH_MODE`,
+`INVALID_CASE`, `INVALID_TYPE_IRI`, `TYPE_NOT_FOUND`,
+`INVALID_PART_OF_SPEECH_IRI`, `INVALID_PART_OF_SPEECH`, `INVALID_STATUS`, and
+`INVALID_SENSE_NUMBER`. A missing type returns HTTP `404`; an invalid
+part-of-speech resource returns HTTP `422`; malformed filter values return
+HTTP `400`.
+
 ## PATCH `/lexica/entries/status`
 
 This endpoint atomically changes the workflow status of one or more lexical

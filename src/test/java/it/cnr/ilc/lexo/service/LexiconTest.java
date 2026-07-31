@@ -9,6 +9,7 @@ import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.Path;
@@ -44,6 +45,24 @@ class LexiconTest {
         assertThat(method.getAnnotation(Path.class).value()).isEqualTo("entry");
         assertThat(method.getAnnotation(ApiOperation.class).value())
                 .isEqualTo("Lexical entry creation");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
+    void exposesDocumentedAdvancedEntryListAndEveryParameter() throws Exception {
+        Method method = Lexicon.class.getMethod("listEntries", String.class,
+                String.class, String.class, String.class, String.class,
+                String.class, String.class, String.class, String.class,
+                String.class);
+
+        assertThat(method.getAnnotation(GET.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value())
+                .isEqualTo("{language}/entries");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Advanced lexical entry list");
         Annotation[][] annotations = method.getParameterAnnotations();
         for (Annotation[] parameterAnnotations : annotations) {
             assertThat(hasApiParam(parameterAnnotations)).isTrue();

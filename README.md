@@ -138,6 +138,34 @@ initial `working` status, timestamp, and a `lexiconCreated` flag.
 The created lexical entry receives `lexo:status "working"`; the containing
 `lime:Lexicon` does not receive a workflow status.
 
+## Advanced lexical entry list
+
+`GET /service/lexica/{language}/entries` returns all entries linked from a
+`lime:Lexicon` whose `lime:language` or `dcterms:language` matches the path, in
+the language-specific named graph. Optional query parameters are combined with
+`AND`: `key`, `searchMode`, `case`, `type`, `pos`, `author`, `status`, and
+`senseNumber`.
+
+```text
+GET /service/lexica/it/entries?key=cas&searchMode=contains&case=insensitive&status=working&senseNumber=2
+```
+
+`key` searches the entry's `rdfs:label`. Only when that property is absent does
+the service use `ontolex:writtenRep` from `ontolex:canonicalForm`; only when the
+entry has no canonical form does it use written representations from
+`ontolex:otherForm`. `searchMode` accepts `startsWith` (the default), `contains`,
+or `endsWith`. `case` accepts `sensitive` (the default) or `insensitive`.
+`type` is an existing exact RDF type IRI; `pos` must identify a
+LexInfo 3.0 `PartOfSpeech` individual. `status` accepts `working`, `completed`,
+or `revised`, and `senseNumber` is an exact integer count greater than or equal
+to zero. Missing or blank filters are ignored; when all are blank, every entry
+of the selected lexicon is returned.
+
+The response is a deterministically ordered JSON array. Each item contains
+`entry`, the effective `label` when available, `type`, `pos`, `author`, `status`,
+and `senseNumber`. This contract returns the complete result and does not apply
+implicit pagination.
+
 ## Lexical entry status changes
 
 `PATCH /service/lexica/entries/status` atomically changes the status of one or

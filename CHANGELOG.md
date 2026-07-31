@@ -9,6 +9,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `GET /lexica/{language}/entries` now returns the language lexicon's entries
+  with conjunctive filters for fallback label text, type, part of speech,
+  creator, workflow status, and exact sense count.
 - `POST /lexica/entry` now atomically creates a lexical entry, an optional
   canonical form, and RDF-valued senses in the ISO-language-specific
   `LexOLexica` named graph, reusing or creating its `lime:Lexicon` and returning
