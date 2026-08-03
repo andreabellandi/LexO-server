@@ -9,6 +9,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `GET`, `PATCH`, and `DELETE /metadata` now provide common RDF metadata CRUD
+  for lexical entries, lexical concepts, and attestations with safe named-graph
+  resolution and entity-specific protected predicates.
+- `POST /lexica/lexicalConcept` now accepts and returns multivalued RDF metadata
+  using the common IRI/literal, language, and datatype representation.
 - `POST /lexica/lexicalConcept` now atomically creates a multilingual lexical
   concept with audit metadata and optional validated links to lexical senses,
   a parent concept, and a concept set in the fixed LexOLexica lexical-concept
@@ -68,6 +73,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Lexical entry and attestation metadata values now reuse the common RDF
+  metadata model and codec; lexical entry creation also returns its canonical
+  metadata without changing the existing request contract.
 - `POST /lexica/entry` now accepts multivalued RDF `metadata` directly on the
   lexical entry, while rejecting service-managed structural entry predicates.
 - Newly created `lime:Lexicon` resources no longer receive a workflow status;

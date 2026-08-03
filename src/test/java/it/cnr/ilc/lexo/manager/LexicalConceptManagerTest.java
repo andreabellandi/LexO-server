@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import java.util.Arrays;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -69,6 +71,12 @@ class LexicalConceptManagerTest {
         request.senseId = Arrays.asList(sense.stringValue());
         request.parent = parent.stringValue();
         request.conceptSetId = conceptSet.stringValue();
+        RdfMetadataProperty metadata = new RdfMetadataProperty();
+        metadata.property = "https://example.org/vocabulary/source";
+        metadata.values = Arrays.asList(
+                new RdfMetadataValue("https://example.org/source/1", "iri", null, null),
+                new RdfMetadataValue("fonte", "literal", "it", null));
+        request.metadata = Arrays.asList(metadata);
 
         LexicalConceptCreationResult result = manager.create(request, "editor");
 
@@ -99,10 +107,15 @@ class LexicalConceptManagerTest {
                     parent, false, graph)).isTrue();
             assertThat(connection.hasStatement(concept, iri(SKOS + "inScheme"),
                     conceptSet, false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri("https://example.org/vocabulary/source"),
+                    iri("https://example.org/source/1"), false, graph)).isTrue();
             assertThat(connection.hasStatement(concept, null, null, false,
                     iri(LexiconCrudSupport.lexicalGraphUri("it")))).isFalse();
             assertDefaultGraphEmpty(connection);
         }
+        assertThat(result.metadata).hasSize(1);
+        assertThat(result.metadata.get(0).values).hasSize(2);
     }
 
     @Test

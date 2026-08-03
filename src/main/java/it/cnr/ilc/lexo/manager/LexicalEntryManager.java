@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfValue;
@@ -18,6 +19,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.eclipse.rdf4j.model.IRI;
@@ -55,6 +58,7 @@ public final class LexicalEntryManager implements Manager {
             managedSenseProperties();
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final Repository repository;
 
     /** Runtime constructor used by {@link ManagerFactory}. */
@@ -139,7 +143,7 @@ public final class LexicalEntryManager implements Manager {
             connection.add(model, graph);
             connection.commit();
             return result(lexicon, lexiconCreated, entry, form, senses,
-                    input.language, timestamp);
+                    input.language, timestamp, input.metadata);
         } catch (RuntimeException e) {
             if (connection.isActive()) {
                 connection.rollback();
@@ -383,7 +387,8 @@ public final class LexicalEntryManager implements Manager {
     private LexicalEntryCreationResult result(IRI lexicon, boolean lexiconCreated,
                                                IRI entry, IRI form,
                                                List<IRI> senses, String language,
-                                               String timestamp) {
+                                               String timestamp,
+                                               List<PropertyValue> entryMetadata) {
         LexicalEntryCreationResult result = new LexicalEntryCreationResult();
         result.lexicon = lexicon.stringValue();
         result.lexiconCreated = lexiconCreated;
@@ -396,6 +401,16 @@ public final class LexicalEntryManager implements Manager {
         result.language = language;
         result.status = WORKING;
         result.created = timestamp;
+        Map<IRI, List<Value>> metadata = new LinkedHashMap<IRI, List<Value>>();
+        for (PropertyValue value : entryMetadata) {
+            List<Value> values = metadata.get(value.property);
+            if (values == null) {
+                values = new ArrayList<Value>();
+                metadata.put(value.property, values);
+            }
+            values.add(value.value);
+        }
+        result.metadata = metadataCodec.encode(metadata);
         return result;
     }
 

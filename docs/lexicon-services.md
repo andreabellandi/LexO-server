@@ -340,4 +340,26 @@ return `422`.
 
 Success returns HTTP `201` with the created lexical concept IRI in `Location`.
 The JSON response contains `lexicalConcept`, `author`, `created`, `senseId`,
-and the optional `parent` and `conceptSetId`.
+the optional `parent` and `conceptSetId`, and canonical `metadata`.
+
+The optional `metadata` input uses the common list of `{property, values}`
+groups shared by lexical entries, attestations, and future entities. Each value
+is an IRI or literal with an optional language or datatype. Empty value lists
+are rejected during creation. Lexical-concept structural predicates, labels,
+definitions, sense links, hierarchy, scheme membership, audit properties, and
+`rdf:type` are reserved and cannot be supplied as metadata.
+
+## Common metadata CRUD
+
+`GET`, `PATCH`, and `DELETE /metadata` expose the common RDF metadata model for
+`lexicalEntry`, `lexicalConcept`, and `attestation`. Graph selection is derived
+from the entity kind plus validated `language` or `fileId`; callers cannot pass
+an arbitrary graph. Resource existence and RDF type are checked in the resolved
+graph before every read or mutation.
+
+`PATCH` performs atomic property-wise replacement and treats `values: []` as
+deletion. `DELETE` removes an explicit property list. Both update
+`dcterms:modified`. Input and output preserve multiple IRIs, plain literals,
+language-tagged literals, and typed literals in the same `{property, values}`
+shape. Existing attestation and lexical-entry contracts remain available and
+reuse the common RDF value codec for compatibility.

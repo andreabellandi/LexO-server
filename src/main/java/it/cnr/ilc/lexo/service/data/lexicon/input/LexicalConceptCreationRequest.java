@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.service.data.lexicon.input;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import it.cnr.ilc.lexo.service.data.Data;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import java.util.List;
 
 /** Request body for atomic lexical concept creation. */
@@ -29,6 +30,9 @@ public class LexicalConceptCreationRequest implements Data {
 
     @ApiModelProperty(value = "optional existing ontolex:ConceptSet IRI")
     public String conceptSetId;
+
+    @ApiModelProperty(value = "optional custom RDF metadata in the common property/value shape")
+    public List<RdfMetadataProperty> metadata;
 
     public LexicalConceptCreationRequest() {
     }

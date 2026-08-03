@@ -285,6 +285,10 @@ class LexicalEntryManagerTest {
         assertThat(request.metadata.get(0).values).hasSize(2);
         LexicalEntryCreationResult result = manager.create(request, "editor");
 
+        assertThat(result.metadata).hasSize(1);
+        assertThat(result.metadata.get(0).property).isEqualTo(metadataProperty);
+        assertThat(result.metadata.get(0).values).hasSize(2);
+
         IRI graph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         IRI entry = iri(result.entry);
         IRI property = iri(metadataProperty);

@@ -1,7 +1,8 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 31 luglio 2026 dopo l'implementazione di
-`POST /lexica/lexicalConcept`, direttamente sul branch `master`, accanto agli
+Aggiornato al 3 agosto 2026 dopo l'introduzione del CRUD metadati comune e
+dell'estensione di `POST /lexica/lexicalConcept`, direttamente sul branch
+`master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
 graph fisso `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`. Il POM
@@ -100,6 +101,14 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 ## Funzionalità completate
 
+- Nuovi endpoint `GET`, `PATCH` e `DELETE /metadata`: leggono, sostituiscono e
+  cancellano metadati RDF multivalore su lexical entry, lexical concept e
+  attestazioni. Il resolver seleziona internamente graph linguistico, graph
+  fisso dei concept o graph documentale, verifica il tipo e applica policy di
+  predicati strutturali protetti.
+- DTO e codec RDF comuni preservano IRI, literal semplici, language tag e
+  datatype. Entry e attestazioni riusano il codec; la creazione del lexical
+  concept accetta e restituisce ora `metadata` nella forma comune.
 - Nuovo endpoint `POST /lexica/lexicalConcept`: crea atomicamente un
   `ontolex:LexicalConcept` con liste multilingui di label e definizioni, audit
   Dublin Core e collegamenti opzionali a sensi, parent e concept set. Tutti gli
@@ -164,7 +173,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 138 test unitari/repository passati il 31 luglio 2026, inclusi
+- Suite corrente: 142 test unitari/repository passati il 3 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
@@ -397,6 +406,11 @@ batch prima di scrivere, limita i target alle entrate OntoLex del graph
 linguistico, applica il rollback su ogni errore e mantiene autore e timestamp
 della transizione. I relativi DTO sono sotto `service/data/lexicon` e
 `LexicalWorkflowStatus` centralizza valori e transizioni ammesse.
+La risorsa `service/Metadata.java`, `manager/metadata/MetadataManager` e
+`RdfMetadataCodec` costituiscono il nuovo nucleo condiviso. I DTO sotto
+`service/data/metadata` definiscono una sola rappresentazione JSON per input e
+output; nuove categorie richiedono soltanto la registrazione della policy di
+tipo, graph e predicati riservati.
 `LexiconCrudSupport` centralizza anche il graph fisso dei lexical concept e il
 prefisso SKOS, oltre alla selezione del named graph specifico per
 lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
@@ -416,11 +430,12 @@ Le collezioni `properties` e `metadata` di ogni senso condividono ora la stessa
 struttura JSON: una lista di oggetti con `property` e `values`, dove `values` è
 multivalore. I vincoli aggiuntivi sui predicati strutturali restano applicati a
 `metadata`.
-I 16 test della selezione mirata comprendente lexical concept, servizio e
-supporto condiviso e la suite completa di 138 test unitari/repository sono
-passati il 31 luglio 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven
-ha riportato soltanto i warning ambientali già noti su SLF4J e su codice legacy
-deprecato/unchecked.
+I 57 test della selezione mirata comprendente metadati, lexical concept, entry,
+attestazioni e servizi e la suite completa di 142 test unitari/repository sono
+passati il 3 agosto 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
+riportato i warning ambientali già noti su SLF4J, codice legacy
+deprecato/unchecked e impossibilità del sandbox di aggiornare tracking file in
+`~/.m2`.
 
 Il lavoro corrente aggiunge due endpoint `PUT` in `Texts`, i DTO
 `TextTotalInput`/`TextTotalResult`, il manager condiviso `TextTotalManager` e la

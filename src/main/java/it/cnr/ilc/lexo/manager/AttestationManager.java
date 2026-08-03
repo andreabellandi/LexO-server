@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.RepositoryTarget;
+import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
@@ -78,6 +79,7 @@ public class AttestationManager implements Manager {
             reservedMetadataProperties();
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final ConnectionSource connections;
     private final String structureNamespace;
     private final String textGraphBase;
@@ -1296,44 +1298,11 @@ public class AttestationManager implements Manager {
 
     private Value metadataValue(AttestationMetadataValue item, String field)
             throws ManagerException {
-        if (item == null) {
-            throw new ManagerException("INVALID_METADATA_VALUE: " + field
-                    + " is null");
+        try {
+            return metadataCodec.decode(item, field);
+        } catch (IllegalArgumentException e) {
+            throw new ManagerException(e.getMessage(), e);
         }
-        String type = required(field + ".type", item.type)
-                .toLowerCase(java.util.Locale.ROOT);
-        if ("iri".equals(type)) {
-            if (!blank(item.language) || !blank(item.datatype)) {
-                throw new ManagerException("INVALID_METADATA_VALUE: " + field
-                        + " cannot define language or datatype for an IRI");
-            }
-            return iri(field + ".value", required(field + ".value", item.value));
-        }
-        if (!"literal".equals(type)) {
-            throw new ManagerException("INVALID_METADATA_VALUE: " + field
-                    + ".type must be literal or iri");
-        }
-        if (item.value == null) {
-            throw new ManagerException("MISSING_PARAMETER: " + field
-                    + ".value is required");
-        }
-        if (!blank(item.language) && !blank(item.datatype)) {
-            throw new ManagerException("INVALID_METADATA_VALUE: " + field
-                    + " cannot define both language and datatype");
-        }
-        if (!blank(item.language)) {
-            String language = item.language.trim();
-            if (!language.matches("[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*")) {
-                throw new ManagerException("INVALID_METADATA_LANGUAGE: " + field
-                        + ".language is not a valid language tag");
-            }
-            return vf.createLiteral(item.value, language);
-        }
-        if (!blank(item.datatype)) {
-            return vf.createLiteral(item.value,
-                    iri(field + ".datatype", item.datatype.trim()));
-        }
-        return vf.createLiteral(item.value);
     }
 
     /** Backward-compatible entry point for the original text filters. */
@@ -1938,24 +1907,13 @@ public class AttestationManager implements Manager {
     }
 
     private AttestationMetadataValue outputMetadataValue(Value value) {
-        AttestationMetadataValue result = new AttestationMetadataValue();
-        result.value = value.stringValue();
-        if (value instanceof IRI) {
-            result.type = "iri";
-            return result;
-        }
-        if (!(value instanceof Literal)) {
+        it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue common =
+                metadataCodec.encode(value);
+        if (common == null) {
             return null;
         }
-        result.type = "literal";
-        Literal literal = (Literal) value;
-        result.value = literal.getLabel();
-        result.language = literal.getLanguage().orElse(null);
-        if (result.language == null
-                && !XSD.STRING.equals(literal.getDatatype())) {
-            result.datatype = literal.getDatatype().stringValue();
-        }
-        return result;
+        return new AttestationMetadataValue(common.value, common.type,
+                common.language, common.datatype);
     }
 
     private static String metadataSortKey(AttestationMetadataValue value) {

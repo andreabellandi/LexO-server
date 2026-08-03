@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import it.cnr.ilc.lexo.service.data.Data;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import java.util.List;
 
 /** Identifiers and state returned after lexical entry creation. */
@@ -34,6 +35,9 @@ public class LexicalEntryCreationResult implements Data {
 
     @ApiModelProperty(value = "creation timestamp shared by the new resources")
     public String created;
+
+    @ApiModelProperty(value = "created custom RDF metadata in the common shape")
+    public List<RdfMetadataProperty> metadata;
 
     public LexicalEntryCreationResult() {
     }

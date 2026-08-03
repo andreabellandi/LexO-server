@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import it.cnr.ilc.lexo.service.data.Data;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import java.util.List;
 
 /** Identifiers and audit data returned after lexical concept creation. */
@@ -28,6 +29,9 @@ public class LexicalConceptCreationResult implements Data {
 
     @ApiModelProperty(value = "concept set IRI")
     public String conceptSetId;
+
+    @ApiModelProperty(value = "created custom RDF metadata")
+    public List<RdfMetadataProperty> metadata;
 
     public LexicalConceptCreationResult() {
     }

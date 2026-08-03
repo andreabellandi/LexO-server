@@ -164,7 +164,15 @@ labels, definitions, lexical senses, parent concept, and concept set:
   ],
   "senseId": ["https://example.org/sense/1"],
   "parent": "https://example.org/concept/parent",
-  "conceptSetId": "https://example.org/concept-set/1"
+  "conceptSetId": "https://example.org/concept-set/1",
+  "metadata": [
+    {
+      "property": "https://example.org/vocabulary/source",
+      "values": [
+        {"value": "https://example.org/source/1", "type": "iri"}
+      ]
+    }
+  ]
 }
 ```
 
@@ -180,6 +188,26 @@ Success returns HTTP `201`, sets `Location` to the new concept IRI, and returns
 the IRI, resolved author, timestamp, and accepted links. Malformed input returns
 `400`, missing linked resources return `404`, and incompatible RDF types return
 `422`. A blank author resolves to `anonymous`.
+
+## Common entity metadata
+
+`GET`, `PATCH`, and `DELETE /service/metadata` provide one RDF metadata contract
+for lexical entries, lexical concepts, and attestations. The same shared DTO and
+RDF codec are used by entity creation and can be extended through an
+entity-specific policy for forms, senses, etymologies, and future resources.
+
+The common shape is a list of `{property, values}` objects. Values may be IRIs,
+plain literals, BCP 47 language-tagged literals, or typed literals. `PATCH`
+replaces the complete value set of each supplied property; `values: []` removes
+that property. `DELETE` accepts an explicit list of property IRIs. Every
+mutation updates `dcterms:modified` and returns the resulting canonical metadata.
+
+The client supplies `entityType` and the context needed to select the graph:
+`language` for `lexicalEntry`, no context for `lexicalConcept`, and `fileId` for
+`attestation`. The service never accepts a graph IRI from the client. It verifies
+the resource type and resolves respectively the language graph, fixed lexical
+concept graph, or per-document attestation graph. Structural predicates are
+protected by entity-specific policies.
 
 ## Advanced lexical entry list
 

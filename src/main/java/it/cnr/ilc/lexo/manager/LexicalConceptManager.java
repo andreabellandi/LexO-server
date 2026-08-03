@@ -3,6 +3,8 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.metadata.MetadataManager;
+import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
@@ -11,11 +13,14 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
@@ -31,6 +36,7 @@ public final class LexicalConceptManager implements Manager {
     private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final Repository repository;
 
     /** Runtime constructor used by {@link ManagerFactory}. */
@@ -79,6 +85,12 @@ public final class LexicalConceptManager implements Manager {
             if (input.conceptSet != null) {
                 model.add(lexicalConcept, iri(SKOS + "inScheme"), input.conceptSet);
             }
+            for (Map.Entry<IRI, List<Value>> property
+                    : input.metadata.entrySet()) {
+                for (Value value : property.getValue()) {
+                    model.add(lexicalConcept, property.getKey(), value);
+                }
+            }
 
             connection.add(model, graph);
             connection.commit();
@@ -115,8 +127,14 @@ public final class LexicalConceptManager implements Manager {
         IRI parent = optionalIri("parent", request.parent, "INVALID_PARENT_IRI");
         IRI conceptSet = optionalIri("conceptSetId", request.conceptSetId,
                 "INVALID_CONCEPT_SET_IRI");
+        LinkedHashMap<IRI, List<Value>> metadata =
+                new LinkedHashMap<IRI, List<Value>>();
+        if (request.metadata != null) {
+            metadata = metadataCodec.decodeProperties(request.metadata,
+                    MetadataManager.lexicalConceptReservedProperties(), false);
+        }
         return new ValidatedRequest(labels, alternatives, hidden, definitions,
-                senses, parent, conceptSet);
+                senses, parent, conceptSet, metadata);
     }
 
     private List<LocalizedText> validateTexts(List<LexicalConceptLabel> values,
@@ -201,6 +219,7 @@ public final class LexicalConceptManager implements Manager {
         result.parent = input.parent == null ? null : input.parent.stringValue();
         result.conceptSetId = input.conceptSet == null
                 ? null : input.conceptSet.stringValue();
+        result.metadata = metadataCodec.encode(input.metadata);
         return result;
     }
 
@@ -281,12 +300,14 @@ public final class LexicalConceptManager implements Manager {
         final List<IRI> senses;
         final IRI parent;
         final IRI conceptSet;
+        final LinkedHashMap<IRI, List<Value>> metadata;
 
         ValidatedRequest(List<LocalizedText> labels,
                          List<LocalizedText> alternativeLabels,
                          List<LocalizedText> hiddenLabels,
                          List<LocalizedText> definitions, List<IRI> senses,
-                         IRI parent, IRI conceptSet) {
+                         IRI parent, IRI conceptSet,
+                         LinkedHashMap<IRI, List<Value>> metadata) {
             this.labels = labels;
             this.alternativeLabels = alternativeLabels;
             this.hiddenLabels = hiddenLabels;
@@ -294,6 +315,7 @@ public final class LexicalConceptManager implements Manager {
             this.senses = senses;
             this.parent = parent;
             this.conceptSet = conceptSet;
+            this.metadata = metadata;
         }
     }
 }
