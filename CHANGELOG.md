@@ -11,7 +11,7 @@ starts from the ongoing `Unreleased` work.
 
 - `GET`, `PATCH`, and `DELETE /metadata` now provide common RDF metadata CRUD
   for lexical entries, lexical concepts, and attestations with safe named-graph
-  resolution and entity-specific protected predicates.
+  resolution and one global protected-predicate policy.
 - `POST /lexica/lexicalConcept` now accepts and returns multivalued RDF metadata
   using the common IRI/literal, language, and datatype representation.
 - `POST /lexica/lexicalConcept` now atomically creates a multilingual lexical
@@ -41,9 +41,6 @@ starts from the ongoing `Unreleased` work.
   the corresponding NIF locus data.
 - A paginated `POST /attestations/by-observable` service now retrieves one
   observable's attestations across all configured per-text attestation graphs.
-- A `PATCH /attestations/{fileId}/metadata` service now atomically replaces or
-  removes selected RDF metadata properties on multiple attestations, preserving
-  IRI values, language-tagged literals, typed literals, and multiple values.
 - A `PATCH /attestations/{fileId}/locus` service now moves one unshared,
   LexO-generated NIF locus to new Unicode code-point offsets and recalculates
   the attested value from the canonical text, with optional gloss preservation.
@@ -73,6 +70,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- All entity metadata now shares one protection policy: properties in the
+  OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS, and Decomp namespaces, the three
+  service-managed Dublin Core audit predicates, and RDF structural predicates
+  are rejected on writes and omitted from metadata output.
 - Lexical entry and attestation metadata values now reuse the common RDF
   metadata model and codec; lexical entry creation also returns its canonical
   metadata without changing the existing request contract.
@@ -101,8 +102,8 @@ starts from the ongoing `Unreleased` work.
   definitions according to the observable RDF type, preserving language tags
   when present.
 - Paginated attestation results now expose custom attestation metadata grouped
-  by property IRI, excluding protected structural FRAC, RDF, and Dublin Core
-  properties.
+  by property IRI, excluding globally protected vocabulary namespaces, RDF
+  structural predicates, and Dublin Core audit properties.
 - Both paginated attestation services now accept bounded, nested `AND`/`OR`
   filters for exact attestation creators, typed text metadata, and multiple
   observable types; type matching includes `rdfs:subClassOf` hierarchies.
@@ -148,6 +149,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Removed
 
+- The duplicate `PATCH /attestations/{fileId}/metadata` endpoint and its
+  attestation-specific batch DTOs were removed; attestation metadata CRUD now
+  uses the common `/metadata` service exclusively.
 - Attestation descriptions were removed from both `POST /attestations` and the
   paginated `POST /attestations/{fileId}` contract; new attestations no longer
   persist `dcterms:description`.

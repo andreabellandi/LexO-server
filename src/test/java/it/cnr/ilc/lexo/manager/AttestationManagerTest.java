@@ -10,15 +10,11 @@ import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusIn
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationFilter;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationLocusUpdate;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationObservableUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateResult;
-import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
@@ -577,138 +573,6 @@ class AttestationManagerTest {
                     vf.createLiteral("Description a"), false,
                     iri(LexicalNamedGraphs.attestationGraphUri("file-a")))).isTrue();
         }
-    }
-
-    @Test
-    void atomicallyReplacesTypedMetadataAndReturnsItInAttestationLists()
-            throws Exception {
-        String confidence = "https://example.org/vocabulary/confidence";
-        String reviewLabel = "https://example.org/vocabulary/reviewLabel";
-        String source = "http://purl.org/dc/terms/source";
-        IRI attestationA = iri("https://example.org/attestation/a");
-        IRI attestationB = iri("https://example.org/attestation/b");
-        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
-        addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
-        addPersistedAttestation("file-a", "b", observable, "user8", "A", 0, 1);
-        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
-            connection.add(attestationA, iri(confidence),
-                    vf.createLiteral("0.10", XSD.DECIMAL), graph);
-        }
-
-        AttestationMetadataBatch batch = metadataBatch(
-                metadataUpdate(attestationA.stringValue(),
-                        metadataProperty(confidence,
-                                metadataLiteral("0.92", null,
-                                        XSD.DECIMAL.stringValue())),
-                        metadataProperty(reviewLabel,
-                                metadataLiteral("approvata", "it", null),
-                                metadataLiteral("approved", "en", null)),
-                        metadataProperty(source,
-                                metadataIri("https://example.org/source/one"))),
-                metadataUpdate(attestationB.stringValue(),
-                        metadataProperty(reviewLabel,
-                                metadataLiteral("rejected", "en", null))));
-
-        AttestationMetadataPatchResult result = manager.patchMetadata("file-a", batch);
-
-        assertThat(result.fileId).isEqualTo("file-a");
-        assertThat(result.updated).hasSize(2);
-        assertThat(result.updated.get(0).properties)
-                .containsExactly(confidence, reviewLabel, source);
-        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
-            assertThat(connection.hasStatement(attestationA, iri(confidence),
-                    vf.createLiteral("0.10", XSD.DECIMAL), false, graph)).isFalse();
-            assertThat(connection.hasStatement(attestationA, iri(confidence),
-                    vf.createLiteral("0.92", XSD.DECIMAL), false, graph)).isTrue();
-            assertThat(connection.hasStatement(attestationA, iri(reviewLabel),
-                    vf.createLiteral("approvata", "it"), false, graph)).isTrue();
-            assertThat(connection.hasStatement(attestationA, iri(reviewLabel),
-                    vf.createLiteral("approved", "en"), false, graph)).isTrue();
-            assertThat(connection.hasStatement(attestationA, iri(source),
-                    iri("https://example.org/source/one"), false, graph)).isTrue();
-            assertThat(connection.hasStatement(attestationB, iri(reviewLabel),
-                    vf.createLiteral("rejected", "en"), false, graph)).isTrue();
-            assertThat(connection.hasStatement(attestationA, DCTERMS.MODIFIED,
-                    vf.createLiteral(result.updated.get(0).lastUpdate), false,
-                    graph)).isTrue();
-            assertDefaultGraphEmpty(connection);
-        }
-
-        AttestationPage page = manager.list("file-a", null, null, null, null);
-        AttestationListItem listed = page.list.get(0);
-        assertThat(listed.metadata.keySet())
-                .containsExactly(source, confidence, reviewLabel);
-        assertThat(listed.metadata.get(confidence).get(0).type).isEqualTo("literal");
-        assertThat(listed.metadata.get(confidence).get(0).datatype)
-                .isEqualTo(XSD.DECIMAL.stringValue());
-        assertThat(listed.metadata.get(reviewLabel))
-                .extracting(value -> value.language).containsExactly("it", "en");
-        assertThat(listed.metadata.get(source).get(0).type).isEqualTo("iri");
-        assertThat(listed.metadata.get(source).get(0).value)
-                .isEqualTo("https://example.org/source/one");
-
-        manager.patchMetadata("file-a", metadataBatch(
-                metadataUpdate(attestationA.stringValue(),
-                        metadataProperty(confidence))));
-        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
-            assertThat(connection.hasStatement(attestationA, iri(confidence),
-                    null, false, graph)).isFalse();
-        }
-    }
-
-    @Test
-    void rejectsWholeMetadataBatchWhenAnAttestationBelongsToAnotherGraph() {
-        String property = "https://example.org/vocabulary/status";
-        IRI attestationA = iri("https://example.org/attestation/a");
-        addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
-        addPersistedAttestation("file-b", "b", observable, "user7", "A", 0, 1);
-        AttestationMetadataBatch batch = metadataBatch(
-                metadataUpdate(attestationA.stringValue(),
-                        metadataProperty(property,
-                                metadataLiteral("approved", null, null))),
-                metadataUpdate("https://example.org/attestation/b",
-                        metadataProperty(property,
-                                metadataLiteral("rejected", null, null))));
-
-        assertThatThrownBy(() -> manager.patchMetadata("file-a", batch))
-                .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("ATTESTATION_NOT_FOUND");
-
-        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
-            assertThat(connection.hasStatement(attestationA, iri(property), null,
-                    false, iri(LexicalNamedGraphs.attestationGraphUri("file-a"))))
-                    .isFalse();
-        }
-    }
-
-    @Test
-    void rejectsReservedAndInvalidMetadataValues() {
-        IRI attestation = iri("https://example.org/attestation/a");
-        addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
-
-        assertThatThrownBy(() -> manager.patchMetadata("file-a", metadataBatch(
-                metadataUpdate(attestation.stringValue(),
-                        metadataProperty(FRAC + "locus",
-                                metadataIri("https://example.org/other-locus"))))))
-                .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("RESERVED_METADATA_PROPERTY");
-
-        AttestationMetadataValue invalid = metadataLiteral("value", "it",
-                XSD.STRING.stringValue());
-        assertThatThrownBy(() -> manager.patchMetadata("file-a", metadataBatch(
-                metadataUpdate(attestation.stringValue(),
-                        metadataProperty("https://example.org/vocabulary/status",
-                                invalid)))))
-                .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("INVALID_METADATA_VALUE");
-
-        AttestationMetadataProperty missingValues =
-                new AttestationMetadataProperty();
-        missingValues.property = "https://example.org/vocabulary/status";
-        assertThatThrownBy(() -> manager.patchMetadata("file-a", metadataBatch(
-                metadataUpdate(attestation.stringValue(), missingValues))))
-                .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("MISSING_METADATA_VALUES");
     }
 
     @Test
@@ -1601,36 +1465,9 @@ class AttestationManagerTest {
         }
     }
 
-    private AttestationMetadataBatch metadataBatch(
-            AttestationMetadataUpdate... updates) {
-        AttestationMetadataBatch result = new AttestationMetadataBatch();
-        result.updates = Arrays.asList(updates);
-        return result;
-    }
-
-    private AttestationMetadataUpdate metadataUpdate(String attestation,
-                                                      AttestationMetadataProperty... properties) {
-        AttestationMetadataUpdate result = new AttestationMetadataUpdate();
-        result.attestation = attestation;
-        result.properties = Arrays.asList(properties);
-        return result;
-    }
-
-    private AttestationMetadataProperty metadataProperty(String property,
-                                                          AttestationMetadataValue... values) {
-        AttestationMetadataProperty result = new AttestationMetadataProperty();
-        result.property = property;
-        result.values = Arrays.asList(values);
-        return result;
-    }
-
     private AttestationMetadataValue metadataLiteral(String value, String language,
                                                       String datatype) {
         return new AttestationMetadataValue(value, "literal", language, datatype);
-    }
-
-    private AttestationMetadataValue metadataIri(String value) {
-        return new AttestationMetadataValue(value, "iri", null, null);
     }
 
     private AttestationFilter filterGroup(String operator,

@@ -124,6 +124,33 @@ missing, empty, or whitespace-only value to the literal `anonymous`. New
 services use the helper exposed by `Lexicon` rather than implementing their own
 fallback.
 
+## Global RDF metadata protection policy
+
+The metadata contract uses one permanent predicate policy for every current and
+future entity. Creation, common CRUD, and metadata serialization must all reuse
+`MetadataPolicy`; entity-specific protected-predicate lists must not override or
+weaken it.
+
+No metadata property may belong to any of these namespaces:
+
+```text
+ontolex:  http://www.w3.org/ns/lemon/ontolex#
+frac:     http://www.w3.org/ns/lemon/frac#
+lime:     http://www.w3.org/ns/lemon/lime#
+vartrans: http://www.w3.org/ns/lemon/vartrans#
+synsem:   http://www.w3.org/ns/lemon/synsem#
+skos:     http://www.w3.org/2004/02/skos/core#
+decomp:   http://www.w3.org/ns/lemon/decomp#
+```
+
+The exact predicates `dcterms:creator`, `dcterms:created`, and
+`dcterms:modified` are also protected because their values are managed by the
+service. `rdf:type` and `rdf:value` remain protected as RDF structural
+predicates. Other predicates, including other Dublin Core Terms and RDFS
+predicates, are accepted unless a future global policy explicitly adds them.
+Protected predicates are rejected on writes and omitted from metadata output
+even when legacy data already contains them.
+
 ## Swagger documentation
 
 Every endpoint has an English `@ApiOperation` annotation. Every individual
@@ -179,11 +206,9 @@ The input language is validated and normalized before any repository write.
 Entry-level `metadata` uses the same multivalued RDF shape as sense metadata: a
 list of `{property, values}` groups, each with a non-empty `values` list. It
 preserves IRI, plain literal, language-tagged literal, and typed literal values.
-The service rejects `rdf:type`, `rdf:value`, `rdfs:label`, `dcterms:creator`,
-`dcterms:created`, `dcterms:modified`, `ontolex:otherForm`,
-`ontolex:canonicalForm`, `ontolex:sense`, `ontolex:denotes`, and
-`ontolex:evokes` from this field because these predicates are structurally
-managed by the top-level request or by the service.
+The service applies the global RDF metadata protection policy above. In
+particular, every property in a protected namespace is rejected, including
+future vocabulary terms that are not otherwise known to the service.
 
 Within the selected language graph, the manager deterministically reuses the
 first IRI typed `lime:Lexicon` whose `lime:language` or `dcterms:language`
@@ -345,9 +370,8 @@ the optional `parent` and `conceptSetId`, and canonical `metadata`.
 The optional `metadata` input uses the common list of `{property, values}`
 groups shared by lexical entries, attestations, and future entities. Each value
 is an IRI or literal with an optional language or datatype. Empty value lists
-are rejected during creation. Lexical-concept structural predicates, labels,
-definitions, sense links, hierarchy, scheme membership, audit properties, and
-`rdf:type` are reserved and cannot be supplied as metadata.
+are rejected during creation. The global RDF metadata protection policy is
+applied without lexical-concept-specific exceptions.
 
 ## Common metadata CRUD
 
@@ -361,5 +385,5 @@ graph before every read or mutation.
 deletion. `DELETE` removes an explicit property list. Both update
 `dcterms:modified`. Input and output preserve multiple IRIs, plain literals,
 language-tagged literals, and typed literals in the same `{property, values}`
-shape. Existing attestation and lexical-entry contracts remain available and
-reuse the common RDF value codec for compatibility.
+shape. The former attestation-specific metadata mutation endpoint has been
+removed; attestation metadata now uses this common API exclusively.

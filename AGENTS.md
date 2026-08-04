@@ -110,6 +110,21 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 
 ## Codice e API
 
+- La policy dei metadati RDF è globale, vale per ogni entità presente e futura
+  e deve essere applicata tramite il supporto centralizzato, senza liste
+  divergenti per tipo di entità. Un metadato non può mai usare una proprietà
+  appartenente ai namespace `ontolex`
+  (`http://www.w3.org/ns/lemon/ontolex#`), `frac`
+  (`http://www.w3.org/ns/lemon/frac#`), `lime`
+  (`http://www.w3.org/ns/lemon/lime#`), `vartrans`
+  (`http://www.w3.org/ns/lemon/vartrans#`), `synsem`
+  (`http://www.w3.org/ns/lemon/synsem#`), `skos`
+  (`http://www.w3.org/2004/02/skos/core#`) o `decomp`
+  (`http://www.w3.org/ns/lemon/decomp#`). Sono inoltre sempre protetti
+  `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
+  `rdf:value`. La regola si applica a creazione, lettura e CRUD dei metadati;
+  l'aggiunta di forme, sensi, etimologie o altre entità deve riusare
+  `MetadataPolicy` e non ridefinire eccezioni locali.
 - Mantenere la separazione `service` → `manager` → persistenza/query e usare i
   DTO sotto `service/data`.
 - Documentare nuovi endpoint e parametri nello stile esistente con

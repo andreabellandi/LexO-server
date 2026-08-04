@@ -1,8 +1,9 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 3 agosto 2026 dopo l'introduzione del CRUD metadati comune e
-dell'estensione di `POST /lexica/lexicalConcept`, direttamente sul branch
-`master`, accanto agli
+Aggiornato al 4 agosto 2026 dopo l'introduzione della policy globale dei
+metadati RDF e la rimozione del duplicato
+`PATCH /attestations/{fileId}/metadata`, sostituito dal CRUD metadati comune.
+Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
 graph fisso `https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept`. Il POM
@@ -104,8 +105,12 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Nuovi endpoint `GET`, `PATCH` e `DELETE /metadata`: leggono, sostituiscono e
   cancellano metadati RDF multivalore su lexical entry, lexical concept e
   attestazioni. Il resolver seleziona internamente graph linguistico, graph
-  fisso dei concept o graph documentale, verifica il tipo e applica policy di
-  predicati strutturali protetti.
+  fisso dei concept o graph documentale, verifica il tipo e applica la policy
+  globale dei predicati protetti.
+- `MetadataPolicy` vieta per ogni entità presente e futura tutti i predicati nei
+  namespace OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS e Decomp, oltre a
+  `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
+  `rdf:value`. La regola vale su creazione, CRUD e output, inclusi dati legacy.
 - DTO e codec RDF comuni preservano IRI, literal semplici, language tag e
   datatype. Entry e attestazioni riusano il codec; la creazione del lexical
   concept accetta e restituisce ora `metadata` nella forma comune.
@@ -120,9 +125,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   atomicamente un'entrata, l'eventuale forma canonica e più sensi RDF, riusa o
   crea il `lime:Lexicon` della lingua e restituisce tutti gli IRI creati. Tipo
   dell'entrata e parte del discorso vengono validati nei graph linguistico e di
-  schema. Entrata e sensi accettano metadata RDF multivalore con IRI e letterali;
-  i rispettivi insiemi di predicati riservati proteggono le proprietà
-  strutturali gestite dal servizio.
+  schema. Entrata e sensi accettano metadata RDF multivalore con IRI e letterali
+  e riusano la policy globale dei predicati protetti.
 - Nuovo endpoint `GET /lexica/{language}/entries`: restituisce tutte le entrate
   del lessico linguistico con filtri opzionali congiuntivi per label a fallback
   esclusivo, tipo RDF, parte del discorso, creator, stato e conteggio esatto dei
@@ -173,7 +177,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 142 test unitari/repository passati il 3 agosto 2026, inclusi
+- Suite corrente: 139 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
@@ -207,11 +211,6 @@ appartenenza ai corpora sono persistiti in GraphDB.
   `rdfs:subClassOf`; i parametri legacy `author` e `observableType` del servizio
   per testo restano compatibili e vengono combinati in `AND`. Entrambi usano 50
   risultati come dimensione predefinita della pagina.
-- Endpoint `PATCH /attestations/{fileId}/metadata` per sostituire o cancellare
-  atomicamente proprietà RDF personalizzate su una o più attestazioni del named
-  graph del documento. Il contratto conserva valori multipli, IRI, letterali con
-  lingua e letterali tipizzati, protegge i predicati strutturali e aggiorna
-  `dcterms:modified`.
 - Endpoint `PATCH /attestations/{fileId}/locus` per spostare il locus di una
   singola attestazione a nuovi offset Unicode. Il valore viene ricalcolato dal
   `nif:isString`, l'IRI RFC5147 e le triple NIF vengono aggiornati in
@@ -239,8 +238,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   vengono conservati.
 - Le risposte di creazione e consultazione non espongono `description`.
 - La consultazione paginata espone i metadata personalizzati in una mappa per
-  IRI di proprietà, senza includere i predicati strutturali o la legacy
-  `dcterms:description`.
+  IRI di proprietà, applicando la policy globale dei predicati protetti.
 - Gli elementi restituiti da `GET /data/lexicalConcepts` e dalla ricerca
   filtrata espongono `attestations`, conteggio distinto dei collegamenti
   `frac:attestation` presenti nei named graph di attestazione per documento;
@@ -407,10 +405,10 @@ linguistico, applica il rollback su ogni errore e mantiene autore e timestamp
 della transizione. I relativi DTO sono sotto `service/data/lexicon` e
 `LexicalWorkflowStatus` centralizza valori e transizioni ammesse.
 La risorsa `service/Metadata.java`, `manager/metadata/MetadataManager` e
-`RdfMetadataCodec` costituiscono il nuovo nucleo condiviso. I DTO sotto
+`RdfMetadataCodec` e `MetadataPolicy` costituiscono il nuovo nucleo condiviso. I DTO sotto
 `service/data/metadata` definiscono una sola rappresentazione JSON per input e
-output; nuove categorie richiedono soltanto la registrazione della policy di
-tipo, graph e predicati riservati.
+output; nuove categorie registrano soltanto tipo e graph e riusano senza
+deroghe la policy globale dei predicati protetti.
 `LexiconCrudSupport` centralizza anche il graph fisso dei lexical concept e il
 prefisso SKOS, oltre alla selezione del named graph specifico per
 lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
@@ -428,11 +426,10 @@ graph linguistico. Lo stesso contratto fissa i namespace `decomp`, `vartrans`,
 `ontolex`, `synsem`, `lexinfo` 3.0, `lime`, `lexicog` e `skos`.
 Le collezioni `properties` e `metadata` di ogni senso condividono ora la stessa
 struttura JSON: una lista di oggetti con `property` e `values`, dove `values` è
-multivalore. I vincoli aggiuntivi sui predicati strutturali restano applicati a
-`metadata`.
-I 57 test della selezione mirata comprendente metadati, lexical concept, entry,
-attestazioni e servizi e la suite completa di 142 test unitari/repository sono
-passati il 3 agosto 2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
+multivalore. La policy globale dei predicati protetti si applica a `metadata`.
+I 57 test della selezione mirata comprendente metadati, attestazioni e servizi
+e la suite completa di 143 test unitari/repository sono passati il 4 agosto
+2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
 riportato i warning ambientali già noti su SLF4J, codice legacy
 deprecato/unchecked e impossibilità del sandbox di aggiornare tracking file in
 `~/.m2`.
@@ -523,7 +520,7 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
    `LexOLexica` isolato, inclusi validazione dei link, riuso del lessico,
    transizioni batch e rollback.
 2. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
-   cancellazione e metadata delle attestazioni e della
+   cancellazione delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
 3. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.

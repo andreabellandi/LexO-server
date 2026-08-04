@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
@@ -65,8 +64,7 @@ public final class RdfMetadataCodec {
     }
 
     public LinkedHashMap<IRI, List<Value>> decodeProperties(
-            List<RdfMetadataProperty> properties, Set<String> reserved,
-            boolean allowEmptyValues) {
+            List<RdfMetadataProperty> properties, boolean allowEmptyValues) {
         if (properties == null || properties.isEmpty()) {
             throw invalid("MISSING_METADATA_PROPERTIES",
                     "at least one metadata property is required");
@@ -82,7 +80,7 @@ public final class RdfMetadataCodec {
             IRI predicate = iri(required(property.property,
                     "MISSING_METADATA_PROPERTY", path + ".property is required"),
                     path + ".property");
-            if (reserved.contains(predicate.stringValue())) {
+            if (MetadataPolicy.isProtected(predicate.stringValue())) {
                 throw invalid("RESERVED_METADATA_PROPERTY",
                         predicate.stringValue() + " is managed by the service");
             }
@@ -132,6 +130,9 @@ public final class RdfMetadataCodec {
         List<IRI> predicates = new ArrayList<IRI>(properties.keySet());
         Collections.sort(predicates, Comparator.comparing(IRI::stringValue));
         for (IRI predicate : predicates) {
+            if (MetadataPolicy.isProtected(predicate.stringValue())) {
+                continue;
+            }
             RdfMetadataProperty property = new RdfMetadataProperty();
             property.property = predicate.stringValue();
             for (Value value : properties.get(predicate)) {

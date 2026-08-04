@@ -11,14 +11,11 @@ import it.cnr.ilc.lexo.service.data.metadata.MetadataTarget;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -32,15 +29,11 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryResult;
 
-/** Common metadata CRUD with entity-specific graph and protected-predicate policies. */
+/** Common metadata CRUD with entity-specific graphs and one global predicate policy. */
 public final class MetadataManager implements Manager {
 
     private static final String ONTOLEX = "http://www.w3.org/ns/lemon/ontolex#";
     private static final String FRAC = "http://www.w3.org/ns/lemon/frac#";
-    private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
-    private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema#";
-    private static final String LIME = "http://www.w3.org/ns/lemon/lime#";
-    private static final String LEXO = "https://lexo.ilc.cnr.it#";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final RdfMetadataCodec codec = new RdfMetadataCodec();
@@ -68,7 +61,7 @@ public final class MetadataManager implements Manager {
     public MetadataResult patch(MetadataPatchRequest request) {
         ResolvedTarget resolved = resolve(request);
         LinkedHashMap<IRI, List<Value>> properties = codec.decodeProperties(
-                request.properties, resolved.reserved, true);
+                request.properties, true);
         return mutate(resolved, properties);
     }
 
@@ -83,7 +76,7 @@ public final class MetadataManager implements Manager {
         for (int i = 0; i < request.properties.size(); i++) {
             IRI property = codec.iri(request.properties.get(i),
                     "properties[" + i + "]");
-            if (resolved.reserved.contains(property.stringValue())) {
+            if (MetadataPolicy.isProtected(property.stringValue())) {
                 throw invalid("RESERVED_METADATA_PROPERTY",
                         property.stringValue() + " is managed by the service");
             }
@@ -132,7 +125,8 @@ public final class MetadataManager implements Manager {
                 target.resource, null, null, false, target.graph)) {
             while (statements.hasNext()) {
                 Statement statement = statements.next();
-                if (target.reserved.contains(statement.getPredicate().stringValue())) {
+                if (MetadataPolicy.isProtected(
+                        statement.getPredicate().stringValue())) {
                     continue;
                 }
                 List<Value> propertyValues = values.get(statement.getPredicate());
@@ -202,56 +196,22 @@ public final class MetadataManager implements Manager {
                     required(target.language, "MISSING_LANGUAGE",
                             "language is required for lexicalEntry")));
             return new ResolvedTarget("lexicalEntry", resource, graph,
-                    vf.createIRI(ONTOLEX + "LexicalEntry"), true,
-                    lexicalEntryReservedProperties());
+                    vf.createIRI(ONTOLEX + "LexicalEntry"), true);
         }
         if ("lexicalconcept".equals(kind)) {
             return new ResolvedTarget("lexicalConcept", resource,
                     vf.createIRI(LexiconCrudSupport.lexicalConceptGraphUri()),
-                    vf.createIRI(ONTOLEX + "LexicalConcept"), false,
-                    lexicalConceptReservedProperties());
+                    vf.createIRI(ONTOLEX + "LexicalConcept"), false);
         }
         if ("attestation".equals(kind)) {
             String fileId = required(target.fileId, "MISSING_FILE_ID",
                     "fileId is required for attestation");
             return new ResolvedTarget("attestation", resource,
                     vf.createIRI(LexicalNamedGraphs.attestationGraphUri(fileId)),
-                    vf.createIRI(FRAC + "Attestation"), false,
-                    attestationReservedProperties());
+                    vf.createIRI(FRAC + "Attestation"), false);
         }
         throw invalid("UNSUPPORTED_METADATA_ENTITY_TYPE",
                 "entityType must be lexicalEntry, lexicalConcept, or attestation");
-    }
-
-    private static Set<String> commonReserved() {
-        return new HashSet<String>(Arrays.asList(RDF.TYPE.stringValue(),
-                RDF.VALUE.stringValue(), DCTERMS.CREATOR.stringValue(),
-                DCTERMS.CREATED.stringValue(), DCTERMS.MODIFIED.stringValue()));
-    }
-
-    public static Set<String> lexicalEntryReservedProperties() {
-        Set<String> result = commonReserved();
-        result.addAll(Arrays.asList(RDFS + "label", ONTOLEX + "otherForm",
-                ONTOLEX + "canonicalForm", ONTOLEX + "sense",
-                ONTOLEX + "denotes", ONTOLEX + "evokes", LEXO + "status",
-                LIME + "entry"));
-        return result;
-    }
-
-    public static Set<String> lexicalConceptReservedProperties() {
-        Set<String> result = commonReserved();
-        result.addAll(Arrays.asList(SKOS + "prefLabel", SKOS + "alternativeLabel",
-                SKOS + "hiddenLabel", SKOS + "definition", SKOS + "broader",
-                SKOS + "inScheme", ONTOLEX + "isLexicalizedSenseOf"));
-        return result;
-    }
-
-    public static Set<String> attestationReservedProperties() {
-        Set<String> result = commonReserved();
-        result.addAll(Arrays.asList(FRAC + "locus", FRAC + "observedIn",
-                FRAC + "gloss", FRAC + "frequency", FRAC + "attestation",
-                DCTERMS.DESCRIPTION.stringValue()));
-        return result;
     }
 
     private String required(String value, String code, String message) {
@@ -293,17 +253,14 @@ public final class MetadataManager implements Manager {
         final Resource graph;
         final IRI expectedType;
         final boolean allowSubclass;
-        final Set<String> reserved;
 
         ResolvedTarget(String entityType, IRI resource, Resource graph,
-                       IRI expectedType, boolean allowSubclass,
-                       Set<String> reserved) {
+                       IRI expectedType, boolean allowSubclass) {
             this.entityType = entityType;
             this.resource = resource;
             this.graph = graph;
             this.expectedType = expectedType;
             this.allowSubclass = allowSubclass;
-            this.reserved = Collections.unmodifiableSet(reserved);
         }
     }
 }

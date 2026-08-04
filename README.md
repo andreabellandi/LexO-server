@@ -127,12 +127,9 @@ user resolution.
 `lemma=true` creates the canonical `ontolex:Form`. Entry `metadata`, and sense
 `properties` and `metadata`, are lists of `{property, values}` objects; every
 `values` list is multivalued. Values support IRIs, plain literals,
-language-tagged literals, and typed literals. Entry metadata rejects
-`rdf:type`, `rdf:value`, `rdfs:label`, creator and service timestamps,
-`ontolex:otherForm`, `ontolex:canonicalForm`, `ontolex:sense`,
-`ontolex:denotes`, and `ontolex:evokes`. Sense metadata keeps its own protected
-predicate set; semantic properties such as definitions belong in sense
-`properties`.
+language-tagged literals, and typed literals. Entry and sense metadata follow
+the global metadata policy documented below; semantic properties such as
+definitions belong in sense `properties`.
 
 The service returns HTTP `201`, sets `Location` to the new entry IRI, and returns
 the lexicon, entry, optional canonical form, sense IRIs, normalized language,
@@ -192,9 +189,9 @@ the IRI, resolved author, timestamp, and accepted links. Malformed input returns
 ## Common entity metadata
 
 `GET`, `PATCH`, and `DELETE /service/metadata` provide one RDF metadata contract
-for lexical entries, lexical concepts, and attestations. The same shared DTO and
-RDF codec are used by entity creation and can be extended through an
-entity-specific policy for forms, senses, etymologies, and future resources.
+for lexical entries, lexical concepts, and attestations. The same shared DTO,
+RDF codec, and global protection policy are used by entity creation and extend
+unchanged to forms, senses, etymologies, and future resources.
 
 The common shape is a list of `{property, values}` objects. Values may be IRIs,
 plain literals, BCP 47 language-tagged literals, or typed literals. `PATCH`
@@ -206,8 +203,11 @@ The client supplies `entityType` and the context needed to select the graph:
 `language` for `lexicalEntry`, no context for `lexicalConcept`, and `fileId` for
 `attestation`. The service never accepts a graph IRI from the client. It verifies
 the resource type and resolves respectively the language graph, fixed lexical
-concept graph, or per-document attestation graph. Structural predicates are
-protected by entity-specific policies.
+concept graph, or per-document attestation graph. Metadata properties in the
+OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS, and Decomp namespaces are always
+rejected. The same applies to `dcterms:creator`, `dcterms:created`,
+`dcterms:modified`, `rdf:type`, and `rdf:value`; protected predicates are also
+omitted from metadata reads if already present in legacy data.
 
 ## Advanced lexical entry list
 
@@ -562,52 +562,10 @@ The complete list is validated before a single `LexOLexica` transaction.
 }
 ```
 
-`PATCH /service/attestations/{fileId}/metadata` atomically replaces selected RDF
-metadata properties on one or more attestations in that text's attestation named
-graph. Property names and IRI values must be absolute IRIs. Literal values may
-optionally carry either a BCP 47 language tag or an RDF datatype IRI. An empty
-`values` list removes the property; properties omitted from the request remain
-unchanged.
-
-```json
-{
-  "updates": [
-    {
-      "attestation": "https://lexo.ilc.cnr.it#LexO_2026-07-29...",
-      "properties": [
-        {
-          "property": "https://example.org/vocabulary/confidence",
-          "values": [
-            {
-              "value": "0.92",
-              "type": "literal",
-              "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
-            }
-          ]
-        },
-        {
-          "property": "http://purl.org/dc/terms/source",
-          "values": [
-            {
-              "value": "https://example.org/sources/corpus-1",
-              "type": "iri"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-Every attestation must already be a `frac:Attestation` in the graph selected by
-`fileId`. Structural properties such as `rdf:type`, `rdf:value`, `frac:locus`,
-`frac:observedIn`, `frac:gloss`, creator and timestamps cannot be changed through
-this endpoint. The complete batch is validated before its single LexOLexica
-transaction, and every updated attestation receives a new `dcterms:modified`
-value. Paginated attestation results expose custom properties in a `metadata`
-object keyed by property IRI while preserving multiple values and their RDF
-kind, language or datatype.
+Attestation metadata mutations use the common `/service/metadata` endpoints
+documented above with `entityType: "attestation"` and the required `fileId`.
+The former attestation-specific metadata endpoint has been removed to keep one
+contract and one implementation for every supported entity.
 
 `DELETE /service/attestations/{fileId}/by-observable` atomically deletes
 attestations of one observable from the per-text attestation graph. The JSON

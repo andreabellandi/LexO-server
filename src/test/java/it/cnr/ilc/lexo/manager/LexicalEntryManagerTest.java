@@ -309,15 +309,16 @@ class LexicalEntryManagerTest {
         String[] reserved = {
             RDF.TYPE.stringValue(),
             RDF.VALUE.stringValue(),
-            RDFS.LABEL.stringValue(),
             DCTERMS.CREATOR.stringValue(),
             DCTERMS.CREATED.stringValue(),
             DCTERMS.MODIFIED.stringValue(),
-            ONTOLEX + "otherForm",
-            ONTOLEX + "canonicalForm",
-            ONTOLEX + "sense",
-            ONTOLEX + "denotes",
-            ONTOLEX + "evokes"
+            ONTOLEX + "anyFutureProperty",
+            "http://www.w3.org/ns/lemon/frac#anyFutureProperty",
+            "http://www.w3.org/ns/lemon/lime#anyFutureProperty",
+            "http://www.w3.org/ns/lemon/vartrans#anyFutureProperty",
+            "http://www.w3.org/ns/lemon/synsem#anyFutureProperty",
+            "http://www.w3.org/2004/02/skos/core#anyFutureProperty",
+            "http://www.w3.org/ns/lemon/decomp#anyFutureProperty"
         };
 
         for (String predicate : reserved) {

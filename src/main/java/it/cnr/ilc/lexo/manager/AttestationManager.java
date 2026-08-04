@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.RepositoryTarget;
+import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
@@ -10,9 +11,6 @@ import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusIn
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationFilter;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationLocusUpdate;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataProperty;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationObservableUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
@@ -20,8 +18,6 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateResult;
-import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchItem;
-import it.cnr.ilc.lexo.service.data.attestation.output.AttestationMetadataPatchResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
@@ -75,9 +71,6 @@ public class AttestationManager implements Manager {
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final String DEFAULT_STRUCTURE_NAMESPACE =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
-    private static final Set<String> RESERVED_METADATA_PROPERTIES =
-            reservedMetadataProperties();
-
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final ConnectionSource connections;
@@ -1158,144 +1151,6 @@ public class AttestationManager implements Manager {
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).format(value);
     }
 
-    /** Atomically replaces selected metadata properties on multiple attestations. */
-    public AttestationMetadataPatchResult patchMetadata(String fileIdValue,
-                                                         AttestationMetadataBatch batch)
-            throws ManagerException {
-        String fileId = required("fileId", fileIdValue);
-        final IRI attestationGraph;
-        try {
-            attestationGraph = vf.createIRI(
-                    LexicalNamedGraphs.attestationGraphUri(fileId));
-        } catch (IllegalArgumentException e) {
-            throw new ManagerException(
-                    "INVALID_FILE_ID: fileId contains unsupported characters");
-        }
-        if (batch == null || batch.updates == null || batch.updates.isEmpty()) {
-            throw new ManagerException(
-                    "MISSING_METADATA_UPDATES: at least one metadata update is required");
-        }
-
-        RepositoryConnection lexical = null;
-        try {
-            lexical = connections.acquire(RepositoryTarget.LEXICON);
-            List<ValidatedMetadataUpdate> updates = validateMetadataBatch(
-                    lexical, attestationGraph, batch.updates);
-            String modified = timestamp(new Timestamp(System.currentTimeMillis()));
-            lexical.begin();
-            for (ValidatedMetadataUpdate update : updates) {
-                for (Map.Entry<IRI, List<Value>> property
-                        : update.properties.entrySet()) {
-                    lexical.remove(update.attestation, property.getKey(), null,
-                            attestationGraph);
-                    for (Value value : property.getValue()) {
-                        lexical.add(update.attestation, property.getKey(), value,
-                                attestationGraph);
-                    }
-                }
-                lexical.remove(update.attestation, DCTERMS.MODIFIED, null,
-                        attestationGraph);
-                lexical.add(update.attestation, DCTERMS.MODIFIED,
-                        vf.createLiteral(modified), attestationGraph);
-            }
-            lexical.commit();
-
-            AttestationMetadataPatchResult result =
-                    new AttestationMetadataPatchResult();
-            result.fileId = fileId;
-            for (ValidatedMetadataUpdate update : updates) {
-                AttestationMetadataPatchItem item =
-                        new AttestationMetadataPatchItem();
-                item.attestation = update.attestation.stringValue();
-                for (IRI property : update.properties.keySet()) {
-                    item.properties.add(property.stringValue());
-                }
-                item.lastUpdate = modified;
-                result.updated.add(item);
-            }
-            return result;
-        } catch (ManagerException e) {
-            rollback(lexical);
-            throw e;
-        } catch (RuntimeException e) {
-            rollback(lexical);
-            throw new ManagerException("ATTESTATION_METADATA_UPDATE_FAILED: "
-                    + message(e), e);
-        } finally {
-            connections.release(RepositoryTarget.LEXICON, lexical);
-        }
-    }
-
-    private List<ValidatedMetadataUpdate> validateMetadataBatch(
-            RepositoryConnection connection, Resource graph,
-            List<AttestationMetadataUpdate> requested) throws ManagerException {
-        List<ValidatedMetadataUpdate> result =
-                new ArrayList<ValidatedMetadataUpdate>();
-        Set<String> attestations = new HashSet<String>();
-        for (int updateIndex = 0; updateIndex < requested.size(); updateIndex++) {
-            AttestationMetadataUpdate update = requested.get(updateIndex);
-            if (update == null) {
-                throw new ManagerException("INVALID_METADATA_UPDATE: updates["
-                        + updateIndex + "] is null");
-            }
-            IRI attestation = iri("updates[" + updateIndex + "].attestation",
-                    required("updates[" + updateIndex + "].attestation",
-                            update.attestation));
-            if (!attestations.add(attestation.stringValue())) {
-                throw new ManagerException("DUPLICATE_ATTESTATION: "
-                        + attestation.stringValue());
-            }
-            if (!connection.hasStatement(attestation, RDF.TYPE,
-                    vf.createIRI(FRAC + "Attestation"), false, graph)) {
-                throw new ManagerException("ATTESTATION_NOT_FOUND: "
-                        + attestation.stringValue()
-                        + " is not an attestation in the graph for fileId");
-            }
-            if (update.properties == null || update.properties.isEmpty()) {
-                throw new ManagerException("MISSING_METADATA_PROPERTIES: updates["
-                        + updateIndex + "].properties must not be empty");
-            }
-
-            LinkedHashMap<IRI, List<Value>> properties =
-                    new LinkedHashMap<IRI, List<Value>>();
-            Set<String> propertyIris = new HashSet<String>();
-            for (int propertyIndex = 0; propertyIndex < update.properties.size();
-                    propertyIndex++) {
-                AttestationMetadataProperty property =
-                        update.properties.get(propertyIndex);
-                String field = "updates[" + updateIndex + "].properties["
-                        + propertyIndex + "]";
-                if (property == null) {
-                    throw new ManagerException("INVALID_METADATA_PROPERTY: "
-                            + field + " is null");
-                }
-                IRI predicate = iri(field + ".property",
-                        required(field + ".property", property.property));
-                if (RESERVED_METADATA_PROPERTIES.contains(predicate.stringValue())) {
-                    throw new ManagerException("RESERVED_METADATA_PROPERTY: "
-                            + predicate.stringValue());
-                }
-                if (!propertyIris.add(predicate.stringValue())) {
-                    throw new ManagerException("DUPLICATE_METADATA_PROPERTY: "
-                            + predicate.stringValue());
-                }
-                if (property.values == null) {
-                    throw new ManagerException("MISSING_METADATA_VALUES: " + field
-                            + ".values is required; use an empty list to remove it");
-                }
-                List<Value> values = new ArrayList<Value>();
-                for (int valueIndex = 0; valueIndex < property.values.size();
-                        valueIndex++) {
-                    values.add(metadataValue(property.values.get(valueIndex),
-                            field + ".values[" + valueIndex + "]"));
-                }
-                properties.put(predicate, values);
-            }
-            result.add(new ValidatedMetadataUpdate(attestation, properties));
-        }
-        return result;
-    }
-
     private Value metadataValue(AttestationMetadataValue item, String field)
             throws ManagerException {
         try {
@@ -1872,7 +1727,7 @@ public class AttestationManager implements Manager {
             while (statements.hasNext()) {
                 Statement statement = statements.next();
                 String property = statement.getPredicate().stringValue();
-                if (RESERVED_METADATA_PROPERTIES.contains(property)) {
+                if (MetadataPolicy.isProtected(property)) {
                     continue;
                 }
                 AttestationMetadataValue value =
@@ -2672,21 +2527,6 @@ public class AttestationManager implements Manager {
         return value == null || value.trim().isEmpty();
     }
 
-    private static Set<String> reservedMetadataProperties() {
-        Set<String> result = new HashSet<String>();
-        result.add(RDF.TYPE.stringValue());
-        result.add(RDF.VALUE.stringValue());
-        result.add(DCTERMS.CREATOR.stringValue());
-        result.add(DCTERMS.CREATED.stringValue());
-        result.add(DCTERMS.MODIFIED.stringValue());
-        result.add(DCTERMS.DESCRIPTION.stringValue());
-        result.add(FRAC + "attestation");
-        result.add(FRAC + "gloss");
-        result.add(FRAC + "locus");
-        result.add(FRAC + "observedIn");
-        return Collections.unmodifiableSet(result);
-    }
-
     private static String namespace(String value) {
         return value.endsWith("/") || value.endsWith("#") ? value : value + "#";
     }
@@ -2719,17 +2559,6 @@ public class AttestationManager implements Manager {
             this.textGraph = textGraph;
             this.referenceContext = referenceContext;
             this.language = language;
-        }
-    }
-
-    private static final class ValidatedMetadataUpdate {
-        final IRI attestation;
-        final LinkedHashMap<IRI, List<Value>> properties;
-
-        ValidatedMetadataUpdate(IRI attestation,
-                                LinkedHashMap<IRI, List<Value>> properties) {
-            this.attestation = attestation;
-            this.properties = properties;
         }
     }
 

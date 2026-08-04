@@ -2,8 +2,9 @@ package it.cnr.ilc.lexo.manager;
 
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
-import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
+import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfValue;
@@ -47,13 +48,8 @@ public final class LexicalEntryManager implements Manager {
     private static final String LIME = "http://www.w3.org/ns/lemon/lime#";
     private static final String LEXINFO =
             "http://www.lexinfo.net/ontology/3.0/lexinfo#";
-    private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
     private static final String LEXO = "https://lexo.ilc.cnr.it#";
     private static final String WORKING = "working";
-    private static final Set<String> RESERVED_ENTRY_METADATA_PROPERTIES =
-            reservedEntryMetadataProperties();
-    private static final Set<String> RESERVED_SENSE_METADATA_PROPERTIES =
-            reservedSenseMetadataProperties();
     private static final Set<String> MANAGED_SENSE_PROPERTIES =
             managedSenseProperties();
 
@@ -197,7 +193,6 @@ public final class LexicalEntryManager implements Manager {
                         + i + " must be an object");
             }
             addPropertyValues(values, property.property, property.values,
-                    RESERVED_ENTRY_METADATA_PROPERTIES,
                     "RESERVED_ENTRY_METADATA_PROPERTY",
                     "INVALID_ENTRY_METADATA_PROPERTY_IRI",
                     "MISSING_ENTRY_METADATA_VALUES", false,
@@ -216,7 +211,7 @@ public final class LexicalEntryManager implements Manager {
                             + index + ", index " + i + " must be an object");
                 }
                 addPropertyValues(values, property.property, property.values,
-                        null, null,
+                        null,
                         "INVALID_SENSE_PROPERTY_IRI",
                         "MISSING_SENSE_PROPERTY_VALUES", true,
                         "senses[" + index + "].properties[" + i + "]");
@@ -230,7 +225,6 @@ public final class LexicalEntryManager implements Manager {
                             + index + ", index " + i + " must be an object");
                 }
                 addPropertyValues(values, metadata.property, metadata.values,
-                        RESERVED_SENSE_METADATA_PROPERTIES,
                         "RESERVED_SENSE_METADATA_PROPERTY",
                         "INVALID_SENSE_PROPERTY_IRI",
                         "MISSING_SENSE_PROPERTY_VALUES", false,
@@ -242,7 +236,6 @@ public final class LexicalEntryManager implements Manager {
 
     private void addPropertyValues(List<PropertyValue> target, String propertyValue,
                                    List<LexicalRdfValue> values,
-                                   Set<String> reservedMetadataProperties,
                                    String reservedMetadataCode,
                                    String invalidPropertyCode,
                                    String missingValuesCode,
@@ -250,8 +243,8 @@ public final class LexicalEntryManager implements Manager {
                                    String path) {
         IRI property = requireIri(path + ".property", propertyValue,
                 invalidPropertyCode);
-        if (reservedMetadataProperties != null
-                && reservedMetadataProperties.contains(property.stringValue())) {
+        if (reservedMetadataCode != null
+                && MetadataPolicy.isProtected(property.stringValue())) {
             throw invalid(reservedMetadataCode,
                     property.stringValue() + " is structural and cannot be metadata");
         }
@@ -471,23 +464,6 @@ public final class LexicalEntryManager implements Manager {
         } else {
             connection.close();
         }
-    }
-
-    private static Set<String> reservedEntryMetadataProperties() {
-        return Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
-                RDF.TYPE.stringValue(), RDF.VALUE.stringValue(),
-                RDFS.LABEL.stringValue(), DCTERMS.CREATOR.stringValue(),
-                DCTERMS.CREATED.stringValue(), DCTERMS.MODIFIED.stringValue(),
-                ONTOLEX + "otherForm", ONTOLEX + "canonicalForm",
-                ONTOLEX + "sense", ONTOLEX + "denotes", ONTOLEX + "evokes")));
-    }
-
-    private static Set<String> reservedSenseMetadataProperties() {
-        return Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
-                RDF.TYPE.stringValue(), RDF.VALUE.stringValue(),
-                DCTERMS.CREATOR.stringValue(), DCTERMS.CREATED.stringValue(),
-                DCTERMS.MODIFIED.stringValue(), SKOS + "definition",
-                ONTOLEX + "reference", ONTOLEX + "isLexicalizedSenseOf")));
     }
 
     private static Set<String> managedSenseProperties() {

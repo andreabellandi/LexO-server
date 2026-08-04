@@ -134,6 +134,24 @@ class LexicalConceptManagerTest {
     }
 
     @Test
+    void rejectsMetadataFromAnyProtectedNamespaceBeforeWriting() {
+        LexicalConceptCreationRequest request = request();
+        RdfMetadataProperty metadata = new RdfMetadataProperty();
+        metadata.property = "http://www.w3.org/ns/lemon/vartrans#futureProperty";
+        metadata.values = Arrays.asList(
+                new RdfMetadataValue("forbidden", "literal", null, null));
+        request.metadata = Arrays.asList(metadata);
+
+        assertThatThrownBy(() -> manager.create(request, "editor"))
+                .hasMessageStartingWith("RESERVED_METADATA_PROPERTY:");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(null,
+                    iri("http://www.w3.org/ns/lemon/vartrans#futureProperty"),
+                    null, false, graph)).isFalse();
+        }
+    }
+
+    @Test
     void validatesRequestShapeBeforeOpeningAWriteTransaction() {
         assertThatThrownBy(() -> manager.create(null, "editor"))
                 .hasMessageStartingWith("MISSING_LEXICAL_CONCEPT:");

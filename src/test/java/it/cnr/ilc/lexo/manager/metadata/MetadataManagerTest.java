@@ -115,10 +115,50 @@ class MetadataManagerTest {
         MetadataPatchRequest protectedPatch = patch("lexicalEntry",
                 entry.stringValue());
         protectedPatch.language = "it";
-        protectedPatch.properties = Arrays.asList(property(RDFS.LABEL.stringValue(),
+        protectedPatch.properties = Arrays.asList(property(ONTOLEX + "usage",
                 new RdfMetadataValue("x", "literal", null, null)));
         assertThatThrownBy(() -> manager.patch(protectedPatch))
                 .hasMessageStartingWith("RESERVED_METADATA_PROPERTY:");
+
+        MetadataDeleteRequest protectedDeletion = new MetadataDeleteRequest();
+        protectedDeletion.entityType = "lexicalEntry";
+        protectedDeletion.resource = entry.stringValue();
+        protectedDeletion.language = "it";
+        protectedDeletion.properties = Arrays.asList(
+                "http://www.w3.org/ns/lemon/decomp#subterm");
+        assertThatThrownBy(() -> manager.delete(protectedDeletion))
+                .hasMessageStartingWith("RESERVED_METADATA_PROPERTY:");
+
+        MetadataPatchRequest permittedPatch = patch("lexicalEntry",
+                entry.stringValue());
+        permittedPatch.language = "it";
+        permittedPatch.properties = Arrays.asList(property(RDFS.LABEL.stringValue(),
+                new RdfMetadataValue("etichetta", "literal", "it", null)));
+        assertThat(manager.patch(permittedPatch).metadata)
+                .extracting(item -> item.property)
+                .contains(RDFS.LABEL.stringValue());
+    }
+
+    @Test
+    void neverReturnsPreexistingProtectedPredicatesAsMetadata() {
+        IRI graph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
+        IRI concept = iri("https://example.org/concept/protected-output");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(concept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), graph);
+            connection.add(concept, iri("http://www.w3.org/ns/lemon/vartrans#category"),
+                    vf.createLiteral("hidden"), graph);
+            connection.add(concept, DCTERMS.TITLE,
+                    vf.createLiteral("visible"), graph);
+        }
+
+        MetadataTarget target = new MetadataTarget();
+        target.entityType = "lexicalConcept";
+        target.resource = concept.stringValue();
+
+        assertThat(manager.read(target).metadata)
+                .extracting(item -> item.property)
+                .containsExactly(DCTERMS.TITLE.stringValue());
     }
 
     @Test

@@ -13,7 +13,6 @@ import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusIn
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationFilter;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationLocusUpdate;
-import it.cnr.ilc.lexo.service.data.attestation.input.AttestationMetadataBatch;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationObservableUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import java.util.List;
@@ -331,44 +330,6 @@ public class Attestations extends Service {
         } catch (RuntimeException e) {
             log(Level.ERROR, "/attestations/{fileId}/observable: "
                     + e.getMessage(), e);
-            return plain(Response.Status.INTERNAL_SERVER_ERROR,
-                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
-        }
-    }
-
-    @PATCH
-    @javax.ws.rs.Path("{fileId}/metadata")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Attestation metadata batch update",
-            notes = "This method atomically replaces selected RDF metadata property values on one or more FRAC attestations in the per-text attestation graph; an empty values list removes the property")
-    public Response patchMetadata(
-            @HeaderParam("Authorization") String key,
-            @ApiParam(name = "fileId",
-                    value = "id of the text whose attestation graph must be updated",
-                    example = "550e8400-e29b-41d4-a716-446655440000", required = true)
-            @PathParam("fileId") String fileId,
-            @ApiParam(name = "batch",
-                    value = "atomic batch of attestation metadata property replacements",
-                    required = true)
-            AttestationMetadataBatch batch) {
-        try {
-            checkKey(key);
-            log(Level.INFO, "/attestations/{fileId}/metadata: updating metadata for fileId="
-                    + fileId);
-            return json(manager.patchMetadata(fileId, batch));
-        } catch (ManagerException | IllegalArgumentException e) {
-            log(Level.ERROR, "/attestations/{fileId}/metadata: " + e.getMessage());
-            return plain(Response.Status.BAD_REQUEST, e.getMessage());
-        } catch (AuthorizationException | ServiceException e) {
-            String username = authenticationData == null
-                    || authenticationData.getUsername() == null
-                    ? "" : authenticationData.getUsername();
-            log(Level.ERROR, "/attestations/{fileId}/metadata: " + username
-                    + " not authorized");
-            return plain(Response.Status.BAD_REQUEST, username + " not authorized");
-        } catch (RuntimeException e) {
-            log(Level.ERROR, "/attestations/{fileId}/metadata: " + e.getMessage(), e);
             return plain(Response.Status.INTERNAL_SERVER_ERROR,
                     e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         }

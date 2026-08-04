@@ -3,7 +3,6 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
-import it.cnr.ilc.lexo.manager.metadata.MetadataManager;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
@@ -130,8 +129,7 @@ public final class LexicalConceptManager implements Manager {
         LinkedHashMap<IRI, List<Value>> metadata =
                 new LinkedHashMap<IRI, List<Value>>();
         if (request.metadata != null) {
-            metadata = metadataCodec.decodeProperties(request.metadata,
-                    MetadataManager.lexicalConceptReservedProperties(), false);
+            metadata = metadataCodec.decodeProperties(request.metadata, false);
         }
         return new ValidatedRequest(labels, alternatives, hidden, definitions,
                 senses, parent, conceptSet, metadata);
