@@ -7,16 +7,22 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.LexiconCrudSupport;
 import it.cnr.ilc.lexo.manager.LexicalConceptManager;
+import it.cnr.ilc.lexo.manager.LexicalConceptUpdateManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryListManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryStatusManager;
+import it.cnr.ilc.lexo.manager.LexicalEntryUpdateManager;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryCreationResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryStatusChangeResult;
+import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptUpdateResult;
+import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryUpdateResult;
 import java.net.URI;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -46,22 +52,80 @@ public class Lexicon extends Service {
     private final LexicalEntryStatusManager statusManager;
     private final LexicalEntryListManager listManager;
     private final LexicalConceptManager conceptManager;
+    private final LexicalEntryUpdateManager entryUpdateManager;
+    private final LexicalConceptUpdateManager conceptUpdateManager;
 
     public Lexicon() {
         this(ManagerFactory.getManager(LexicalEntryManager.class),
                 ManagerFactory.getManager(LexicalEntryStatusManager.class),
                 ManagerFactory.getManager(LexicalEntryListManager.class),
-                ManagerFactory.getManager(LexicalConceptManager.class));
+                ManagerFactory.getManager(LexicalConceptManager.class),
+                ManagerFactory.getManager(LexicalEntryUpdateManager.class),
+                ManagerFactory.getManager(LexicalConceptUpdateManager.class));
     }
 
     Lexicon(LexicalEntryManager entryManager,
             LexicalEntryStatusManager statusManager,
             LexicalEntryListManager listManager,
-            LexicalConceptManager conceptManager) {
+            LexicalConceptManager conceptManager,
+            LexicalEntryUpdateManager entryUpdateManager,
+            LexicalConceptUpdateManager conceptUpdateManager) {
         this.entryManager = entryManager;
         this.statusManager = statusManager;
         this.listManager = listManager;
         this.conceptManager = conceptManager;
+        this.entryUpdateManager = entryUpdateManager;
+        this.conceptUpdateManager = conceptUpdateManager;
+    }
+
+    @PATCH
+    @Path("lexicalConcept")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Lexical concept update",
+            notes = "Atomically replaces the supplied labels, definitions, or links of one lexical concept in the fixed LexOLexica lexical-concept named graph; metadata is managed by the common metadata service")
+    public Response updateLexicalConcept(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header when LexO user management is enabled",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "author",
+                    value = "account updating the lexical concept when LexO user management is disabled",
+                    example = "editor", required = false)
+            @QueryParam("author") String author,
+            @ApiParam(name = "lexicalConceptUpdate",
+                    value = "target lexical concept and presence-aware semantic property replacements",
+                    required = true)
+            LexicalConceptUpdateRequest request) {
+        try {
+            checkKey(key);
+            String updater = resolveAuthor(author);
+            log(Level.INFO, "/lexica/lexicalConcept: updating lexical concept");
+            LexicalConceptUpdateResult result = conceptUpdateManager.update(
+                    request, updater);
+            log(Level.INFO, "/lexica/lexicalConcept: updated concept="
+                    + result.lexicalConcept);
+            return jsonOk(result);
+        } catch (IllegalArgumentException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (LexicalConceptUpdateManager.ConceptUpdateException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/lexica/lexicalConcept: " + username
+                    + " not authorized");
+            return plain(Response.Status.BAD_REQUEST,
+                    username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
     }
 
     @POST
@@ -274,6 +338,54 @@ public class Lexicon extends Service {
                     ? "" : authenticationData.getUsername();
             log(Level.ERROR, "/lexica/entry: " + username + " not authorized");
             return plain(Response.Status.BAD_REQUEST, username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/lexica/entry: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
+    }
+
+    @PATCH
+    @Path("entry")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Lexical entry update",
+            notes = "Atomically replaces supplied label, type, or part of speech in the language-specific LexOLexica named graph; metadata, status, forms, and senses are managed separately")
+    public Response updateEntry(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header when LexO user management is enabled",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "author",
+                    value = "account updating the lexical entry when LexO user management is disabled",
+                    example = "editor", required = false)
+            @QueryParam("author") String author,
+            @ApiParam(name = "entryUpdate",
+                    value = "target lexical entry, language, and presence-aware core property replacements",
+                    required = true)
+            LexicalEntryUpdateRequest request) {
+        try {
+            checkKey(key);
+            String updater = resolveAuthor(author);
+            log(Level.INFO, "/lexica/entry: updating lexical entry");
+            LexicalEntryUpdateResult result = entryUpdateManager.update(
+                    request, updater);
+            log(Level.INFO, "/lexica/entry: updated entry=" + result.entry);
+            return jsonOk(result);
+        } catch (IllegalArgumentException e) {
+            log(Level.ERROR, "/lexica/entry: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (LexicalEntryUpdateManager.EntryUpdateException e) {
+            log(Level.ERROR, "/lexica/entry: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/lexica/entry: " + username + " not authorized");
+            return plain(Response.Status.BAD_REQUEST,
+                    username + " not authorized");
         } catch (RuntimeException e) {
             log(Level.ERROR, "/lexica/entry: " + e.getMessage(), e);
             return plain(Response.Status.INTERNAL_SERVER_ERROR,

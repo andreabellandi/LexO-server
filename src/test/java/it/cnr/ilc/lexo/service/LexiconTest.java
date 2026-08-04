@@ -7,7 +7,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryUpdateRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import javax.ws.rs.GET;
@@ -63,6 +65,39 @@ class LexiconTest {
                 .isEqualTo("lexicalConcept");
         assertThat(method.getAnnotation(ApiOperation.class).value())
                 .isEqualTo("Lexical concept creation");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
+    void exposesDocumentedPatchLexicalConceptEndpointAndEveryParameter()
+            throws Exception {
+        Method method = Lexicon.class.getMethod("updateLexicalConcept",
+                String.class, String.class, LexicalConceptUpdateRequest.class);
+
+        assertThat(method.getAnnotation(PATCH.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value())
+                .isEqualTo("lexicalConcept");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Lexical concept update");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
+    void exposesDocumentedPatchEntryEndpointAndEveryParameter()
+            throws Exception {
+        Method method = Lexicon.class.getMethod("updateEntry", String.class,
+                String.class, LexicalEntryUpdateRequest.class);
+
+        assertThat(method.getAnnotation(PATCH.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value()).isEqualTo("entry");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Lexical entry update");
         Annotation[][] annotations = method.getParameterAnnotations();
         for (Annotation[] parameterAnnotations : annotations) {
             assertThat(hasApiParam(parameterAnnotations)).isTrue();
