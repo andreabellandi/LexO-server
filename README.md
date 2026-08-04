@@ -259,7 +259,8 @@ OntoLex subclasses for language-scoped resources, and resolves respectively the
 language graph, fixed lexical concept graph, or per-document attestation graph.
 Metadata properties in the
 OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS, and Decomp namespaces are always
-rejected. The same applies to `dcterms:creator`, `dcterms:created`,
+rejected, with the permanent exception of `skos:note`, which is accepted and
+returned as metadata. The same applies to `dcterms:creator`, `dcterms:created`,
 `dcterms:modified`, `rdf:type`, and `rdf:value`; protected predicates are also
 omitted from metadata reads if already present in legacy data.
 

@@ -11,6 +11,9 @@ import org.eclipse.rdf4j.model.vocabulary.RDF;
 /** Global protected-predicate policy shared by metadata for every entity. */
 public final class MetadataPolicy {
 
+    private static final String SKOS_NOTE =
+            "http://www.w3.org/2004/02/skos/core#note";
+
     private static final List<String> PROTECTED_NAMESPACES =
             Collections.unmodifiableList(Arrays.asList(
                     "http://www.w3.org/ns/lemon/ontolex#",
@@ -35,6 +38,9 @@ public final class MetadataPolicy {
     public static boolean isProtected(String property) {
         if (property == null) {
             return true;
+        }
+        if (SKOS_NOTE.equals(property)) {
+            return false;
         }
         if (EXACT_PROTECTED_PROPERTIES.contains(property)) {
             return true;

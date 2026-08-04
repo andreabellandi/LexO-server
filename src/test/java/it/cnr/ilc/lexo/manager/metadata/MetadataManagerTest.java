@@ -132,11 +132,15 @@ class MetadataManagerTest {
         MetadataPatchRequest permittedPatch = patch("lexicalEntry",
                 entry.stringValue());
         permittedPatch.language = "it";
-        permittedPatch.properties = Arrays.asList(property(RDFS.LABEL.stringValue(),
-                new RdfMetadataValue("etichetta", "literal", "it", null)));
+        permittedPatch.properties = Arrays.asList(
+                property(RDFS.LABEL.stringValue(),
+                        new RdfMetadataValue("etichetta", "literal", "it", null)),
+                property("http://www.w3.org/2004/02/skos/core#note",
+                        new RdfMetadataValue("nota SKOS", "literal", "it", null)));
         assertThat(manager.patch(permittedPatch).metadata)
                 .extracting(item -> item.property)
-                .contains(RDFS.LABEL.stringValue());
+                .contains(RDFS.LABEL.stringValue(),
+                        "http://www.w3.org/2004/02/skos/core#note");
     }
 
     @Test

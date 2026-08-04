@@ -93,7 +93,8 @@ class LexicalEntryListManagerTest {
         assertThat(source.values.get(1).language).isEqualTo("it");
         assertThat(direct.metadata).extracting(property -> property.property)
                 .noneMatch(property -> property.startsWith(ONTOLEX))
-                .noneMatch(property -> property.startsWith(SKOS))
+                .contains(SKOS + "note")
+                .doesNotContain(SKOS + "definition")
                 .doesNotContain(DCTERMS.CREATOR.stringValue());
         assertThat(entry(entries, EX + "entry/no-label").label).isNull();
         assertThat(entry(entries, EX + "entry/no-label").senses).isEmpty();
@@ -236,7 +237,7 @@ class LexicalEntryListManagerTest {
                     vf.createLiteral("fonte primaria", "it"), italianGraph);
             connection.add(direct,
                     iri(SKOS + "note"),
-                    vf.createLiteral("legacy protected metadata"), italianGraph);
+                    vf.createLiteral("nota lessicale"), italianGraph);
 
             addEntry(connection, lexicon, "canonical", word, null, "bob",
                     "completed", 0);

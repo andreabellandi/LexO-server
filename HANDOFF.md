@@ -123,7 +123,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - `MetadataPolicy` vieta per ogni entità presente e futura tutti i predicati nei
   namespace OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS e Decomp, oltre a
   `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
-  `rdf:value`. La regola vale su creazione, CRUD e output, inclusi dati legacy.
+  `rdf:value`; `skos:note` è l'eccezione permanente, ammessa in scrittura e
+  inclusa negli output metadata. La regola vale su creazione, CRUD e output,
+  inclusi dati legacy.
 - DTO e codec RDF comuni preservano IRI, literal semplici, language tag e
   datatype. Entry e attestazioni riusano il codec; la creazione del lexical
   concept accetta e restituisce ora `metadata` nella forma comune.
@@ -201,7 +203,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 163 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 164 test unitari/repository passati il 4 agosto 2026, inclusi
   i 5 test di regressione della deserializzazione MOXy dei valori RDF,
   i 7 test repository dei nuovi servizi PATCH e gli 8 test del contratto
   Swagger di `Lexicon`, oltre ai
@@ -435,7 +437,8 @@ il graph fisso `lexicalConcept`; entrambi supportano il controllo concorrente
 opzionale `expectedModified`, preservano creator e data di creazione e
 aggiornano `dcterms:modified`. I metadata non fanno parte dei due contratti e
 restano modificabili soltanto tramite `/metadata`. I 15 test mirati dei servizi
-PATCH, i 5 test MOXy e la suite completa di 163 test unitari/repository sono
+PATCH, i 5 test MOXy, il test esplicito dell'eccezione `skos:note` e la suite
+completa di 164 test unitari/repository sono
 passati il 4 agosto 2026; gli
 end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
 

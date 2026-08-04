@@ -78,6 +78,8 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- The global metadata policy now always permits `skos:note` on writes and
+  includes it in metadata reads, while other SKOS properties remain protected.
 - New lexical CRUD and attestation services now resolve application data only
   from category-specific named graphs: language graphs for entries, forms, and
   senses, the fixed concept graph for lexical concepts, and per-document graphs

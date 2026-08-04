@@ -122,7 +122,9 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
   (`http://www.w3.org/2004/02/skos/core#`) o `decomp`
   (`http://www.w3.org/ns/lemon/decomp#`). Sono inoltre sempre protetti
   `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
-  `rdf:value`. La regola si applica a creazione, lettura e CRUD dei metadati;
+  `rdf:value`. `skos:note` è l'unica eccezione permanente al blocco del
+  namespace SKOS e non deve mai essere esclusa dai metadati. La regola si
+  applica a creazione, lettura e CRUD dei metadati;
   l'aggiunta di forme, sensi, etimologie o altre entità deve riusare
   `MetadataPolicy` e non ridefinire eccezioni locali.
 - Mantenere la separazione `service` → `manager` → persistenza/query e usare i

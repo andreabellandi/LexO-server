@@ -143,6 +143,9 @@ skos:     http://www.w3.org/2004/02/skos/core#
 decomp:   http://www.w3.org/ns/lemon/decomp#
 ```
 
+`skos:note` is the permanent exception to the SKOS namespace rule: it is always
+accepted on metadata writes and included in metadata reads.
+
 The exact predicates `dcterms:creator`, `dcterms:created`, and
 `dcterms:modified` are also protected because their values are managed by the
 service. `rdf:type` and `rdf:value` remain protected as RDF structural
@@ -330,7 +333,8 @@ canonical form is `null`.
 Entry metadata uses the common list of `{property, values}` groups and the
 shared IRI/literal representation with language and datatype preservation.
 Reading applies `MetadataPolicy`: every protected exact predicate and every
-property in a protected namespace is omitted, including protected legacy data.
+property in a protected namespace is omitted, including protected legacy data;
+`skos:note` remains visible as the permanent SKOS exception.
 Entries without any effective label remain visible when `key` is absent. The
 endpoint does not apply implicit pagination.
 

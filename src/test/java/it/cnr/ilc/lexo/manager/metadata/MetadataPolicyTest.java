@@ -36,4 +36,12 @@ class MetadataPolicyTest {
         assertThat(MetadataPolicy.isProtected(
                 "http://www.w3.org/2000/01/rdf-schema#label")).isFalse();
     }
+
+    @Test
+    void alwaysAllowsSkosNoteWhileProtectingOtherSkosProperties() {
+        assertThat(MetadataPolicy.isProtected(
+                "http://www.w3.org/2004/02/skos/core#note")).isFalse();
+        assertThat(MetadataPolicy.isProtected(
+                "http://www.w3.org/2004/02/skos/core#definition")).isTrue();
+    }
 }
