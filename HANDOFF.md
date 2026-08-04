@@ -1,13 +1,13 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 4 agosto 2026 dopo l'arricchimento della risposta di
-`GET /lexica/{language}/entries`, la correzione delle collisioni millisecondo
-nella generazione delle IRI delle attestazioni e l'estensione di
-`POST /attestations/by-locus` con metadati RDF opzionali per observable. Il CRUD
-comune `/metadata` ammette ora anche `lexicalSense` e `form`, risolti nel graph
-lessicale della lingua e validati come tipi OntoLex o relative sottoclassi. La
-validazione degli observable delle attestazioni riconosce ora anche i graph
-lessicali specifici per lingua e il graph fisso dei lexical concept.
+Aggiornato al 4 agosto 2026 dopo l'adozione esclusiva dei named graph di
+categoria da parte dei nuovi CRUD lessicali e dei servizi di attestazione. Gli
+observable sono risolti nel graph ISO della lingua per entry, form e sense,
+oppure nel graph fisso dei lexical concept; default graph, graph legacy e
+collocazioni di categoria errate non vengono accettati. La creazione delle entry
+scrive inoltre `ontolex:isSenseOf` su ogni senso e le risposte delle attestazioni
+risolvono tipi e label dallo stesso graph effettivo. Il CRUD comune `/metadata`
+ammette anche `lexicalSense` e `form`, risolti nel graph lessicale della lingua.
 Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
@@ -185,18 +185,19 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 147 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 149 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
-  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
+  i 6 test mirati del bulk testuale, i 42 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
   relativi loci NIF, con validazione di tipi OntoLex/DCMI, URL esterni, offset
   Unicode e isolamento nei named graph per testo.
-- La validazione degli observable cerca i tipi OntoLex ammessi nel graph legacy
-  `lexica`, nei graph `lexica/{language}` e nel graph fisso `lexicalConcept`,
-  continuando a escludere default graph e named graph estranei.
+- La validazione degli observable cerca entry, form e sense esclusivamente nei
+  graph `lexica/{language}` e i lexical concept esclusivamente nel graph fisso
+  `lexicalConcept`. Il graph legacy `lexica`, il default graph, i named graph
+  estranei e le categorie collocate nel graph sbagliato sono esclusi.
 - Endpoint `POST /attestations/by-locus` per creare atomicamente una attestazione
   per ogni IRI nella lista `observables`, condividendo lo stesso intervallo e lo
   stesso locus NIF nel corpus indicato. Ogni elemento è un oggetto con IRI
@@ -265,6 +266,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   OntoLex usando label RDFS/SKOS, forma canonica e definizione del senso con i
   fallback documentati; sono riconosciute anche sottoclassi di `LexicalEntry` e
   i language tag sono preservati nel formato `valore@lingua`.
+- Per un `ontolex:LexicalSense`, la label combina la label (o forma canonica)
+  della entry indicata da `ontolex:isSenseOf` e `skos:definition`; se manca la
+  definizione viene restituita la sola label della entry, mentre se manca la
+  label viene restituita la sola definizione.
 - Namespace applicativo predefinito aggiornato a `https://lexo.ilc.cnr.it#`.
 
 ## Funzionalità ancora da completare o validare

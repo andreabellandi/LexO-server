@@ -26,7 +26,8 @@ bootstrap phase to run again; unchanged resources are skipped.
 
 `LexOLexica` keeps application data separate from schema and bootstrap data:
 
-- `https://lexo.ilc.cnr.it/graphs/lexical/lexica` contains lexical data;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexica` is reserved for legacy lexical
+  services and is never consulted by the new lexical CRUD or attestation API;
 - `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}` contains data
   created by the incremental lexical CRUD API, isolated by validated ISO 639
   language code;
@@ -42,8 +43,10 @@ bootstrap phase to run again; unchanged resources are skipped.
 The lexical graph URIs can be changed with `GraphDb.namedGraphBase`,
 `GraphDb.lexiconNamedGraph`, `GraphDb.attestationNamedGraphBase`,
 `GraphDb.annotationNamedGraphBase`, and `GraphDb.schemaNamedGraph` in
-`lexo-server.properties`. Existing lexical SPARQL updates use the lexical graph
-by default. Attestation and annotation writers must pass the text `fileId` to
+`lexo-server.properties`. Existing legacy lexical SPARQL updates may still use
+the legacy lexical graph. New CRUD and attestation services always select their
+category named graph and never read or write application data in the default
+graph. Attestation and annotation writers must pass the text `fileId` to
 `RDFQueryUtil.updateAttestation` or `RDFQueryUtil.updateAnnotation`; omitting it
 is rejected. Deleting a text also clears both of its LexOLexica graphs.
 

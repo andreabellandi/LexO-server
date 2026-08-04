@@ -275,7 +275,13 @@ filtro condiviso con la consultazione per testo. La copertura comprende gruppi
 come valori RDF esatti, più tipi OntoLex in `OR` e sottoclassi transitive di
 `ontolex:LexicalEntry`. Sono verificati inoltre `totalHits`, `limit`, `offset`,
 ordinamento deterministico ed esclusione dei graph che non sono membri validi
-della famiglia configurata delle attestazioni. Non è ancora presente un test
+della famiglia configurata delle attestazioni. La risoluzione degli observable
+accetta entry, form e sense soltanto nei graph lessicali ISO per lingua e i
+lexical concept soltanto nel graph fisso di categoria; graph legacy, default e
+abbinamenti categoria/graph errati sono respinti. I test verificano inoltre che
+la creazione esponga tipo e label del senso dal medesimo named graph, usando la
+label della entry collegata come fallback quando manca `skos:definition`.
+Non è ancora presente un test
 end-to-end del nuovo routing HTTP.
 
 ### Cancellazione delle attestazioni

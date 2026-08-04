@@ -77,7 +77,7 @@ class AttestationManagerTest {
 
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(observable, RDF.TYPE, iri(ONTOLEX + "LexicalEntry"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         try (RepositoryConnection connection = textRepository.getConnection()) {
             connection.add(context, RDF.TYPE, iri(DCMITYPE + "Text"), textGraph);
@@ -246,7 +246,7 @@ class AttestationManagerTest {
         IRI unsupported = iri("https://example.org/lexicon/unsupported");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(unsupported, RDF.TYPE, iri(ONTOLEX + "Morph"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
 
         assertThatThrownBy(() -> manager.create(unsupported.stringValue(), "A",
@@ -279,6 +279,35 @@ class AttestationManagerTest {
                     iri(conceptAttestation.attestation), false, graph)).isTrue();
             assertDefaultGraphEmpty(connection);
         }
+    }
+
+    @Test
+    void rejectsObservablesFromLegacyAndDefaultGraphs() {
+        IRI legacy = iri("https://example.org/lexicon/legacy-entry");
+        IRI defaultGraph = iri("https://example.org/lexicon/default-entry");
+        IRI misplacedConcept = iri("https://example.org/lexicon/misplaced-concept");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(legacy, RDF.TYPE, iri(ONTOLEX + "LexicalEntry"),
+                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+            connection.add(defaultGraph, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalEntry"));
+            connection.add(misplacedConcept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"),
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
+        }
+
+        assertThatThrownBy(() -> manager.create(legacy.stringValue(), "A",
+                "0", "1", context.stringValue(), false, "user7"))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_OBSERVABLE");
+        assertThatThrownBy(() -> manager.create(defaultGraph.stringValue(), "A",
+                "0", "1", context.stringValue(), false, "user7"))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_OBSERVABLE");
+        assertThatThrownBy(() -> manager.create(misplacedConcept.stringValue(), "A",
+                "0", "1", context.stringValue(), false, "user7"))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_OBSERVABLE");
     }
 
     @Test
@@ -406,10 +435,10 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/form-at-locus");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
             connection.add(form, iri(ONTOLEX + "writtenRep"),
                     vf.createLiteral("A", "it"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         AttestationByLocusInput input = new AttestationByLocusInput("A", 0, 1,
                 Arrays.asList(observable.stringValue(), form.stringValue()));
@@ -669,7 +698,7 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/form");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
         addPersistedAttestation("file-a", "b", form, "user8", "😀B", 1, 3);
@@ -714,7 +743,7 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/form");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
         addPersistedAttestation("file-a", "b", form, "user8", "😀B", 1, 3);
@@ -779,7 +808,7 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/filter-form");
         try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
             lexical.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         try (RepositoryConnection text = textRepository.getConnection()) {
             text.add(context, DCTERMS.TITLE,
@@ -812,7 +841,7 @@ class AttestationManagerTest {
 
     @Test
     void filtersLexicalEntrySubclassesAndExactRdfTextMetadata() throws Exception {
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         IRI schemaGraph = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
         IRI customType = iri("https://example.org/ontology/SpecialEntry");
         IRI customEntry = iri("https://example.org/lexicon/special-entry");
@@ -850,13 +879,14 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/category-form");
         IRI sense = iri("https://example.org/lexicon/category-sense");
         IRI concept = iri("https://example.org/lexicon/category-concept");
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI conceptGraph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"), lexicalGraph);
             connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"),
                     lexicalGraph);
             connection.add(concept, RDF.TYPE, iri(ONTOLEX + "LexicalConcept"),
-                    lexicalGraph);
+                    conceptGraph);
         }
         addPersistedAttestation("file-a", "category-entry", observable,
                 "user7", "A", 0, 1);
@@ -903,7 +933,7 @@ class AttestationManagerTest {
 
     @Test
     void resolvesLexicalEntryLabelsIncludingSubclassAndFallbacks() throws Exception {
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         IRI schemaGraph = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
         IRI labelledEntry = iri("https://example.org/lexicon/labelled-entry");
         IRI subclassEntry = iri("https://example.org/lexicon/subclass-entry");
@@ -948,7 +978,7 @@ class AttestationManagerTest {
 
     @Test
     void resolvesFormLabelsInWrittenRepThenRdfsLabelOrder() throws Exception {
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         IRI representedForm = iri("https://example.org/lexicon/represented-form");
         IRI labelledForm = iri("https://example.org/lexicon/rdfs-labelled-form");
         IRI unlabelledForm = iri("https://example.org/lexicon/unlabelled-form");
@@ -984,7 +1014,7 @@ class AttestationManagerTest {
 
     @Test
     void resolvesLexicalSenseLabelsFromEntryAndDefinition() throws Exception {
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         IRI labelledEntry = iri("https://example.org/lexicon/sense-entry-label");
         IRI canonicalEntry = iri("https://example.org/lexicon/sense-entry-canonical");
         IRI canonicalForm = iri("https://example.org/lexicon/sense-entry-form");
@@ -1025,12 +1055,34 @@ class AttestationManagerTest {
                 .isEqualTo("Canonical entry@fr - Second definition@it");
         assertThat(labelFor(page, definitionOnlySense))
                 .isEqualTo("Definition without entry label@de");
-        assertThat(labelFor(page, undefinedSense)).isEqualTo("no label");
+        assertThat(labelFor(page, undefinedSense)).isEqualTo("Entry label@it");
+    }
+
+    @Test
+    void returnsNamedGraphSenseTypeAndResolvedLabelOnCreation() throws Exception {
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI entry = iri("https://example.org/lexicon/created-sense-entry");
+        IRI sense = iri("https://example.org/lexicon/created-sense");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(entry, RDF.TYPE, iri(ONTOLEX + "LexicalEntry"),
+                    lexicalGraph);
+            connection.add(entry, iri(RDFS + "label"),
+                    vf.createLiteral("Voce", "it"), lexicalGraph);
+            addSense(connection, lexicalGraph, sense, entry,
+                    "Definizione", "it");
+        }
+
+        Attestation result = manager.create(sense.stringValue(), "A", "0", "1",
+                context.stringValue(), false, "user7");
+
+        assertThat(result.observableLabel).isEqualTo("Voce@it - Definizione@it");
+        assertThat(result.observableTypes)
+                .containsExactly(ONTOLEX + "LexicalSense");
     }
 
     @Test
     void resolvesLexicalConceptLabelsInPrefLabelThenRdfsLabelOrder() throws Exception {
-        IRI lexicalGraph = iri(LexicalNamedGraphs.lexiconGraphUri());
+        IRI lexicalGraph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
         IRI preferredConcept = iri("https://example.org/lexicon/preferred-concept");
         IRI labelledConcept = iri("https://example.org/lexicon/labelled-concept");
         IRI unlabelledConcept = iri("https://example.org/lexicon/unlabelled-concept");
@@ -1161,7 +1213,7 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/shared-form");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         List<Attestation> shared = manager.createByLocus(context.stringValue(),
                 false, "user7", new AttestationByLocusInput("A", 0, 1,
@@ -1217,7 +1269,7 @@ class AttestationManagerTest {
         IRI replacement = iri("https://example.org/lexicon/replacement-form");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(replacement, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         AttestationObservableUpdate update = new AttestationObservableUpdate();
         update.observable = replacement.stringValue();
@@ -1259,7 +1311,7 @@ class AttestationManagerTest {
         IRI replacement = iri("https://example.org/lexicon/replacement-sense");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(replacement, RDF.TYPE, iri(ONTOLEX + "LexicalSense"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         AttestationObservableUpdate update = new AttestationObservableUpdate();
         update.observable = replacement.stringValue();
@@ -1368,7 +1420,7 @@ class AttestationManagerTest {
         IRI form = iri("https://example.org/lexicon/form-delete");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
             connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
-                    iri(LexicalNamedGraphs.lexiconGraphUri()));
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
         }
         List<Attestation> created = manager.createByLocus(context.stringValue(),
                 false, "user7", new AttestationByLocusInput("A", 0, 1,

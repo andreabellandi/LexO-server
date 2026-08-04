@@ -71,6 +71,16 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- New lexical CRUD and attestation services now resolve application data only
+  from category-specific named graphs: language graphs for entries, forms, and
+  senses, the fixed concept graph for lexical concepts, and per-document graphs
+  for attestations. The legacy lexical graph and default graph are no longer
+  accepted by these services.
+- `POST /lexica/entry` now writes the inverse `ontolex:isSenseOf` relation from
+  each created lexical sense to its entry in the language-specific named graph.
+- Attestation responses for lexical senses now return the linked entry label
+  alone when `skos:definition` is missing, while still combining entry label and
+  definition when both are available.
 - `POST /attestations/by-locus` now accepts each observable as an object with
   optional common RDF metadata; every property is written on that observable's
   newly created attestation, and invalid metadata rejects the complete batch.
@@ -140,9 +150,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
-- Attestation observable validation now recognizes supported OntoLex resources
-  in ISO-language-specific lexical graphs and the fixed lexical-concept graph,
-  in addition to the legacy `lexica` graph.
+- Attestation creation and retrieval now resolve `observableTypes` and
+  `observableLabel` from the observable's actual category named graph instead
+  of the legacy lexical graph.
 - Timestamp-based attestation IRI generation now advances to the next available
   millisecond when several attestations are created with the same clock value,
   preventing intermittent `ATTESTATION_ID_CONFLICT` build failures.

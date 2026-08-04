@@ -406,10 +406,11 @@ value.
 ]
 ```
 
-The observable may be stored in the legacy `lexica` graph, an ISO-language-
-specific `lexica/{language}` graph, or the fixed `lexicalConcept` graph. A
-supported OntoLex type found only in the default graph or an unrelated named
-graph is rejected.
+The observable must be stored in its category named graph: lexical entries,
+forms, and senses use an ISO-language-specific `lexica/{language}` graph;
+lexical concepts use the fixed `lexicalConcept` graph. The legacy `lexica`
+graph, the default graph, unrelated named graphs, and category/graph mismatches
+are rejected.
 
 The whole list is validated before persistence. All FRAC resources and NIF loci
 are then written as one batch transaction per repository; a failed occurrence
@@ -554,7 +555,9 @@ the observable type: lexical
 entries prefer `rdfs:label` and then their canonical form's
 `ontolex:writtenRep`; forms prefer `ontolex:writtenRep` and then `rdfs:label`;
 lexical senses combine their entry label or canonical written representation
-with `skos:definition`; lexical concepts prefer `skos:prefLabel` and then
+with `skos:definition`. When a sense has no definition, the linked entry label
+is returned alone; when it has no usable entry label, the definition is returned
+alone. Lexical concepts prefer `skos:prefLabel` and then
 `rdfs:label`. Language tags are preserved in the compact `value@language`
 format (for example, `casa@it`); missing values fall back to `"no label"`.
 

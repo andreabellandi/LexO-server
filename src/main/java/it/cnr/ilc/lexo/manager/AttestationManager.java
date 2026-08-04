@@ -145,8 +145,7 @@ public class AttestationManager implements Manager {
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
-            validateObservable(lexical, observableIri);
-            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
+            Resource lexicalGraph = resolveObservableGraph(lexical, observableIri);
             List<String> observableTypes = rdfTypes(lexical, observableIri,
                     lexicalGraph);
             String observableLabel = observableLabel(lexical, observableIri,
@@ -256,7 +255,6 @@ public class AttestationManager implements Manager {
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
-            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
             TextLocation location = external
                     ? externalLocation(corpusIri, start, end)
                     : internalLocation(text, corpusIri, value, start, end);
@@ -283,7 +281,7 @@ public class AttestationManager implements Manager {
                 String observable = required(path + ".observable",
                         observableInput.observable);
                 IRI observableIri = iri(path + ".observable", observable);
-                validateObservable(lexical, observableIri);
+                Resource lexicalGraph = resolveObservableGraph(lexical, observableIri);
                 LinkedHashMap<IRI, List<Value>> metadata =
                         new LinkedHashMap<IRI, List<Value>>();
                 if (observableInput.metadata != null) {
@@ -541,7 +539,7 @@ public class AttestationManager implements Manager {
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
-            validateObservable(lexical, observable);
+            resolveObservableGraph(lexical, observable);
             List<ValidatedObservableUpdate> updates =
                     validateObservableUpdates(lexical, attestationGraph,
                             input.attestations);
@@ -1231,10 +1229,10 @@ public class AttestationManager implements Manager {
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
-            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
             IRI textGraph = vf.createIRI(textGraphBase + "documents/" + fileId);
             List<AttestationMatch> matches = new ArrayList<AttestationMatch>();
             Map<String, Resource> textSubjects = new HashMap<String, Resource>();
+            Map<String, Resource> observableGraphs = new HashMap<String, Resource>();
             try (RepositoryResult<Statement> statements = lexical.getStatements(null,
                     RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false,
                     attestationGraph)) {
@@ -1243,16 +1241,18 @@ public class AttestationManager implements Manager {
                     List<Resource> observables = observablesForAttestation(lexical,
                             resource, attestationGraph);
                     if (!matchesFilter(effectiveFilter, lexical, text, resource,
-                            observables, attestationGraph, lexicalGraph, textGraph,
-                            fileId, textSubjects)) {
+                            observables, attestationGraph, textGraph, fileId,
+                            textSubjects, observableGraphs)) {
                         continue;
                     }
-                    matches.add(new AttestationMatch(resource,
-                            preferredObservable(lexical, observables, lexicalGraph,
-                                    effectiveFilter), attestationGraph, fileId));
+                    Resource preferred = preferredObservable(lexical, observables,
+                            effectiveFilter, observableGraphs);
+                    matches.add(new AttestationMatch(resource, preferred,
+                            attestationGraph, fileId, observableGraph(lexical,
+                                    preferred, observableGraphs)));
                 }
             }
-            return page(lexical, text, matches, lexicalGraph, limit, offset);
+            return page(lexical, text, matches, limit, offset);
         } catch (RuntimeException e) {
             throw new ManagerException("ATTESTATION_LIST_FAILED: " + message(e), e);
         } finally {
@@ -1275,8 +1275,7 @@ public class AttestationManager implements Manager {
         try {
             lexical = connections.acquire(RepositoryTarget.LEXICON);
             text = connections.acquire(RepositoryTarget.TEXT);
-            validateObservable(lexical, observable);
-            IRI lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
+            Resource lexicalGraph = resolveObservableGraph(lexical, observable);
             IRI attestationRelation = vf.createIRI(FRAC + "attestation");
             String graphBase = LexicalNamedGraphs.attestationGraphBaseUri();
             List<AttestationMatch> matches = new ArrayList<AttestationMatch>();
@@ -1301,14 +1300,14 @@ public class AttestationManager implements Manager {
                     List<Resource> observables = Collections.<Resource>singletonList(
                             observable);
                     if (matchesFilter(filter, lexical, text, (Resource) object,
-                            observables, graph, lexicalGraph, textGraph, fileId,
-                            textSubjects)) {
+                            observables, graph, textGraph, fileId, textSubjects,
+                            Collections.singletonMap(observable.stringValue(), lexicalGraph))) {
                         matches.add(new AttestationMatch((Resource) object, observable,
-                                graph, fileId));
+                                graph, fileId, lexicalGraph));
                     }
                 }
             }
-            return page(lexical, text, matches, lexicalGraph, limit, offset);
+            return page(lexical, text, matches, limit, offset);
         } catch (RuntimeException e) {
             throw new ManagerException("ATTESTATION_LIST_FAILED: " + message(e), e);
         } finally {
@@ -1334,7 +1333,7 @@ public class AttestationManager implements Manager {
     private AttestationPage page(RepositoryConnection lexical,
                                  RepositoryConnection text,
                                  List<AttestationMatch> matches,
-                                 Resource lexicalGraph, int limit, int offset) {
+                                 int limit, int offset) {
         Collections.sort(matches, new Comparator<AttestationMatch>() {
             @Override
             public int compare(AttestationMatch left, AttestationMatch right) {
@@ -1358,7 +1357,7 @@ public class AttestationManager implements Manager {
             Resource textGraph = vf.createIRI(textGraphBase + "documents/"
                     + match.fileId);
             page.list.add(readAttestation(lexical, text, match.attestation,
-                    match.observable, match.graph, lexicalGraph, textGraph,
+                    match.observable, match.graph, match.observableGraph, textGraph,
                     match.fileId, observableLabels));
         }
         return page;
@@ -1495,10 +1494,10 @@ public class AttestationManager implements Manager {
                                   Resource attestation,
                                   List<Resource> observables,
                                   Resource attestationGraph,
-                                  Resource lexicalGraph,
                                   Resource textGraph,
                                   String fileId,
-                                  Map<String, Resource> textSubjects)
+                                  Map<String, Resource> textSubjects,
+                                  Map<String, Resource> observableGraphs)
             throws ManagerException {
         if (filter == null) {
             return true;
@@ -1507,8 +1506,8 @@ public class AttestationManager implements Manager {
         if ("AND".equals(operator)) {
             for (AttestationFilter child : filter.filters) {
                 if (!matchesFilter(child, lexical, text, attestation, observables,
-                        attestationGraph, lexicalGraph, textGraph, fileId,
-                        textSubjects)) {
+                        attestationGraph, textGraph, fileId, textSubjects,
+                        observableGraphs)) {
                     return false;
                 }
             }
@@ -1517,8 +1516,8 @@ public class AttestationManager implements Manager {
         if ("OR".equals(operator)) {
             for (AttestationFilter child : filter.filters) {
                 if (matchesFilter(child, lexical, text, attestation, observables,
-                        attestationGraph, lexicalGraph, textGraph, fileId,
-                        textSubjects)) {
+                        attestationGraph, textGraph, fileId, textSubjects,
+                        observableGraphs)) {
                     return true;
                 }
             }
@@ -1536,8 +1535,10 @@ public class AttestationManager implements Manager {
         if ("observableType".equalsIgnoreCase(filter.field)) {
             for (Resource observable : observables) {
                 for (String value : filter.values) {
-                    if (hasObservableType(lexical, observable, vf.createIRI(value),
-                            lexicalGraph)) {
+                    Resource graph = observableGraph(lexical, observable,
+                            observableGraphs);
+                    if (graph != null && hasObservableType(lexical, observable,
+                            vf.createIRI(value), graph)) {
                         return true;
                     }
                 }
@@ -1611,8 +1612,9 @@ public class AttestationManager implements Manager {
 
     private Resource preferredObservable(RepositoryConnection lexical,
                                          List<Resource> observables,
-                                         Resource lexicalGraph,
-                                         AttestationFilter filter) {
+                                         AttestationFilter filter,
+                                         Map<String, Resource> observableGraphs)
+            throws ManagerException {
         if (observables.isEmpty()) {
             return null;
         }
@@ -1620,8 +1622,10 @@ public class AttestationManager implements Manager {
         collectObservableTypes(filter, requestedTypes);
         for (Resource observable : observables) {
             for (String type : requestedTypes) {
-                if (hasObservableType(lexical, observable, vf.createIRI(type),
-                        lexicalGraph)) {
+                Resource graph = observableGraph(lexical, observable,
+                        observableGraphs);
+                if (graph != null && hasObservableType(lexical, observable,
+                        vf.createIRI(type), graph)) {
                     return observable;
                 }
             }
@@ -1656,31 +1660,7 @@ public class AttestationManager implements Manager {
             while (statements.hasNext()) {
                 Value type = statements.next().getObject();
                 if (type instanceof IRI && isSubclassOf(connection, (IRI) type,
-                        requestedType, new HashSet<String>())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean isSubclassOf(RepositoryConnection connection, IRI candidate,
-                                 IRI requestedType, Set<String> visited) {
-        if (candidate.equals(requestedType)) {
-            return true;
-        }
-        if (!visited.add(candidate.stringValue())) {
-            return false;
-        }
-        Resource lexicalGraph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
-        Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());
-        try (RepositoryResult<Statement> statements = connection.getStatements(
-                candidate, vf.createIRI(RDFS + "subClassOf"), null, true,
-                lexicalGraph, schemaGraph)) {
-            while (statements.hasNext()) {
-                Value parent = statements.next().getObject();
-                if (parent instanceof IRI && isSubclassOf(connection, (IRI) parent,
-                        requestedType, visited)) {
+                        requestedType, lexicalGraph, new HashSet<String>())) {
                     return true;
                 }
             }
@@ -1702,7 +1682,7 @@ public class AttestationManager implements Manager {
         result.external = Boolean.valueOf(fileId.startsWith("external-"));
         result.observable = observable == null ? null : observable.stringValue();
         result.observableLabel = NO_LABEL;
-        if (observable != null) {
+        if (observable != null && lexicalGraph != null) {
             result.observableTypes = rdfTypes(lexical, observable, lexicalGraph);
             String key = observable.stringValue();
             if (!observableLabels.containsKey(key)) {
@@ -1852,9 +1832,6 @@ public class AttestationManager implements Manager {
         if (hasType(connection, observable, "LexicalSense", lexicalGraph)) {
             String definition = firstLiteralWithLanguage(connection, observable,
                     vf.createIRI(SKOS + "definition"), lexicalGraph);
-            if (blank(definition)) {
-                return NO_LABEL;
-            }
             Value entryValue = firstObject(connection, observable,
                     vf.createIRI(ONTOLEX + "isSenseOf"), lexicalGraph);
             String entryLabel = null;
@@ -1865,7 +1842,10 @@ public class AttestationManager implements Manager {
                                 vf.createIRI(RDFS + "label"), lexicalGraph),
                         canonicalWrittenRep(connection, entry, lexicalGraph), null);
             }
-            return blank(entryLabel) ? definition : entryLabel + " - " + definition;
+            if (blank(entryLabel)) {
+                return blank(definition) ? NO_LABEL : definition;
+            }
+            return blank(definition) ? entryLabel : entryLabel + " - " + definition;
         }
         if (hasType(connection, observable, "LexicalConcept", lexicalGraph)) {
             return firstNonBlank(
@@ -2033,26 +2013,60 @@ public class AttestationManager implements Manager {
         return parsed;
     }
 
-    private void validateObservable(RepositoryConnection connection, IRI observable)
+    private Resource resolveObservableGraph(RepositoryConnection connection,
+                                            Resource observable)
             throws ManagerException {
-        String[] types = {"LexicalEntry", "Form", "LexicalSense", "LexicalConcept"};
-        for (Resource graph : supportedObservableGraphs(connection)) {
-            for (String type : types) {
-                if (hasObservableType(connection, observable,
-                        vf.createIRI(ONTOLEX + type), graph)) {
-                    return;
-                }
-            }
+        Resource result = findObservableGraph(connection, observable);
+        if (result != null) {
+            return result;
         }
         throw new ManagerException("INVALID_OBSERVABLE: observable must identify an "
                 + "ontolex:LexicalEntry, ontolex:Form, ontolex:LexicalSense, "
-                + "or ontolex:LexicalConcept in a supported lexical graph");
+                + "or ontolex:LexicalConcept in a supported named lexical graph");
+    }
+
+    private Resource findObservableGraph(RepositoryConnection connection,
+                                         Resource observable)
+            throws ManagerException {
+        Resource result = null;
+        for (Resource graph : supportedObservableGraphs(connection)) {
+            String[] types = graph.stringValue().equals(
+                    LexiconCrudSupport.lexicalConceptGraphUri())
+                    ? new String[]{"LexicalConcept"}
+                    : new String[]{"LexicalEntry", "Form", "LexicalSense"};
+            for (String type : types) {
+                if (hasObservableType(connection, observable,
+                        vf.createIRI(ONTOLEX + type), graph)) {
+                    if (result != null && !result.equals(graph)) {
+                        throw new ManagerException("AMBIGUOUS_OBSERVABLE_GRAPH: observable "
+                                + observable.stringValue()
+                                + " is defined in more than one supported named graph");
+                    }
+                    result = graph;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private Resource observableGraph(RepositoryConnection connection,
+                                     Resource observable,
+                                     Map<String, Resource> cache)
+            throws ManagerException {
+        if (observable == null) {
+            return null;
+        }
+        String key = observable.stringValue();
+        if (!cache.containsKey(key)) {
+            cache.put(key, findObservableGraph(connection, observable));
+        }
+        return cache.get(key);
     }
 
     private List<Resource> supportedObservableGraphs(
             RepositoryConnection connection) {
         List<Resource> graphs = new ArrayList<Resource>();
-        graphs.add(vf.createIRI(LexicalNamedGraphs.lexiconGraphUri()));
         graphs.add(vf.createIRI(LexiconCrudSupport.lexicalConceptGraphUri()));
         try (RepositoryResult<Resource> contexts = connection.getContextIDs()) {
             while (contexts.hasNext()) {
@@ -2067,8 +2081,7 @@ public class AttestationManager implements Manager {
 
     private boolean isObservableGraph(Resource graph) {
         String graphUri = graph.stringValue();
-        if (graphUri.equals(LexicalNamedGraphs.lexiconGraphUri())
-                || graphUri.equals(LexiconCrudSupport.lexicalConceptGraphUri())) {
+        if (graphUri.equals(LexiconCrudSupport.lexicalConceptGraphUri())) {
             return true;
         }
         if (!graphUri.startsWith(LexiconCrudSupport.LEXICAL_GRAPH_BASE_URI)) {
@@ -2376,7 +2389,7 @@ public class AttestationManager implements Manager {
                     .replace(':', '_').replace('.', '_');
             IRI candidate = vf.createIRI(namespace(namespace) + local);
             if (!reserved.contains(candidate.stringValue())
-                    && !connection.hasStatement(candidate, null, null, false)) {
+                    && !hasNamedStatement(connection, candidate)) {
                 reserved.add(candidate.stringValue());
                 lastAttestationEpochMillis = candidateMillis;
                 return new AttestationIdentity(candidate, candidateTimestamp);
@@ -2384,6 +2397,19 @@ public class AttestationManager implements Manager {
         }
         throw new ManagerException("ATTESTATION_ID_CONFLICT: unable to allocate "
                 + "a unique timestamp-based attestation IRI");
+    }
+
+    private boolean hasNamedStatement(RepositoryConnection connection,
+                                      Resource subject) {
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                subject, null, null, false)) {
+            while (statements.hasNext()) {
+                if (statements.next().getContext() != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private boolean hasAllowedCorpusType(RepositoryConnection connection, IRI corpus,
@@ -2752,13 +2778,15 @@ public class AttestationManager implements Manager {
         final Resource observable;
         final Resource graph;
         final String fileId;
+        final Resource observableGraph;
 
         AttestationMatch(Resource attestation, Resource observable,
-                         Resource graph, String fileId) {
+                         Resource graph, String fileId, Resource observableGraph) {
             this.attestation = attestation;
             this.observable = observable;
             this.graph = graph;
             this.fileId = fileId;
+            this.observableGraph = observableGraph;
         }
     }
 
