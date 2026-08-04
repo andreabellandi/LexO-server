@@ -189,9 +189,9 @@ the IRI, resolved author, timestamp, and accepted links. Malformed input returns
 ## Common entity metadata
 
 `GET`, `PATCH`, and `DELETE /service/metadata` provide one RDF metadata contract
-for lexical entries, lexical concepts, and attestations. The same shared DTO,
-RDF codec, and global protection policy are used by entity creation and extend
-unchanged to forms, senses, etymologies, and future resources.
+for lexical entries, lexical senses, forms, lexical concepts, and attestations.
+The same shared DTO, RDF codec, and global protection policy are used by entity
+creation and future resources.
 
 The common shape is a list of `{property, values}` objects. Values may be IRIs,
 plain literals, BCP 47 language-tagged literals, or typed literals. `PATCH`
@@ -200,10 +200,12 @@ that property. `DELETE` accepts an explicit list of property IRIs. Every
 mutation updates `dcterms:modified` and returns the resulting canonical metadata.
 
 The client supplies `entityType` and the context needed to select the graph:
-`language` for `lexicalEntry`, no context for `lexicalConcept`, and `fileId` for
-`attestation`. The service never accepts a graph IRI from the client. It verifies
-the resource type and resolves respectively the language graph, fixed lexical
-concept graph, or per-document attestation graph. Metadata properties in the
+`language` for `lexicalEntry`, `lexicalSense`, and `form`, no context for
+`lexicalConcept`, and `fileId` for `attestation`. The service never accepts a
+graph IRI from the client. It verifies the resource type, including transitive
+OntoLex subclasses for language-scoped resources, and resolves respectively the
+language graph, fixed lexical concept graph, or per-document attestation graph.
+Metadata properties in the
 OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS, and Decomp namespaces are always
 rejected. The same applies to `dcterms:creator`, `dcterms:created`,
 `dcterms:modified`, `rdf:type`, and `rdf:value`; protected predicates are also

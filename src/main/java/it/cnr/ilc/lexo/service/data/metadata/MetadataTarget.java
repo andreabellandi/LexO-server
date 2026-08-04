@@ -9,11 +9,11 @@ import it.cnr.ilc.lexo.service.data.Data;
 public class MetadataTarget implements Data {
 
     @ApiModelProperty(value = "supported entity kind", required = true,
-            allowableValues = "lexicalEntry,lexicalConcept,attestation")
+            allowableValues = "lexicalEntry,lexicalSense,form,lexicalConcept,attestation")
     public String entityType;
     @ApiModelProperty(value = "absolute IRI of the target resource", required = true)
     public String resource;
-    @ApiModelProperty(value = "ISO 639 language required for lexicalEntry")
+    @ApiModelProperty(value = "ISO 639 language required for lexicalEntry, lexicalSense, or form")
     public String language;
     @ApiModelProperty(value = "document identifier required for attestation")
     public String fileId;

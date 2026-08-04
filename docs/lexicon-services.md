@@ -388,10 +388,14 @@ applied without lexical-concept-specific exceptions.
 ## Common metadata CRUD
 
 `GET`, `PATCH`, and `DELETE /metadata` expose the common RDF metadata model for
-`lexicalEntry`, `lexicalConcept`, and `attestation`. Graph selection is derived
-from the entity kind plus validated `language` or `fileId`; callers cannot pass
-an arbitrary graph. Resource existence and RDF type are checked in the resolved
-graph before every read or mutation.
+`lexicalEntry`, `lexicalSense`, `form`, `lexicalConcept`, and `attestation`.
+`lexicalEntry`, `lexicalSense`, and `form` require a validated `language` and
+use its language-specific lexical graph; `lexicalConcept` uses the fixed
+category graph and `attestation` requires `fileId` for its document graph.
+Callers cannot pass an arbitrary graph. Resource existence and the expected
+OntoLex or FRAC type, including transitive OntoLex subclasses for the three
+language-scoped entity kinds, are checked in the resolved graph before every
+read or mutation.
 
 `PATCH` performs atomic property-wise replacement and treats `values: []` as
 deletion. `DELETE` removes an explicit property list. Both update

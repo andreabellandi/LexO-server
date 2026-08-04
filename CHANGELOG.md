@@ -10,8 +10,8 @@ starts from the ongoing `Unreleased` work.
 ### Added
 
 - `GET`, `PATCH`, and `DELETE /metadata` now provide common RDF metadata CRUD
-  for lexical entries, lexical concepts, and attestations with safe named-graph
-  resolution and one global protected-predicate policy.
+  for lexical entries, lexical senses, forms, lexical concepts, and attestations
+  with safe named-graph resolution and one global protected-predicate policy.
 - `POST /lexica/lexicalConcept` now accepts and returns multivalued RDF metadata
   using the common IRI/literal, language, and datatype representation.
 - `POST /lexica/lexicalConcept` now atomically creates a multilingual lexical

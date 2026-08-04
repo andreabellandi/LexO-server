@@ -23,8 +23,13 @@ class MetadataTest {
                 .isEqualTo("metadata");
         assertThat(Metadata.class.getAnnotation(Api.class).value())
                 .isEqualTo("Metadata");
-        assertDocumented(Metadata.class.getMethod("read", String.class,
-                String.class, String.class, String.class, String.class), GET.class);
+        Method read = Metadata.class.getMethod("read", String.class,
+                String.class, String.class, String.class, String.class);
+        assertDocumented(read, GET.class);
+        ApiParam entityType = apiParam(read.getParameterAnnotations()[1]);
+        assertThat(entityType.allowableValues())
+                .contains("lexicalSense")
+                .contains("form");
         assertDocumented(Metadata.class.getMethod("patch", String.class,
                 MetadataPatchRequest.class), PATCH.class);
         assertDocumented(Metadata.class.getMethod("delete", String.class,
@@ -42,5 +47,14 @@ class MetadataTest {
             }
             assertThat(found).isTrue();
         }
+    }
+
+    private ApiParam apiParam(Annotation[] annotations) {
+        for (Annotation annotation : annotations) {
+            if (annotation instanceof ApiParam) {
+                return (ApiParam) annotation;
+            }
+        }
+        throw new AssertionError("missing ApiParam");
     }
 }

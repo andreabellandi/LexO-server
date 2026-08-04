@@ -3,7 +3,9 @@
 Aggiornato al 4 agosto 2026 dopo l'arricchimento della risposta di
 `GET /lexica/{language}/entries`, la correzione delle collisioni millisecondo
 nella generazione delle IRI delle attestazioni e l'estensione di
-`POST /attestations/by-locus` con metadati RDF opzionali per observable. La
+`POST /attestations/by-locus` con metadati RDF opzionali per observable. Il CRUD
+comune `/metadata` ammette ora anche `lexicalSense` e `form`, risolti nel graph
+lessicale della lingua e validati come tipi OntoLex o relative sottoclassi. La
 validazione degli observable delle attestazioni riconosce ora anche i graph
 lessicali specifici per lingua e il graph fisso dei lexical concept.
 Il lavoro è direttamente sul branch `master`, accanto agli
@@ -106,10 +108,11 @@ appartenenza ai corpora sono persistiti in GraphDB.
 ## Funzionalità completate
 
 - Nuovi endpoint `GET`, `PATCH` e `DELETE /metadata`: leggono, sostituiscono e
-  cancellano metadati RDF multivalore su lexical entry, lexical concept e
-  attestazioni. Il resolver seleziona internamente graph linguistico, graph
-  fisso dei concept o graph documentale, verifica il tipo e applica la policy
-  globale dei predicati protetti.
+  cancellano metadati RDF multivalore su lexical entry, lexical sense, form,
+  lexical concept e attestazioni. Entry, sense e form richiedono la lingua e
+  usano il relativo graph linguistico; il resolver seleziona internamente anche
+  il graph fisso dei concept o il graph documentale, verifica tipo e sottoclassi
+  ammesse e applica la policy globale dei predicati protetti.
 - `MetadataPolicy` vieta per ogni entità presente e futura tutti i predicati nei
   namespace OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS e Decomp, oltre a
   `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
@@ -182,7 +185,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 146 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 147 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
@@ -416,7 +419,7 @@ struttura comune `{property, values}`. `AttestationManager` usa
 `RdfMetadataCodec` e `MetadataPolicy`, aggiunge ogni valore al modello con
 soggetto l'IRI della specifica attestazione e persiste l'intero batch nel named
 graph documentale. La risposta conserva la struttura delle attestazioni e
-include i metadata creati. I 40 test mirati e la suite completa di 146 test sono
+include i metadata creati. I 40 test mirati e la suite completa di 147 test sono
 passati il 4 agosto 2026; gli end-to-end REST non sono stati eseguiti.
 
 È stata predisposta e usata la base della riscrittura incrementale dei CRUD
@@ -436,7 +439,10 @@ La risorsa `service/Metadata.java`, `manager/metadata/MetadataManager` e
 `RdfMetadataCodec` e `MetadataPolicy` costituiscono il nuovo nucleo condiviso. I DTO sotto
 `service/data/metadata` definiscono una sola rappresentazione JSON per input e
 output; nuove categorie registrano soltanto tipo e graph e riusano senza
-deroghe la policy globale dei predicati protetti.
+deroghe la policy globale dei predicati protetti. `lexicalSense` e `form` sono
+ora categorie ammesse insieme a `lexicalEntry`: richiedono `language`, usano il
+named graph linguistico e accettano il tipo OntoLex previsto o una sottoclasse
+transitiva dichiarata nel graph o nello schema.
 `LexiconCrudSupport` centralizza anche il graph fisso dei lexical concept e il
 prefisso SKOS, oltre alla selezione del named graph specifico per
 lingua sotto `https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`, la
@@ -455,9 +461,9 @@ graph linguistico. Lo stesso contratto fissa i namespace `decomp`, `vartrans`,
 Le collezioni `properties` e `metadata` di ogni senso condividono ora la stessa
 struttura JSON: una lista di oggetti con `property` e `values`, dove `values` è
 multivalore. La policy globale dei predicati protetti si applica a `metadata`.
-I 57 test della selezione mirata comprendente metadati, attestazioni e servizi
-e la suite completa di 143 test unitari/repository sono passati il 4 agosto
-2026. Gli end-to-end `*IT` non sono stati eseguiti; Maven ha
+I 6 test mirati di `MetadataManagerTest` e `MetadataTest` e la suite completa di
+147 test unitari/repository sono passati il 4 agosto 2026. Gli end-to-end `*IT`
+non sono stati eseguiti; Maven ha
 riportato i warning ambientali già noti su SLF4J, codice legacy
 deprecato/unchecked e impossibilità del sandbox di aggiornare tracking file in
 `~/.m2`.

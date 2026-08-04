@@ -40,13 +40,13 @@ public class Metadata extends Service {
                     required = false)
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "entityType", value = "supported entity kind",
-                    allowableValues = "lexicalEntry,lexicalConcept,attestation",
+                    allowableValues = "lexicalEntry,lexicalSense,form,lexicalConcept,attestation",
                     required = true)
             @QueryParam("entityType") String entityType,
             @ApiParam(name = "resource", value = "absolute target resource IRI",
                     required = true)
             @QueryParam("resource") String resource,
-            @ApiParam(name = "language", value = "language graph selector for lexicalEntry",
+            @ApiParam(name = "language", value = "language graph selector for lexicalEntry, lexicalSense, or form",
                     required = false)
             @QueryParam("language") String language,
             @ApiParam(name = "fileId", value = "document graph selector for attestation",

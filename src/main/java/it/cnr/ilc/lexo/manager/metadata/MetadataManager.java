@@ -192,11 +192,16 @@ public final class MetadataManager implements Manager {
                 "entityType is required").toLowerCase(Locale.ROOT);
         IRI resource = codec.iri(target.resource, "resource");
         if ("lexicalentry".equals(kind)) {
-            Resource graph = vf.createIRI(LexiconCrudSupport.lexicalGraphUri(
-                    required(target.language, "MISSING_LANGUAGE",
-                            "language is required for lexicalEntry")));
-            return new ResolvedTarget("lexicalEntry", resource, graph,
-                    vf.createIRI(ONTOLEX + "LexicalEntry"), true);
+            return languageScopedTarget("lexicalEntry", "LexicalEntry", resource,
+                    target.language);
+        }
+        if ("lexicalsense".equals(kind)) {
+            return languageScopedTarget("lexicalSense", "LexicalSense", resource,
+                    target.language);
+        }
+        if ("form".equals(kind)) {
+            return languageScopedTarget("form", "Form", resource,
+                    target.language);
         }
         if ("lexicalconcept".equals(kind)) {
             return new ResolvedTarget("lexicalConcept", resource,
@@ -211,7 +216,18 @@ public final class MetadataManager implements Manager {
                     vf.createIRI(FRAC + "Attestation"), false);
         }
         throw invalid("UNSUPPORTED_METADATA_ENTITY_TYPE",
-                "entityType must be lexicalEntry, lexicalConcept, or attestation");
+                "entityType must be lexicalEntry, lexicalSense, form, lexicalConcept, or attestation");
+    }
+
+    private ResolvedTarget languageScopedTarget(String entityType,
+                                                String ontologyType,
+                                                IRI resource,
+                                                String language) {
+        Resource graph = vf.createIRI(LexiconCrudSupport.lexicalGraphUri(
+                required(language, "MISSING_LANGUAGE",
+                        "language is required for " + entityType)));
+        return new ResolvedTarget(entityType, resource, graph,
+                vf.createIRI(ONTOLEX + ontologyType), true);
     }
 
     private String required(String value, String code, String message) {

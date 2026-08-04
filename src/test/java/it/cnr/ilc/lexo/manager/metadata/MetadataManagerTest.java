@@ -140,6 +140,76 @@ class MetadataManagerTest {
     }
 
     @Test
+    void supportsLexicalSenseAndFormMetadataInTheirLanguageGraph() {
+        IRI graph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI otherLanguageGraph = iri(LexiconCrudSupport.lexicalGraphUri("en"));
+        IRI schema = iri(LexicalNamedGraphs.schemaGraphUri());
+        IRI sense = iri("https://example.org/sense/1");
+        IRI form = iri("https://example.org/form/1");
+        IRI inflectedForm = iri("https://example.org/ontology/InflectedForm");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(sense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), graph);
+            connection.add(inflectedForm, RDFS.SUBCLASSOF,
+                    iri(ONTOLEX + "Form"), schema);
+            connection.add(form, RDF.TYPE, inflectedForm, graph);
+        }
+
+        MetadataPatchRequest sensePatch = patch("lexicalSense",
+                sense.stringValue());
+        sensePatch.language = "IT";
+        sensePatch.properties = Arrays.asList(property(DCTERMS.TITLE.stringValue(),
+                new RdfMetadataValue("accezione", "literal", "it", null)));
+        MetadataResult senseResult = manager.patch(sensePatch);
+
+        MetadataPatchRequest formPatch = patch("form", form.stringValue());
+        formPatch.language = "it";
+        formPatch.properties = Arrays.asList(property(DCTERMS.SOURCE.stringValue(),
+                new RdfMetadataValue("https://example.org/source/1", "iri",
+                        null, null)));
+        MetadataResult formResult = manager.patch(formPatch);
+
+        assertThat(senseResult.entityType).isEqualTo("lexicalSense");
+        assertThat(senseResult.metadata).extracting(item -> item.property)
+                .containsExactly(DCTERMS.TITLE.stringValue());
+        assertThat(formResult.entityType).isEqualTo("form");
+        assertThat(formResult.metadata).extracting(item -> item.property)
+                .containsExactly(DCTERMS.SOURCE.stringValue());
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(sense, DCTERMS.TITLE,
+                    vf.createLiteral("accezione", "it"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(form, DCTERMS.SOURCE,
+                    iri("https://example.org/source/1"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(sense, DCTERMS.TITLE,
+                    null, false, otherLanguageGraph)).isFalse();
+            assertThat(connection.hasStatement(form, DCTERMS.SOURCE,
+                    null, false, otherLanguageGraph)).isFalse();
+            assertDefaultGraphEmpty(connection);
+        }
+
+        MetadataTarget senseRead = new MetadataTarget();
+        senseRead.entityType = "lexicalSense";
+        senseRead.resource = sense.stringValue();
+        senseRead.language = "it";
+        assertThat(manager.read(senseRead).metadata).hasSize(1);
+
+        MetadataDeleteRequest formDelete = new MetadataDeleteRequest();
+        formDelete.entityType = "form";
+        formDelete.resource = form.stringValue();
+        formDelete.language = "it";
+        formDelete.properties = Arrays.asList(DCTERMS.SOURCE.stringValue());
+        assertThat(manager.delete(formDelete).metadata).isEmpty();
+
+        MetadataTarget wrongLanguage = new MetadataTarget();
+        wrongLanguage.entityType = "form";
+        wrongLanguage.resource = form.stringValue();
+        wrongLanguage.language = "en";
+        assertThatThrownBy(() -> manager.read(wrongLanguage))
+                .isInstanceOf(MetadataManager.MetadataException.class)
+                .hasMessageStartingWith("METADATA_RESOURCE_NOT_FOUND:");
+    }
+
+    @Test
     void neverReturnsPreexistingProtectedPredicatesAsMetadata() {
         IRI graph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
         IRI concept = iri("https://example.org/concept/protected-output");
