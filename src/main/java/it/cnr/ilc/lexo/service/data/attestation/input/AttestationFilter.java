@@ -3,7 +3,7 @@ package it.cnr.ilc.lexo.service.data.attestation.input;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import it.cnr.ilc.lexo.service.data.Data;
-import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import java.util.List;
 
 /** Boolean filter tree shared by attestation retrieval services. */
@@ -23,7 +23,7 @@ public class AttestationFilter implements Data {
     @ApiModelProperty(value = "exact creator values or observable type IRIs; values are OR alternatives")
     public List<String> values;
     @ApiModelProperty(value = "exact RDF text metadata values; values are OR alternatives")
-    public List<AttestationMetadataValue> rdfValues;
+    public List<RdfMetadataValue> rdfValues;
 
     public AttestationFilter() {
     }

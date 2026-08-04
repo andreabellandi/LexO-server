@@ -9,6 +9,13 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `PATCH /lexica/entry` now atomically updates a lexical entry's label, RDF
+  type, or part of speech in its ISO-language named graph, with optional
+  modification-time concurrency checking and without changing metadata,
+  status, forms, or senses.
+- `PATCH /lexica/lexicalConcept` now atomically replaces supplied multilingual
+  labels, definitions, sense links, parent, or concept-set membership in the
+  fixed lexical-concept graph, while leaving common entity metadata untouched.
 - `GET`, `PATCH`, and `DELETE /metadata` now provide common RDF metadata CRUD
   for lexical entries, lexical senses, forms, lexical concepts, and attestations
   with safe named-graph resolution and one global protected-predicate policy.
@@ -150,6 +157,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- RDF-valued JSON requests for lexical entries, lexical concepts, common
+  metadata, and attestations now consistently accept `type` values `literal`
+  and `iri` without MOXy mistaking them for Java class discriminators.
 - Attestation creation and retrieval now resolve `observableTypes` and
   `observableLabel` from the observable's actual category named graph instead
   of the legacy lexical graph.

@@ -7,10 +7,10 @@ import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
-import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfValue;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseCreation;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalSenseProperty;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryCreationResult;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -235,7 +235,7 @@ public final class LexicalEntryManager implements Manager {
     }
 
     private void addPropertyValues(List<PropertyValue> target, String propertyValue,
-                                   List<LexicalRdfValue> values,
+                                   List<RdfMetadataValue> values,
                                    String reservedMetadataCode,
                                    String invalidPropertyCode,
                                    String missingValuesCode,
@@ -263,7 +263,7 @@ public final class LexicalEntryManager implements Manager {
         }
     }
 
-    private Value rdfValue(LexicalRdfValue value, String path) {
+    private Value rdfValue(RdfMetadataValue value, String path) {
         if (value == null) {
             throw invalid("INVALID_RDF_VALUE", path + " must be an object");
         }

@@ -1,7 +1,13 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 4 agosto 2026 dopo l'adozione esclusiva dei named graph di
-categoria da parte dei nuovi CRUD lessicali e dei servizi di attestazione. Gli
+Aggiornato al 4 agosto 2026 dopo l'aggiunta dei servizi atomici di modifica di
+lexical entry e lexical concept, che cambiano soltanto le proprietà semantiche
+di propria competenza e lasciano i metadata al CRUD comune `/metadata`. I nuovi
+payload RDF di lexical entry, lexical concept, CRUD metadata e attestazioni
+evitano inoltre l'ambiguità MOXy tra il campo `type` (`literal`/`iri`) e il
+discriminatore di classe EclipseLink; i contratti JSON restano invariati. I nuovi
+CRUD lessicali e i servizi di attestazione adottano esclusivamente i named graph
+di categoria. Gli
 observable sono risolti nel graph ISO della lingua per entry, form e sense,
 oppure nel graph fisso dei lexical concept; default graph, graph legacy e
 collocazioni di categoria errate non vengono accettati. La creazione delle entry
@@ -126,6 +132,11 @@ appartenenza ai corpora sono persistiti in GraphDB.
   Dublin Core e collegamenti opzionali a sensi, parent e concept set. Tutti gli
   IRI collegati vengono verificati per esistenza e tipo nel solo graph fisso di
   categoria; la risposta `201` espone IRI, autore, timestamp e collegamenti.
+- Nuovo endpoint `PATCH /lexica/lexicalConcept`: sostituisce atomicamente i soli
+  campi forniti tra label, definizioni e collegamenti semantici nel graph fisso
+  di categoria. Campi assenti restano invariati, liste vuote rimuovono i valori
+  opzionali e `null` esplicito rimuove parent o concept set; creator, data di
+  creazione e metadata comuni restano invariati.
 - Servizi CRUD e di consultazione per lessici OntoLex-Lemon, dizionari Lexicog,
   forme, sensi, concetti SKOS, relazioni, ECD, statistiche ed export RDF.
 - Nuovo endpoint `POST /lexica/entry` nella risorsa incrementale `Lexicon`: crea
@@ -134,6 +145,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   dell'entrata e parte del discorso vengono validati nei graph linguistico e di
   schema. Entrata e sensi accettano metadata RDF multivalore con IRI e letterali
   e riusano la policy globale dei predicati protetti.
+- Nuovo endpoint `PATCH /lexica/entry`: modifica atomicamente label, tipo RDF e
+  parte del discorso nel solo graph ISO della lingua. I campi assenti restano
+  invariati, `pos: null` rimuove la relazione e metadata, status, forme e sensi
+  non vengono toccati.
 - Nuovo endpoint `GET /lexica/{language}/entries`: restituisce tutte le entrate
   del lessico linguistico con filtri opzionali congiuntivi per label a fallback
   esclusivo, tipo RDF, parte del discorso, creator, stato e conteggio esatto dei
@@ -186,7 +201,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 149 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 163 test unitari/repository passati il 4 agosto 2026, inclusi
+  i 5 test di regressione della deserializzazione MOXy dei valori RDF,
+  i 7 test repository dei nuovi servizi PATCH e gli 8 test del contratto
+  Swagger di `Lexicon`, oltre ai
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 42 test delle attestazioni, i 2 test del
@@ -277,9 +295,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
 ## Funzionalità ancora da completare o validare
 
 - Implementare progressivamente i restanti CRUD per lexical concepts e concept
-  sets nella classe `Lexicon.java`. La creazione del lexical concept è
-  completata; gli endpoint futuri continueranno a usare esclusivamente il graph
-  fisso di categoria senza modificare i servizi legacy.
+  sets nella classe `Lexicon.java`. Creazione e modifica del lexical concept
+  sono completate; gli endpoint futuri continueranno a usare esclusivamente il
+  graph fisso di categoria senza modificare i servizi legacy.
 - Eseguire regolarmente `TextServicesIT` e `TextServiceUseCasesIT` contro una
   coppia di repository e una directory filesystem dedicati ai test. Questi test
   sono esclusi da `mvn test` e non sono stati eseguiti nell'ultima validazione;
@@ -401,12 +419,25 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale è stato verificato come fast-forward compatibile; questo
-  handoff accompagna il commit dei metadati per
-  `POST /attestations/by-locus` direttamente su `master`.
+  branch locale è stato allineato in fast-forward. I servizi PATCH lessicali e
+  la correzione dei payload RDF MOXy sono organizzati in commit focalizzati
+  direttamente su `master`.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+Il lavoro corrente aggiunge `PATCH /lexica/entry` e
+`PATCH /lexica/lexicalConcept` in `Lexicon.java`, i DTO presence-aware sotto
+`service/data/lexicon`, i risultati senza metadata e i manager transazionali
+`LexicalEntryUpdateManager` e `LexicalConceptUpdateManager`. L'entry update usa
+esclusivamente `lexica/{language}`, mentre il concept update usa esclusivamente
+il graph fisso `lexicalConcept`; entrambi supportano il controllo concorrente
+opzionale `expectedModified`, preservano creator e data di creazione e
+aggiornano `dcterms:modified`. I metadata non fanno parte dei due contratti e
+restano modificabili soltanto tramite `/metadata`. I 15 test mirati dei servizi
+PATCH, i 5 test MOXy e la suite completa di 163 test unitari/repository sono
+passati il 4 agosto 2026; gli
+end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
 
 La risposta di `GET /lexica/{language}/entries` include ora `senses`,
 `canonicalFormNumber`, `canonicalForm`, `otherFormNumber`, `otherForms` e
@@ -556,10 +587,11 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere end-to-end REST dedicati a `POST /lexica/lexicalConcept`,
-   `POST /lexica/entry` e `PATCH /lexica/entries/status` contro un repository
-   `LexOLexica` isolato, inclusi validazione dei link, riuso del lessico,
-   transizioni batch e rollback.
+1. Aggiungere end-to-end REST dedicati a `POST` e `PATCH`
+   `/lexica/lexicalConcept`, `POST` e `PATCH /lexica/entry` e
+   `PATCH /lexica/entries/status` contro un repository `LexOLexica` isolato,
+   inclusi validazione dei link, sostituzioni presence-aware, controllo
+   `expectedModified`, riuso del lessico, transizioni batch e rollback.
 2. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
    cancellazione delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.

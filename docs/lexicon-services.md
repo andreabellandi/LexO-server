@@ -234,7 +234,9 @@ and `metadata` are lists of `{property, values}` groups, and each group has a
 non-empty, multivalued `values` list. Both preserve multiple IRI, plain literal,
 language-tagged literal, and typed literal values. Service-managed type,
 creator, timestamp, and status predicates cannot be supplied through
-`properties`. In addition, `metadata` excludes
+`properties`. The JSON value member `type` is data with accepted values
+`literal` and `iri`; it is not a polymorphic class discriminator. In addition,
+`metadata` excludes
 `rdf:type`, `rdf:value`, creator and timestamps, `skos:definition`,
 `ontolex:reference`, and `ontolex:isLexicalizedSenseOf`; these structural or
 semantic relations belong to the service-managed triples or `properties`.
@@ -249,6 +251,44 @@ the transaction. Stable error prefixes include `MISSING_ENTRY`, `MISSING_LABEL`,
 Success returns HTTP `201` with the entry IRI in `Location`. The JSON response
 contains `lexicon`, `lexiconCreated`, `entry`, optional `canonicalForm`, the
 created `senses`, normalized `language`, `status`, and `created` timestamp.
+
+## PATCH `/lexica/entry`
+
+This endpoint atomically updates one lexical entry's mutable core properties in
+`RepositoryTarget.LEXICON`. The body requires the absolute `entry` IRI and a
+validated ISO 639 `language`, which selects the only language-specific named
+graph consulted by the operation. At least one of `label`, `type`, or `pos`
+must be present. Metadata, workflow status, forms, and senses are deliberately
+outside this contract and retain their existing values.
+
+The request is presence-aware. Omitted mutable fields remain unchanged;
+`label` replaces every `rdfs:label` with one language-tagged literal, `type`
+replaces the entry's RDF type, and `pos` replaces every
+`lexinfo:partOfSpeech`. An explicit JSON `null` for `pos` removes the relation.
+Label and type cannot be null or blank. Compact type and part-of-speech IRIs use
+the shared lexical prefix map.
+
+The target must exist in the selected language graph and have an RDF type equal
+to or transitively below `ontolex:LexicalEntry` in that graph or the schema
+graph. A replacement type follows the same rule. A replacement part of speech
+must be an individual whose type is `lexinfo:PartOfSpeech` or a transitive
+subclass in the language or schema graph. Validation completes before any
+mutation and every error rolls back the transaction.
+
+Optional `expectedModified` must exactly match the stored `xsd:dateTime`
+`dcterms:modified`; a stale value returns HTTP 409. Success replaces
+`dcterms:modified`, preserves `dcterms:creator` and `dcterms:created`, and
+returns HTTP 200 with `entry`, normalized `language`, resolved `author`,
+`modified`, and the effective `label`, `type`, and `pos`. The resolved author is
+reported but does not overwrite the creator. Entity metadata remains managed
+exclusively through `/metadata`.
+
+Stable error prefixes include `MISSING_ENTRY_UPDATE`, `INVALID_ENTRY_IRI`,
+`MISSING_ENTRY_CHANGES`, `INVALID_ENTRY_LABEL`, `INVALID_ENTRY_TYPE_IRI`,
+`INVALID_PART_OF_SPEECH_IRI`, `ENTRY_NOT_FOUND`,
+`INVALID_ENTRY_RESOURCE_TYPE`, `INVALID_ENTRY_TYPE`,
+`INVALID_PART_OF_SPEECH`, `INVALID_EXPECTED_MODIFIED`, and
+`MODIFIED_MISMATCH`.
 
 ## GET `/lexica/{language}/entries`
 
@@ -387,6 +427,42 @@ groups shared by lexical entries, attestations, and future entities. Each value
 is an IRI or literal with an optional language or datatype. Empty value lists
 are rejected during creation. The global RDF metadata protection policy is
 applied without lexical-concept-specific exceptions.
+
+## PATCH `/lexica/lexicalConcept`
+
+This endpoint atomically updates one existing `ontolex:LexicalConcept`
+exclusively in the fixed lexical-concept named graph. Its body requires the
+absolute `lexicalConcept` IRI and at least one of `label`, `alternativeLabel`,
+`hiddenLabel`, `definition`, `senseId`, `parent`, or `conceptSetId`.
+
+Omitted fields remain unchanged. Every supplied list replaces the complete RDF
+value set of its predicate; an empty optional list therefore removes all
+alternative labels, hidden labels, definitions, or sense links. A supplied
+preferred-label list must remain non-empty. Explicit JSON `null` removes
+`skos:broader` for `parent` or `skos:inScheme` for `conceptSetId`. All label
+languages are normalized and validated against the bundled ISO 639 list.
+
+Replacement sense, parent, and concept-set IRIs are validated for existence and
+exact OntoLex type in the same fixed graph before writing. The service never
+consults a language graph, the legacy graph, or the default graph. A concept
+cannot be its own parent. Optional `expectedModified` provides the same exact
+typed-timestamp concurrency check as lexical-entry update and returns HTTP 409
+on mismatch.
+
+Success replaces `dcterms:modified` without changing creator, creation time, or
+custom metadata and returns HTTP 200 with all effective labels, definitions,
+links, the resolved author, and the new timestamp. Metadata is neither accepted
+nor mutated by this endpoint and remains exclusive to `/metadata`.
+
+Stable error prefixes include `MISSING_LEXICAL_CONCEPT_UPDATE`,
+`INVALID_LEXICAL_CONCEPT_IRI`, `MISSING_LEXICAL_CONCEPT_CHANGES`,
+`MISSING_LABEL`, `INVALID_LABEL`, `MISSING_LABEL_VALUE`,
+`INVALID_LABEL_LANGUAGE`, `INVALID_SENSE_LIST`, `INVALID_SENSE_IRI`, `INVALID_PARENT_IRI`,
+`INVALID_CONCEPT_SET_IRI`, `INVALID_PARENT`, `LEXICAL_CONCEPT_NOT_FOUND`,
+`INVALID_LEXICAL_CONCEPT_TYPE`, `SENSE_NOT_FOUND`, `INVALID_SENSE_TYPE`,
+`PARENT_NOT_FOUND`, `INVALID_PARENT_TYPE`, `CONCEPT_SET_NOT_FOUND`,
+`INVALID_CONCEPT_SET_TYPE`, `INVALID_EXPECTED_MODIFIED`, and
+`MODIFIED_MISMATCH`.
 
 ## Common metadata CRUD
 

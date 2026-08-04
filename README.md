@@ -129,7 +129,9 @@ user resolution.
 `values` list is multivalued. Values support IRIs, plain literals,
 language-tagged literals, and typed literals. Entry and sense metadata follow
 the global metadata policy documented below; semantic properties such as
-definitions belong in sense `properties`.
+definitions belong in sense `properties`. The `type` member of each value is
+ordinary request data (`literal` or `iri`) and is supported by the Jersey/MOXy
+JSON binding.
 
 The service returns HTTP `201`, sets `Location` to the new entry IRI, and returns
 the lexicon, entry, optional canonical form, sense IRIs, normalized language,
@@ -137,6 +139,31 @@ initial `working` status, timestamp, and a `lexiconCreated` flag.
 
 The created lexical entry receives `lexo:status "working"`; the containing
 `lime:Lexicon` does not receive a workflow status.
+
+## Lexical entry update
+
+`PATCH /service/lexica/entry?author=editor` atomically updates the mutable core
+properties of one lexical entry in its ISO-language-specific named graph. The
+body requires `entry` and `language` and accepts any non-empty combination of
+`label`, `type`, and `pos`:
+
+```json
+{
+  "entry": "https://lexo.ilc.cnr.it#LexO_entry1",
+  "language": "it",
+  "expectedModified": "2026-08-04T10:20:30.000+02:00",
+  "label": "casa editrice",
+  "type": "ontolex:MultiWordExpression",
+  "pos": "lexinfo:noun"
+}
+```
+
+Omitted mutable fields remain unchanged; an explicit `pos: null` removes every
+part-of-speech relation. `expectedModified` is optional and produces HTTP 409
+when it does not match the stored typed timestamp. The service validates the
+entry, replacement type, and part of speech before writing, updates
+`dcterms:modified`, and preserves creator, creation time, status, forms, senses,
+and custom metadata. Metadata changes continue to use `/service/metadata`.
 
 ## Lexical concept creation
 
@@ -185,6 +212,31 @@ Success returns HTTP `201`, sets `Location` to the new concept IRI, and returns
 the IRI, resolved author, timestamp, and accepted links. Malformed input returns
 `400`, missing linked resources return `404`, and incompatible RDF types return
 `422`. A blank author resolves to `anonymous`.
+
+## Lexical concept update
+
+`PATCH /service/lexica/lexicalConcept?author=editor` atomically replaces only
+the supplied semantic properties of an existing lexical concept in the fixed
+`lexicalConcept` named graph:
+
+```json
+{
+  "lexicalConcept": "https://lexo.ilc.cnr.it#LexO_concept1",
+  "expectedModified": "2026-08-04T10:20:30.000+02:00",
+  "label": [{"label": "abitazione", "language": "it"}],
+  "alternativeLabel": [],
+  "senseId": ["https://lexo.ilc.cnr.it#LexO_sense1"],
+  "parent": null
+}
+```
+
+Omitted fields remain unchanged. A supplied list replaces all values of its RDF
+predicate; an empty optional list removes them. Preferred `label`, when
+supplied, must remain non-empty. Explicit `null` removes `parent` or
+`conceptSetId`. Languages and linked resources are validated before the single
+transaction, `expectedModified` optionally protects against stale updates, and
+creator, creation time, and custom metadata remain untouched. Concept metadata
+is modified only through `/service/metadata`.
 
 ## Common entity metadata
 
@@ -541,7 +593,8 @@ IRI or a literal and, for literals, its language or datatype.
 `textMetadata` also supports `EXISTS` without `rdfValues`. Filter trees are
 limited to 50 nodes and five levels. The legacy `author` and `observableType`
 query parameters remain supported and are combined with the JSON filter using
-`AND`.
+`AND`. As in the other common RDF payloads, each `rdfValues[].type` is ordinary
+data and accepts `literal` or `iri` under the Jersey/MOXy binding.
 
 `POST /service/attestations/by-observable?observable={iri}` returns the same
 paginated response across every configured per-text attestation graph. It uses

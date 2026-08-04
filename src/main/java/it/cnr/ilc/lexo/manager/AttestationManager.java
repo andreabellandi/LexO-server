@@ -24,6 +24,7 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpda
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -1188,7 +1189,7 @@ public class AttestationManager implements Manager {
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).format(value);
     }
 
-    private Value metadataValue(AttestationMetadataValue item, String field)
+    private Value metadataValue(RdfMetadataValue item, String field)
             throws ManagerException {
         try {
             return metadataCodec.decode(item, field);
@@ -1577,7 +1578,7 @@ public class AttestationManager implements Manager {
             }
             return false;
         }
-        for (AttestationMetadataValue item : filter.rdfValues) {
+        for (RdfMetadataValue item : filter.rdfValues) {
             Value expected = metadataValue(item, "filter.rdfValues");
             for (Resource subject : subjects) {
                 if (text.hasStatement(subject, property, expected, false, textGraph)) {
