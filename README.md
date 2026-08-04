@@ -207,6 +207,8 @@ request before writing and rolls back on any failure. It writes creator and
 shared `xsd:dateTime` created/modified timestamps, `skos:prefLabel`,
 `skos:alternativeLabel`, `skos:hiddenLabel`, `skos:definition`,
 `ontolex:isLexicalizedSenseOf`, `skos:broader`, and `skos:inScheme` as applicable.
+Custom `metadata` is optional: the member may be omitted or supplied as an empty
+array, in which case no custom metadata triples are created.
 
 Success returns HTTP `201`, sets `Location` to the new concept IRI, and returns
 the IRI, resolved author, timestamp, and accepted links. Malformed input returns

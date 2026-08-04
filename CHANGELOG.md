@@ -159,6 +159,8 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- `POST /lexica/lexicalConcept` no longer requires a metadata property when the
+  optional `metadata` member is supplied as an empty array.
 - RDF-valued JSON requests for lexical entries, lexical concepts, common
   metadata, and attestations now consistently accept `type` values `literal`
   and `iri` without MOXy mistaking them for Java class discriminators.

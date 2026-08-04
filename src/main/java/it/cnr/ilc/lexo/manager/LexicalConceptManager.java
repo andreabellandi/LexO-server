@@ -128,7 +128,7 @@ public final class LexicalConceptManager implements Manager {
                 "INVALID_CONCEPT_SET_IRI");
         LinkedHashMap<IRI, List<Value>> metadata =
                 new LinkedHashMap<IRI, List<Value>>();
-        if (request.metadata != null) {
+        if (request.metadata != null && !request.metadata.isEmpty()) {
             metadata = metadataCodec.decodeProperties(request.metadata, false);
         }
         return new ValidatedRequest(labels, alternatives, hidden, definitions,

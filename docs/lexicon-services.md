@@ -428,9 +428,11 @@ the optional `parent` and `conceptSetId`, and canonical `metadata`.
 
 The optional `metadata` input uses the common list of `{property, values}`
 groups shared by lexical entries, attestations, and future entities. Each value
-is an IRI or literal with an optional language or datatype. Empty value lists
-are rejected during creation. The global RDF metadata protection policy is
-applied without lexical-concept-specific exceptions.
+is an IRI or literal with an optional language or datatype. The `metadata`
+member may be omitted or set to `[]`; both create the concept without custom
+metadata. Empty `values` lists inside a supplied property are rejected during
+creation. The global RDF metadata protection policy is applied without
+lexical-concept-specific exceptions.
 
 ## PATCH `/lexica/lexicalConcept`
 

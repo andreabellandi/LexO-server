@@ -9,6 +9,7 @@ import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import java.util.Arrays;
+import java.util.Collections;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
@@ -130,6 +131,22 @@ class LexicalConceptManagerTest {
             assertThat(connection.hasStatement(iri(result.lexicalConcept),
                     DCTERMS.CREATOR, vf.createLiteral("anonymous"),
                     false, graph)).isTrue();
+        }
+    }
+
+    @Test
+    void acceptsAnExplicitlyEmptyMetadataList() {
+        LexicalConceptCreationRequest request = request();
+        request.metadata = Collections.emptyList();
+
+        LexicalConceptCreationResult result = manager.create(request, "editor");
+
+        assertThat(result.metadata).isEmpty();
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(iri(result.lexicalConcept),
+                    RDF.TYPE, iri(ONTOLEX + "LexicalConcept"), false, graph))
+                    .isTrue();
+            assertDefaultGraphEmpty(connection);
         }
     }
 

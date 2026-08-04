@@ -133,7 +133,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   `ontolex:LexicalConcept` con liste multilingui di label e definizioni, audit
   Dublin Core e collegamenti opzionali a sensi, parent e concept set. Tutti gli
   IRI collegati vengono verificati per esistenza e tipo nel solo graph fisso di
-  categoria; la risposta `201` espone IRI, autore, timestamp e collegamenti.
+  categoria; `metadata` può essere omesso o essere una lista vuota e la risposta
+  `201` espone IRI, autore, timestamp e collegamenti.
 - Nuovo endpoint `PATCH /lexica/lexicalConcept`: sostituisce atomicamente i soli
   campi forniti tra label, definizioni e collegamenti semantici nel graph fisso
   di categoria. Campi assenti restano invariati, liste vuote rimuovono i valori
@@ -203,7 +204,7 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 164 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 165 test unitari/repository passati il 4 agosto 2026, inclusi
   i 5 test di regressione della deserializzazione MOXy dei valori RDF,
   i 7 test repository dei nuovi servizi PATCH e gli 8 test del contratto
   Swagger di `Lexicon`, oltre ai
@@ -438,7 +439,7 @@ opzionale `expectedModified`, preservano creator e data di creazione e
 aggiornano `dcterms:modified`. I metadata non fanno parte dei due contratti e
 restano modificabili soltanto tramite `/metadata`. I 15 test mirati dei servizi
 PATCH, i 5 test MOXy, il test esplicito dell'eccezione `skos:note` e la suite
-completa di 164 test unitari/repository sono
+completa di 165 test unitari/repository sono
 passati il 4 agosto 2026; gli
 end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
 
