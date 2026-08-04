@@ -70,6 +70,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- `POST /attestations/by-locus` now accepts each observable as an object with
+  optional common RDF metadata; every property is written on that observable's
+  newly created attestation, and invalid metadata rejects the complete batch.
 - All entity metadata now shares one protection policy: properties in the
   OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS, and Decomp namespaces, the three
   service-managed Dublin Core audit predicates, and RDF structural predicates

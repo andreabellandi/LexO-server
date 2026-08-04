@@ -18,6 +18,8 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateRes
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.Arrays;
 import java.util.Collections;
@@ -328,6 +330,21 @@ class AttestationManagerTest {
         }
         AttestationByLocusInput input = new AttestationByLocusInput("A", 0, 1,
                 Arrays.asList(observable.stringValue(), form.stringValue()));
+        String source = "https://example.org/vocabulary/source";
+        String confidence = "https://example.org/vocabulary/confidence";
+        input.observables.get(0).metadata = Collections.singletonList(
+                metadataProperty(source,
+                        new RdfMetadataValue("https://example.org/source/1",
+                                "iri", null, null),
+                        new RdfMetadataValue("fonte primaria", "literal", "it",
+                                null)));
+        input.observables.get(1).metadata = Collections.singletonList(
+                metadataProperty(confidence,
+                        new RdfMetadataValue("0.92", "literal", null,
+                                XSD.DECIMAL.stringValue())));
+        ObjectMapper mapper = new ObjectMapper();
+        input = mapper.readValue(mapper.writeValueAsString(input),
+                AttestationByLocusInput.class);
 
         List<Attestation> results = manager.createByLocus(context.stringValue(),
                 false, "user7", input);
@@ -352,6 +369,17 @@ class AttestationManagerTest {
                     iri(results.get(0).attestation), false, attestationGraph)).isTrue();
             assertThat(lexical.hasStatement(form, iri(FRAC + "attestation"),
                     iri(results.get(1).attestation), false, attestationGraph)).isTrue();
+            assertThat(lexical.hasStatement(iri(results.get(0).attestation),
+                    iri(source), iri("https://example.org/source/1"), false,
+                    attestationGraph)).isTrue();
+            assertThat(lexical.hasStatement(iri(results.get(0).attestation),
+                    iri(source), vf.createLiteral("fonte primaria", "it"), false,
+                    attestationGraph)).isTrue();
+            assertThat(lexical.hasStatement(iri(results.get(1).attestation),
+                    iri(confidence), vf.createLiteral("0.92", XSD.DECIMAL), false,
+                    attestationGraph)).isTrue();
+            assertThat(lexical.hasStatement(iri(results.get(1).attestation),
+                    iri(source), null, false, attestationGraph)).isFalse();
             for (Attestation result : results) {
                 assertThat(lexical.hasStatement(iri(result.attestation),
                         iri(FRAC + "gloss"), vf.createLiteral("A", "it"), false,
@@ -369,6 +397,15 @@ class AttestationManagerTest {
             assertDefaultGraphEmpty(lexical);
             assertDefaultGraphEmpty(text);
         }
+        assertThat(results.get(0).metadata).containsOnlyKeys(source);
+        assertThat(results.get(0).metadata.get(source)).hasSize(2);
+        assertThat(results.get(1).metadata).containsOnlyKeys(confidence);
+        assertThat(results.get(1).metadata.get(confidence)).singleElement()
+                .satisfies(item -> {
+                    assertThat(item.type).isEqualTo("literal");
+                    assertThat(item.value).isEqualTo("0.92");
+                    assertThat(item.datatype).isEqualTo(XSD.DECIMAL.stringValue());
+                });
     }
 
     @Test
@@ -463,6 +500,20 @@ class AttestationManagerTest {
                         Collections.singletonList(observable.stringValue()))))
                 .isInstanceOf(ManagerException.class)
                 .hasMessageContaining("MISSING_PARAMETER");
+        AttestationByLocusInput protectedMetadata =
+                new AttestationByLocusInput("A", 0, 1,
+                        Arrays.asList(observable.stringValue(),
+                                observable.stringValue()));
+        protectedMetadata.observables.get(0).metadata = Collections.singletonList(
+                metadataProperty("https://example.org/vocabulary/source",
+                        new RdfMetadataValue("valid", "literal", null, null)));
+        protectedMetadata.observables.get(1).metadata = Collections.singletonList(
+                metadataProperty(FRAC + "gloss",
+                        new RdfMetadataValue("forbidden", "literal", null, null)));
+        assertThatThrownBy(() -> manager.createByLocus(context.stringValue(),
+                false, "user7", protectedMetadata))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("RESERVED_METADATA_PROPERTY");
 
         IRI attestationGraph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
@@ -1468,6 +1519,14 @@ class AttestationManagerTest {
     private AttestationMetadataValue metadataLiteral(String value, String language,
                                                       String datatype) {
         return new AttestationMetadataValue(value, "literal", language, datatype);
+    }
+
+    private RdfMetadataProperty metadataProperty(String property,
+                                                 RdfMetadataValue... values) {
+        RdfMetadataProperty result = new RdfMetadataProperty();
+        result.property = property;
+        result.values = Arrays.asList(values);
+        return result;
     }
 
     private AttestationFilter filterGroup(String operator,

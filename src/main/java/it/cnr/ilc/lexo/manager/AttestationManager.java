@@ -7,6 +7,7 @@ import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
+import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationFilter;
@@ -21,6 +22,8 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateRes
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -252,10 +255,23 @@ public class AttestationManager implements Manager {
             long batchTimestamp = System.currentTimeMillis();
 
             for (int index = 0; index < input.observables.size(); index++) {
-                String observable = required("observables[" + index + "]",
-                        input.observables.get(index));
-                IRI observableIri = iri("observables[" + index + "]", observable);
+                String path = "observables[" + index + "]";
+                AttestationByLocusObservableInput observableInput =
+                        input.observables.get(index);
+                if (observableInput == null) {
+                    throw new ManagerException("INVALID_OBSERVABLE: " + path
+                            + " must be an object");
+                }
+                String observable = required(path + ".observable",
+                        observableInput.observable);
+                IRI observableIri = iri(path + ".observable", observable);
                 validateObservable(lexical, observableIri);
+                LinkedHashMap<IRI, List<Value>> metadata =
+                        new LinkedHashMap<IRI, List<Value>>();
+                if (observableInput.metadata != null) {
+                    metadata = metadataCodec.decodeProperties(
+                            observableInput.metadata, false);
+                }
                 List<String> observableTypes = rdfTypes(lexical, observableIri,
                         lexicalGraph);
                 String observableLabel = observableLabel(lexical, observableIri,
@@ -267,9 +283,11 @@ public class AttestationManager implements Manager {
                 Model attestationStatements = attestationModel(attestationIri,
                         observableIri, locus, corpusIri, value, location.language,
                         author, created);
+                addMetadata(attestationStatements, attestationIri, metadata);
                 Attestation result = attestationResult(attestationIri, observable,
                         observableLabel, observableTypes, value, start, end, corpus,
                         location, external, author, created, locusTypes);
+                result.metadata = outputMetadata(metadata);
                 pending.add(new PendingAttestation(attestationGraph,
                         location.textGraph, attestationStatements,
                         index == 0 ? phraseStatements : new LinkedHashModel(), result));
@@ -282,6 +300,8 @@ public class AttestationManager implements Manager {
             }
             return results;
         } catch (ManagerException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
             throw e;
         } catch (RuntimeException e) {
             throw new ManagerException("ATTESTATION_CREATE_FAILED: "
@@ -1761,6 +1781,22 @@ public class AttestationManager implements Manager {
         return result;
     }
 
+    private Map<String, List<AttestationMetadataValue>> outputMetadata(
+            Map<IRI, List<Value>> metadata) {
+        Map<String, List<AttestationMetadataValue>> result =
+                new LinkedHashMap<String, List<AttestationMetadataValue>>();
+        for (RdfMetadataProperty property : metadataCodec.encode(metadata)) {
+            List<AttestationMetadataValue> values =
+                    new ArrayList<AttestationMetadataValue>();
+            for (RdfMetadataValue value : property.values) {
+                values.add(new AttestationMetadataValue(value.value, value.type,
+                        value.language, value.datatype));
+            }
+            result.put(property.property, values);
+        }
+        return result;
+    }
+
     private AttestationMetadataValue outputMetadataValue(Value value) {
         it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue common =
                 metadataCodec.encode(value);
@@ -2143,6 +2179,15 @@ public class AttestationManager implements Manager {
         model.add(attestation, vf.createIRI(FRAC + "observedIn"), corpus);
         model.add(observable, vf.createIRI(FRAC + "attestation"), attestation);
         return model;
+    }
+
+    private void addMetadata(Model model, IRI attestation,
+                             Map<IRI, List<Value>> metadata) {
+        for (Map.Entry<IRI, List<Value>> property : metadata.entrySet()) {
+            for (Value value : property.getValue()) {
+                model.add(attestation, property.getKey(), value);
+            }
+        }
     }
 
     private void persistBatch(RepositoryConnection lexical,

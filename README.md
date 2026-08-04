@@ -417,7 +417,7 @@ downloaded. FRAC data is written to the per-text attestation graph in
 entity observed at the same textual interval. It uses the same required
 `corpus` query parameter and optional `external` and `author` parameters as the
 other creation endpoint. The JSON body requires `value`, `start`, `end`, and a
-non-empty `observables` IRI list:
+non-empty `observables` object list:
 
 ```json
 {
@@ -425,8 +425,21 @@ non-empty `observables` IRI list:
   "start": 42,
   "end": 60,
   "observables": [
-    "https://lexo.ilc.cnr.it#LexO_entry1",
-    "https://lexo.ilc.cnr.it#LexO_sense1"
+    {
+      "observable": "https://lexo.ilc.cnr.it#LexO_entry1",
+      "metadata": [
+        {
+          "property": "https://example.org/vocabulary/source",
+          "values": [
+            {"value": "https://example.org/source/1", "type": "iri"},
+            {"value": "fonte primaria", "type": "literal", "language": "it"}
+          ]
+        }
+      ]
+    },
+    {
+      "observable": "https://lexo.ilc.cnr.it#LexO_sense1"
+    }
   ]
 }
 ```
@@ -440,6 +453,14 @@ returned only when its anchor, offsets, or reference context differ.
 New loci created by either attestation endpoint are marked with
 `prov:wasGeneratedBy lexo:AttestationService`; pre-existing compatible loci are
 reused without receiving this marker.
+
+Every `observables` item requires its own `observable` IRI and may include
+`metadata` using the common `{property, values}` entity metadata shape. Each
+accepted property/value pair is written with that observable's newly created
+attestation IRI as subject in the per-document attestation graph. IRI, plain,
+language-tagged, and typed literal values are supported. The global protected
+predicate policy applies, and invalid metadata rejects the complete batch
+before any attestation or locus is persisted.
 
 Both creation services also maintain one FRAC frequency object for every
 observable and specific text in the same per-document attestation named graph:

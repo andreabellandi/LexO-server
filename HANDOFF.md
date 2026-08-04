@@ -1,8 +1,8 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 4 agosto 2026 dopo l'introduzione della policy globale dei
-metadati RDF e la rimozione del duplicato
-`PATCH /attestations/{fileId}/metadata`, sostituito dal CRUD metadati comune.
+Aggiornato al 4 agosto 2026 dopo l'estensione di
+`POST /attestations/by-locus` con metadati RDF opzionali e distinti per ciascun
+observable, basati sul DTO e sulla policy del CRUD metadati comune.
 Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
@@ -177,10 +177,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 139 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 143 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
-  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
+  i 6 test mirati del bulk testuale, i 37 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -188,7 +188,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   Unicode e isolamento nei named graph per testo.
 - Endpoint `POST /attestations/by-locus` per creare atomicamente una attestazione
   per ogni IRI nella lista `observables`, condividendo lo stesso intervallo e lo
-  stesso locus NIF nel corpus indicato.
+  stesso locus NIF nel corpus indicato. Ogni elemento è un oggetto con IRI
+  `observable` e `metadata` opzionali nella struttura comune; le triple hanno
+  come soggetto esclusivamente l'IRI della relativa attestazione.
 - La creazione delle attestazioni riutilizza i loci NIF deterministici già
   presenti per parole, frasi o strutture quando `anchorOf`, `beginIndex`,
   `endIndex` e `referenceContext` coincidono, senza alterarne i tipi RDF; il
@@ -384,12 +386,22 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 ## Stato Git
 
 - Branch locale corrente: `master`.
-- `origin/master` aggiornato il 31 luglio 2026 al commit `81226ad`; il branch
-  locale è al commit `bd66478`, avanti di un commit, e le modifiche al nuovo
-  servizio lexical concept sono presenti nel worktree e non ancora committate.
+- I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
+  branch locale è stato verificato come fast-forward compatibile; questo
+  handoff accompagna il commit dei metadati per
+  `POST /attestations/by-locus` direttamente su `master`.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+Il lavoro corrente trasforma ogni elemento di `observables` della create
+by-locus in un oggetto con `observable` obbligatorio e `metadata` opzionali nella
+struttura comune `{property, values}`. `AttestationManager` usa
+`RdfMetadataCodec` e `MetadataPolicy`, aggiunge ogni valore al modello con
+soggetto l'IRI della specifica attestazione e persiste l'intero batch nel named
+graph documentale. La risposta conserva la struttura delle attestazioni e
+include i metadata creati. I 37 test mirati e la suite completa di 143 test sono
+passati il 4 agosto 2026; gli end-to-end REST non sono stati eseguiti.
 
 È stata predisposta e usata la base della riscrittura incrementale dei CRUD
 lessicali, senza rimuovere o modificare gli endpoint legacy. La nuova risorsa

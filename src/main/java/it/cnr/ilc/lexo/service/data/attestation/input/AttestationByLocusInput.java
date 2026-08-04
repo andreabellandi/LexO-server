@@ -19,9 +19,10 @@ public class AttestationByLocusInput implements Data {
     @ApiModelProperty(value = "exclusive Unicode code-point end offset",
             example = "60", required = true)
     public Integer end;
-    @ApiModelProperty(value = "IRIs of the OntoLex lexical entities observed at the locus",
+    @ApiModelProperty(value = "OntoLex lexical entities observed at the locus, each with optional attestation metadata",
             required = true)
-    public List<String> observables = new ArrayList<String>();
+    public List<AttestationByLocusObservableInput> observables =
+            new ArrayList<AttestationByLocusObservableInput>();
 
     public AttestationByLocusInput() {
     }
@@ -31,6 +32,13 @@ public class AttestationByLocusInput implements Data {
         this.value = value;
         this.start = start;
         this.end = end;
-        this.observables = observables;
+        if (observables != null) {
+            for (String observable : observables) {
+                this.observables.add(new AttestationByLocusObservableInput(
+                        observable, null));
+            }
+        } else {
+            this.observables = null;
+        }
     }
 }

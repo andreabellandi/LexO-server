@@ -137,7 +137,7 @@ public class Attestations extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Attestation creation by locus",
-            notes = "This method creates one FRAC attestation for every supplied lexical entity at a shared textual locus and updates every observable frequency for the specific text")
+            notes = "This method creates one FRAC attestation for every supplied lexical entity at a shared textual locus, writes each entity's optional common RDF metadata on its own attestation, and updates every observable frequency for the specific text")
     public Response createByLocus(
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "corpus",
@@ -153,7 +153,7 @@ public class Attestations extends Service {
                     example = "user7", required = false)
             @QueryParam("author") String author,
             @ApiParam(name = "locus",
-                    value = "JSON object containing the required value, start, end, and non-empty observable IRI list",
+                    value = "JSON object containing the required value, start, end, and a non-empty list of observable objects with optional common RDF metadata",
                     required = true)
             AttestationByLocusInput locus) {
         try {

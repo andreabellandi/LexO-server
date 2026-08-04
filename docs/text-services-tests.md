@@ -237,7 +237,7 @@ cleanup del test.
 - creazione di corpus e aggiunta di un documento;
 - creazione batch tramite `POST /attestations/by-locus`, verificando una
   attestazione e una frequenza FRAC per osservabile, un solo locus NIF e rollback
-  completo in caso di osservabile non valido;
+  completo in caso di osservabile o metadato non valido;
 - verifica RDF in entrambi i NIF;
 - aggiornamento del corpus dopo la cancellazione del documento;
 - cancellazione del corpus;
@@ -251,6 +251,11 @@ proprietà, valori multipli, IRI e letterali tipizzati o con lingua, isolamento
 nel named graph del documento, assenza di scritture nel default graph, rollback
 del batch non valido e rifiuto dei predicati strutturali. Non costituiscono un
 test end-to-end del routing HTTP della PATCH.
+
+La creazione `POST /attestations/by-locus` riusa la stessa struttura comune e la
+stessa policy: i test verificano che i metadati di ciascun elemento siano scritti
+soltanto sull'IRI della relativa attestazione, preservando IRI, lingua e datatype,
+e che un predicato protetto annulli l'intero batch senza scritture parziali.
 
 La stessa classe verifica l'aggiornamento del locus di una singola attestazione:
 gli offset sono interpretati come code point Unicode, il nuovo valore viene
