@@ -256,6 +256,58 @@ class AttestationManagerTest {
     }
 
     @Test
+    void acceptsObservablesFromLanguageSpecificAndConceptGraphs() throws Exception {
+        IRI form = iri("https://example.org/lexicon/form");
+        IRI concept = iri("https://example.org/lexicon/concept");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
+            connection.add(concept, RDF.TYPE, iri(ONTOLEX + "LexicalConcept"),
+                    iri(LexiconCrudSupport.lexicalConceptGraphUri()));
+        }
+
+        Attestation formAttestation = manager.create(form.stringValue(), "A",
+                "0", "1", context.stringValue(), false, "user7");
+        Attestation conceptAttestation = manager.create(concept.stringValue(), "gli",
+                "4", "7", context.stringValue(), false, "user7");
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            assertThat(connection.hasStatement(form, iri(FRAC + "attestation"),
+                    iri(formAttestation.attestation), false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept, iri(FRAC + "attestation"),
+                    iri(conceptAttestation.attestation), false, graph)).isTrue();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void rejectsObservableFromDefaultAndUnsupportedNamedGraphs() {
+        IRI defaultGraphObservable = iri("https://example.org/lexicon/default-entry");
+        IRI unrelatedGraphObservable = iri("https://example.org/lexicon/wrong-graph-entry");
+        IRI invalidLanguageGraphObservable =
+                iri("https://example.org/lexicon/invalid-language-entry");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(defaultGraphObservable, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalEntry"));
+            connection.add(unrelatedGraphObservable, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalEntry"),
+                    iri("https://example.org/graphs/unrelated"));
+            connection.add(invalidLanguageGraphObservable, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalEntry"),
+                    iri(LexiconCrudSupport.LEXICAL_GRAPH_BASE_URI + "not-a-language"));
+        }
+
+        for (IRI unsupported : Arrays.asList(defaultGraphObservable,
+                unrelatedGraphObservable, invalidLanguageGraphObservable)) {
+            assertThatThrownBy(() -> manager.create(unsupported.stringValue(), "A",
+                    "0", "1", context.stringValue(), false, "user7"))
+                    .isInstanceOf(ManagerException.class)
+                    .hasMessageContaining("INVALID_OBSERVABLE");
+        }
+    }
+
+    @Test
     void createsStablePerUrlGraphsForExternalTexts() throws Exception {
         Attestation result = manager.create(observable.stringValue(), "remote",
                 "2", "8", "https://example.org/external/text", true,

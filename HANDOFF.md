@@ -3,7 +3,9 @@
 Aggiornato al 4 agosto 2026 dopo l'arricchimento della risposta di
 `GET /lexica/{language}/entries`, la correzione delle collisioni millisecondo
 nella generazione delle IRI delle attestazioni e l'estensione di
-`POST /attestations/by-locus` con metadati RDF opzionali per observable.
+`POST /attestations/by-locus` con metadati RDF opzionali per observable. La
+validazione degli observable delle attestazioni riconosce ora anche i graph
+lessicali specifici per lingua e il graph fisso dei lexical concept.
 Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
@@ -180,15 +182,18 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 144 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 146 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
-  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
+  i 6 test mirati del bulk testuale, i 40 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
   relativi loci NIF, con validazione di tipi OntoLex/DCMI, URL esterni, offset
   Unicode e isolamento nei named graph per testo.
+- La validazione degli observable cerca i tipi OntoLex ammessi nel graph legacy
+  `lexica`, nei graph `lexica/{language}` e nel graph fisso `lexicalConcept`,
+  continuando a escludere default graph e named graph estranei.
 - Endpoint `POST /attestations/by-locus` per creare atomicamente una attestazione
   per ogni IRI nella lista `observables`, condividendo lo stesso intervallo e lo
   stesso locus NIF nel corpus indicato. Ogni elemento è un oggetto con IRI
@@ -411,7 +416,7 @@ struttura comune `{property, values}`. `AttestationManager` usa
 `RdfMetadataCodec` e `MetadataPolicy`, aggiunge ogni valore al modello con
 soggetto l'IRI della specifica attestazione e persiste l'intero batch nel named
 graph documentale. La risposta conserva la struttura delle attestazioni e
-include i metadata creati. I 38 test mirati e la suite completa di 144 test sono
+include i metadata creati. I 40 test mirati e la suite completa di 146 test sono
 passati il 4 agosto 2026; gli end-to-end REST non sono stati eseguiti.
 
 È stata predisposta e usata la base della riscrittura incrementale dei CRUD

@@ -2035,17 +2035,52 @@ public class AttestationManager implements Manager {
 
     private void validateObservable(RepositoryConnection connection, IRI observable)
             throws ManagerException {
-        IRI graph = vf.createIRI(LexicalNamedGraphs.lexiconGraphUri());
         String[] types = {"LexicalEntry", "Form", "LexicalSense", "LexicalConcept"};
-        for (String type : types) {
-            if (hasObservableType(connection, observable,
-                    vf.createIRI(ONTOLEX + type), graph)) {
-                return;
+        for (Resource graph : supportedObservableGraphs(connection)) {
+            for (String type : types) {
+                if (hasObservableType(connection, observable,
+                        vf.createIRI(ONTOLEX + type), graph)) {
+                    return;
+                }
             }
         }
         throw new ManagerException("INVALID_OBSERVABLE: observable must identify an "
                 + "ontolex:LexicalEntry, ontolex:Form, ontolex:LexicalSense, "
-                + "or ontolex:LexicalConcept in the lexical graph");
+                + "or ontolex:LexicalConcept in a supported lexical graph");
+    }
+
+    private List<Resource> supportedObservableGraphs(
+            RepositoryConnection connection) {
+        List<Resource> graphs = new ArrayList<Resource>();
+        graphs.add(vf.createIRI(LexicalNamedGraphs.lexiconGraphUri()));
+        graphs.add(vf.createIRI(LexiconCrudSupport.lexicalConceptGraphUri()));
+        try (RepositoryResult<Resource> contexts = connection.getContextIDs()) {
+            while (contexts.hasNext()) {
+                Resource graph = contexts.next();
+                if (isObservableGraph(graph) && !graphs.contains(graph)) {
+                    graphs.add(graph);
+                }
+            }
+        }
+        return graphs;
+    }
+
+    private boolean isObservableGraph(Resource graph) {
+        String graphUri = graph.stringValue();
+        if (graphUri.equals(LexicalNamedGraphs.lexiconGraphUri())
+                || graphUri.equals(LexiconCrudSupport.lexicalConceptGraphUri())) {
+            return true;
+        }
+        if (!graphUri.startsWith(LexiconCrudSupport.LEXICAL_GRAPH_BASE_URI)) {
+            return false;
+        }
+        String language = graphUri.substring(
+                LexiconCrudSupport.LEXICAL_GRAPH_BASE_URI.length());
+        try {
+            return graphUri.equals(LexiconCrudSupport.lexicalGraphUri(language));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private TextLocation internalLocation(RepositoryConnection connection, IRI corpus,

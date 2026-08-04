@@ -404,6 +404,11 @@ value.
 ]
 ```
 
+The observable may be stored in the legacy `lexica` graph, an ISO-language-
+specific `lexica/{language}` graph, or the fixed `lexicalConcept` graph. A
+supported OntoLex type found only in the default graph or an unrelated named
+graph is rejected.
+
 The whole list is validated before persistence. All FRAC resources and NIF loci
 are then written as one batch transaction per repository; a failed occurrence
 does not leave the preceding occurrences stored. When the text context has a

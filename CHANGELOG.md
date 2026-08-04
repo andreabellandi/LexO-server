@@ -140,6 +140,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Attestation observable validation now recognizes supported OntoLex resources
+  in ISO-language-specific lexical graphs and the fixed lexical-concept graph,
+  in addition to the legacy `lexica` graph.
 - Timestamp-based attestation IRI generation now advances to the next available
   millisecond when several attestations are created with the same clock value,
   preventing intermittent `ATTESTATION_ID_CONFLICT` build failures.
