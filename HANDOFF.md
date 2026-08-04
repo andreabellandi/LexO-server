@@ -5,8 +5,9 @@ categoria da parte dei nuovi CRUD lessicali e dei servizi di attestazione. Gli
 observable sono risolti nel graph ISO della lingua per entry, form e sense,
 oppure nel graph fisso dei lexical concept; default graph, graph legacy e
 collocazioni di categoria errate non vengono accettati. La creazione delle entry
-scrive inoltre `ontolex:isSenseOf` su ogni senso e le risposte delle attestazioni
-risolvono tipi e label dallo stesso graph effettivo. Il CRUD comune `/metadata`
+scrive `ontolex:sense` e lascia la relazione inversa `ontolex:isSenseOf`
+all'inferenza; le risposte delle attestazioni risolvono tipi e label dallo stesso
+graph effettivo. Il CRUD comune `/metadata`
 ammette anche `lexicalSense` e `form`, risolti nel graph lessicale della lingua.
 Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
@@ -267,7 +268,8 @@ appartenenza ai corpora sono persistiti in GraphDB.
   fallback documentati; sono riconosciute anche sottoclassi di `LexicalEntry` e
   i language tag sono preservati nel formato `valore@lingua`.
 - Per un `ontolex:LexicalSense`, la label combina la label (o forma canonica)
-  della entry indicata da `ontolex:isSenseOf` e `skos:definition`; se manca la
+  della entry collegata tramite `ontolex:sense` (l'inversa inferita è
+  `ontolex:isSenseOf`) e `skos:definition`; se manca la
   definizione viene restituita la sola label della entry, mentre se manca la
   label viene restituita la sola definizione.
 - Namespace applicativo predefinito aggiornato a `https://lexo.ilc.cnr.it#`.

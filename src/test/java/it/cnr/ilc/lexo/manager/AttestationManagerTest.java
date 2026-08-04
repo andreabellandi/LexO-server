@@ -1642,7 +1642,7 @@ class AttestationManagerTest {
                           IRI sense, IRI entry, String definition, String language) {
         connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"), lexicalGraph);
         if (entry != null) {
-            connection.add(sense, iri(ONTOLEX + "isSenseOf"), entry, lexicalGraph);
+            connection.add(entry, iri(ONTOLEX + "sense"), sense, lexicalGraph);
         }
         if (definition != null) {
             connection.add(sense, iri(SKOS + "definition"),

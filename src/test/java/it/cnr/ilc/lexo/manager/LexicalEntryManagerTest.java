@@ -120,7 +120,7 @@ class LexicalEntryManagerTest {
             assertThat(connection.hasStatement(entry, iri(ONTOLEX + "sense"),
                     sense, false, graph)).isTrue();
             assertThat(connection.hasStatement(sense,
-                    iri(ONTOLEX + "isSenseOf"), entry, false, graph)).isTrue();
+                    iri(ONTOLEX + "isSenseOf"), entry, false, graph)).isFalse();
             assertThat(connection.hasStatement(sense, RDF.TYPE,
                     iri(ONTOLEX + "LexicalSense"), false, graph)).isTrue();
             assertThat(connection.hasStatement(sense, iri(SKOS + "definition"),

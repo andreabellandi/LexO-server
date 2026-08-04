@@ -1832,11 +1832,11 @@ public class AttestationManager implements Manager {
         if (hasType(connection, observable, "LexicalSense", lexicalGraph)) {
             String definition = firstLiteralWithLanguage(connection, observable,
                     vf.createIRI(SKOS + "definition"), lexicalGraph);
-            Value entryValue = firstObject(connection, observable,
-                    vf.createIRI(ONTOLEX + "isSenseOf"), lexicalGraph);
+            Resource entryValue = firstSubject(connection,
+                    vf.createIRI(ONTOLEX + "sense"), observable, lexicalGraph);
             String entryLabel = null;
-            if (entryValue instanceof Resource) {
-                Resource entry = (Resource) entryValue;
+            if (entryValue != null) {
+                Resource entry = entryValue;
                 entryLabel = firstNonBlank(
                         firstLiteralWithLanguage(connection, entry,
                                 vf.createIRI(RDFS + "label"), lexicalGraph),
@@ -1979,6 +1979,14 @@ public class AttestationManager implements Manager {
         try (RepositoryResult<Statement> statements = connection.getStatements(
                 subject, predicate, null, false, graph)) {
             return statements.hasNext() ? statements.next().getObject() : null;
+        }
+    }
+
+    private Resource firstSubject(RepositoryConnection connection, IRI predicate,
+                                  Value object, Resource graph) {
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                null, predicate, object, false, graph)) {
+            return statements.hasNext() ? statements.next().getSubject() : null;
         }
     }
 

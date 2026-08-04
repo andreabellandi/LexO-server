@@ -557,7 +557,9 @@ entries prefer `rdfs:label` and then their canonical form's
 lexical senses combine their entry label or canonical written representation
 with `skos:definition`. When a sense has no definition, the linked entry label
 is returned alone; when it has no usable entry label, the definition is returned
-alone. Lexical concepts prefer `skos:prefLabel` and then
+alone. The service resolves that entry from the asserted `ontolex:sense` link
+inside the language named graph; `ontolex:isSenseOf` remains an OWL inference
+and is not written by entry creation. Lexical concepts prefer `skos:prefLabel` and then
 `rdfs:label`. Language tags are preserved in the compact `value@language`
 format (for example, `casa@it`); missing values fall back to `"no label"`.
 

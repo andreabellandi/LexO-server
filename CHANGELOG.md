@@ -76,8 +76,8 @@ starts from the ongoing `Unreleased` work.
   senses, the fixed concept graph for lexical concepts, and per-document graphs
   for attestations. The legacy lexical graph and default graph are no longer
   accepted by these services.
-- `POST /lexica/entry` now writes the inverse `ontolex:isSenseOf` relation from
-  each created lexical sense to its entry in the language-specific named graph.
+- `POST /lexica/entry` writes `ontolex:sense` in the language-specific named
+  graph and leaves its inverse `ontolex:isSenseOf` to repository inference.
 - Attestation responses for lexical senses now return the linked entry label
   alone when `skos:definition` is missing, while still combining entry label and
   definition when both are available.

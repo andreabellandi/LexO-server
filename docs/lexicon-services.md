@@ -225,10 +225,11 @@ timestamps, language-tagged `rdfs:label`, and `lexo:status "working"`. Optional
 the language-tagged `ontolex:writtenRep`. Accepted entry metadata is written on
 the entry itself in the same language-specific named graph.
 
-Each item in `senses` creates an `ontolex:LexicalSense` linked in both directions:
-the entry has `ontolex:sense` to the sense and the sense has
-`ontolex:isSenseOf` to the entry. Both triples and the sense's creator and
-created/modified timestamps are stored in the selected language graph. Both `properties`
+Each item in `senses` creates an `ontolex:LexicalSense` linked from the entry
+through `ontolex:sense`. `ontolex:isSenseOf` is the OWL inverse and is left to
+repository inference rather than duplicated as an asserted application triple.
+The relation and the sense's creator and created/modified timestamps are stored
+in the selected language graph. Both `properties`
 and `metadata` are lists of `{property, values}` groups, and each group has a
 non-empty, multivalued `values` list. Both preserve multiple IRI, plain literal,
 language-tagged literal, and typed literal values. Service-managed type,

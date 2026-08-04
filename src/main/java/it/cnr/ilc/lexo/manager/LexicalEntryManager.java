@@ -129,7 +129,6 @@ public final class LexicalEntryManager implements Manager {
             for (int i = 0; i < senses.size(); i++) {
                 IRI sense = senses.get(i);
                 model.add(entry, iri(ONTOLEX + "sense"), sense);
-                model.add(sense, iri(ONTOLEX + "isSenseOf"), entry);
                 model.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"));
                 addAudit(model, sense, creatorValue, date);
                 for (PropertyValue value : input.senses.get(i).values) {
