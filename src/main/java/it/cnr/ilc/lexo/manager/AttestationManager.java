@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.LongSupplier;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -74,22 +75,38 @@ public class AttestationManager implements Manager {
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final String DEFAULT_STRUCTURE_NAMESPACE =
             "https://lexo.ilc.cnr.it/vocabulary/nif-structure#";
+    private static final LongSupplier SYSTEM_CURRENT_TIME = new LongSupplier() {
+        @Override
+        public long getAsLong() {
+            return System.currentTimeMillis();
+        }
+    };
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final ConnectionSource connections;
+    private final LongSupplier currentTimeMillis;
     private final String structureNamespace;
     private final String textGraphBase;
+    private long lastAttestationEpochMillis = Long.MIN_VALUE;
 
     public AttestationManager() {
-        this(new GraphDbConnectionSource());
+        this(new GraphDbConnectionSource(), SYSTEM_CURRENT_TIME);
     }
 
     AttestationManager(Repository lexicalRepository, Repository textRepository) {
-        this(new RepositoryConnectionSource(lexicalRepository, textRepository));
+        this(lexicalRepository, textRepository, SYSTEM_CURRENT_TIME);
     }
 
-    private AttestationManager(ConnectionSource connections) {
+    AttestationManager(Repository lexicalRepository, Repository textRepository,
+                       LongSupplier currentTimeMillis) {
+        this(new RepositoryConnectionSource(lexicalRepository, textRepository),
+                currentTimeMillis);
+    }
+
+    private AttestationManager(ConnectionSource connections,
+                               LongSupplier currentTimeMillis) {
         this.connections = connections;
+        this.currentTimeMillis = currentTimeMillis;
         this.structureNamespace = namespace(System.getProperty(
                 "lexo.text.structureNamespace", DEFAULT_STRUCTURE_NAMESPACE));
         this.textGraphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
@@ -137,7 +154,7 @@ public class AttestationManager implements Manager {
             List<PendingAttestation> pending = new ArrayList<PendingAttestation>();
             Map<String, Model> batchLoci = new HashMap<String, Model>();
             Set<String> reservedAttestationIris = new HashSet<String>();
-            long batchTimestamp = System.currentTimeMillis();
+            long batchTimestamp = currentTimeMillis.getAsLong();
 
             for (int index = 0; index < occurrences.size(); index++) {
                 AttestationOccurrence occurrence = occurrences.get(index);
@@ -158,10 +175,11 @@ public class AttestationManager implements Manager {
                         ? externalLocation(corpusIri, start, end)
                         : internalLocation(text, corpusIri, value, start, end);
 
-                Timestamp now = new Timestamp(batchTimestamp + index);
-                String timestamp = timestamp(now);
-                IRI attestationIri = newAttestationIri(lexical, now,
+                AttestationIdentity identity = newAttestationIdentity(lexical,
+                        new Timestamp(batchTimestamp + index),
                         reservedAttestationIris);
+                String timestamp = timestamp(identity.timestamp);
+                IRI attestationIri = identity.iri;
                 IRI locus = vf.createIRI(location.locus);
                 IRI attestationGraph = vf.createIRI(
                         LexicalNamedGraphs.attestationGraphUri(location.fileId));
@@ -252,7 +270,7 @@ public class AttestationManager implements Manager {
                     location.textGraph);
             List<PendingAttestation> pending = new ArrayList<PendingAttestation>();
             Set<String> reservedAttestationIris = new HashSet<String>();
-            long batchTimestamp = System.currentTimeMillis();
+            long batchTimestamp = currentTimeMillis.getAsLong();
 
             for (int index = 0; index < input.observables.size(); index++) {
                 String path = "observables[" + index + "]";
@@ -276,10 +294,11 @@ public class AttestationManager implements Manager {
                         lexicalGraph);
                 String observableLabel = observableLabel(lexical, observableIri,
                         lexicalGraph);
-                Timestamp now = new Timestamp(batchTimestamp + index);
-                String created = timestamp(now);
-                IRI attestationIri = newAttestationIri(lexical, now,
+                AttestationIdentity identity = newAttestationIdentity(lexical,
+                        new Timestamp(batchTimestamp + index),
                         reservedAttestationIris);
+                String created = timestamp(identity.timestamp);
+                IRI attestationIri = identity.iri;
                 Model attestationStatements = attestationModel(attestationIri,
                         observableIri, locus, corpusIri, value, location.language,
                         author, created);
@@ -2304,21 +2323,32 @@ public class AttestationManager implements Manager {
         }
     }
 
-    private IRI newAttestationIri(RepositoryConnection connection,
-                                  Timestamp timestamp, Set<String> reserved)
+    private synchronized AttestationIdentity newAttestationIdentity(
+            RepositoryConnection connection, Timestamp timestamp,
+            Set<String> reserved)
             throws ManagerException {
         String namespace = configured("repository.lexicon.namespace",
                 "https://lexo.ilc.cnr.it#");
         String prefix = configured("repository.instance.id", "LexO_");
-        String local = (prefix + timestamp.toString()).replaceAll("\\s+", "")
-                .replace(':', '_').replace('.', '_');
-        IRI iri = vf.createIRI(namespace(namespace) + local);
-        if (reserved.contains(iri.stringValue())
-                || connection.hasStatement(iri, null, null, false)) {
-            throw new ManagerException("ATTESTATION_ID_CONFLICT: generated attestation IRI already exists");
+        long candidateMillis = timestamp.getTime();
+        if (lastAttestationEpochMillis >= candidateMillis) {
+            candidateMillis = lastAttestationEpochMillis + 1L;
         }
-        reserved.add(iri.stringValue());
-        return iri;
+        for (int attempt = 0; attempt < 10000; attempt++, candidateMillis++) {
+            Timestamp candidateTimestamp = new Timestamp(candidateMillis);
+            String local = (prefix + candidateTimestamp.toString())
+                    .replaceAll("\\s+", "")
+                    .replace(':', '_').replace('.', '_');
+            IRI candidate = vf.createIRI(namespace(namespace) + local);
+            if (!reserved.contains(candidate.stringValue())
+                    && !connection.hasStatement(candidate, null, null, false)) {
+                reserved.add(candidate.stringValue());
+                lastAttestationEpochMillis = candidateMillis;
+                return new AttestationIdentity(candidate, candidateTimestamp);
+            }
+        }
+        throw new ManagerException("ATTESTATION_ID_CONFLICT: unable to allocate "
+                + "a unique timestamp-based attestation IRI");
     }
 
     private boolean hasAllowedCorpusType(RepositoryConnection connection, IRI corpus,
@@ -2615,6 +2645,16 @@ public class AttestationManager implements Manager {
                                   List<IRI> previousObservables) {
             this.attestation = attestation;
             this.previousObservables = previousObservables;
+        }
+    }
+
+    private static final class AttestationIdentity {
+        final IRI iri;
+        final Timestamp timestamp;
+
+        AttestationIdentity(IRI iri, Timestamp timestamp) {
+            this.iri = iri;
+            this.timestamp = timestamp;
         }
     }
 

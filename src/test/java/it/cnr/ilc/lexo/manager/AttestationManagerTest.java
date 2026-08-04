@@ -24,6 +24,7 @@ import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.LongSupplier;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
@@ -151,6 +152,36 @@ class AttestationManagerTest {
             assertThat(connection.hasStatement(locus, iri(PROV + "wasGeneratedBy"),
                     iri("https://lexo.ilc.cnr.it#AttestationService"), false,
                     textGraph)).isTrue();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void createsUniqueAttestationIrisWhenTheClockDoesNotAdvance()
+            throws Exception {
+        manager = new AttestationManager(lexicalRepository, textRepository,
+                new LongSupplier() {
+                    @Override
+                    public long getAsLong() {
+                        return 1700000000000L;
+                    }
+                });
+
+        Attestation first = manager.create(observable.stringValue(), "A", "0",
+                "1", context.stringValue(), false, "user7");
+        Attestation second = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+
+        assertThat(first.attestation).isNotEqualTo(second.attestation);
+        assertThat(first.creationDate).isNotEqualTo(second.creationDate);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            assertThat(count(connection, null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), graph)).isEqualTo(2);
+            assertThat(connection.hasStatement(iri(first.attestation), RDF.TYPE,
+                    iri(FRAC + "Attestation"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(iri(second.attestation), RDF.TYPE,
+                    iri(FRAC + "Attestation"), false, graph)).isTrue();
             assertDefaultGraphEmpty(connection);
         }
     }

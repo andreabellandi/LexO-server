@@ -140,6 +140,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Timestamp-based attestation IRI generation now advances to the next available
+  millisecond when several attestations are created with the same clock value,
+  preventing intermittent `ATTESTATION_ID_CONFLICT` build failures.
 - Attestation creation now reuses an existing NIF word, sentence, or structural
   locus when its anchor, offsets, and reference context match, instead of
   reporting a false `LOCUS_CONFLICT` because its RDF types differ.

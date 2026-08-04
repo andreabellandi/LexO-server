@@ -1,9 +1,9 @@
 # LexO-server — handoff per attività Codex
 
 Aggiornato al 4 agosto 2026 dopo l'arricchimento della risposta di
-`GET /lexica/{language}/entries` e l'estensione di
-`POST /attestations/by-locus` con metadati RDF opzionali e distinti per ciascun
-observable, basati sul DTO e sulla policy del CRUD metadati comune.
+`GET /lexica/{language}/entries`, la correzione delle collisioni millisecondo
+nella generazione delle IRI delle attestazioni e l'estensione di
+`POST /attestations/by-locus` con metadati RDF opzionali per observable.
 Il lavoro è direttamente sul branch `master`, accanto agli
 altri servizi incrementali in `Lexicon.java`. Il nuovo endpoint usa il
 connettore GraphDB esistente verso `LexOLexica` e isola letture e scritture nel
@@ -180,10 +180,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 143 test unitari/repository passati il 4 agosto 2026, inclusi
+- Suite corrente: 144 test unitari/repository passati il 4 agosto 2026, inclusi
   i test del nuovo lexical concept manager e degli altri servizi lessicali, i 3
   test repository dei totali FRAC,
-  i 6 test mirati del bulk testuale, i 37 test delle attestazioni, i 2 test del
+  i 6 test mirati del bulk testuale, i 38 test delle attestazioni, i 2 test del
   conteggio attestazioni nei lexical concept e i 4 test della creazione dei
   lexical concept con label.
 - Endpoint `POST /attestations` per creare una o più attestazioni FRAC e i
@@ -338,10 +338,6 @@ appartenenza ai corpora sono persistiti in GraphDB.
   invece di un errore applicativo 400; il client deve inviare l'array documentato.
 - In ambienti Codex senza `mvn` nel `PATH` è stato usato Maven incluso in
   NetBeans 12.2. Il sandbox può mostrare warning se non può scrivere in `~/.m2`.
-- Il generatore legacy degli IRI delle attestazioni usa timestamp con precisione
-  al millisecondo: una prima esecuzione della suite ha prodotto una collisione
-  occasionale `ATTESTATION_ID_CONFLICT`; il test isolato e la suite completa
-  immediatamente successiva sono passati senza modifiche al dominio attestazioni.
 
 ## Installazione, build, avvio e test
 
@@ -404,13 +400,18 @@ ordinati deterministicamente; i metadata riusano `RdfMetadataCodec` e
 `MetadataPolicy`, quindi preservano il tipo RDF dei valori e omettono ogni
 predicato protetto anche sui dati legacy.
 
-Il lavoro corrente trasforma ogni elemento di `observables` della create
+Il lavoro corrente rende monotona la componente millisecondo delle IRI delle
+attestazioni: se il clock non avanza o il candidato è già presente nel
+repository, il manager seleziona il millisecondo successivo libero mantenendo
+coerenti IRI e timestamp audit. Un test con clock bloccato riproduce e copre la
+precedente collisione. Lo stesso lavoro trasforma ogni elemento di `observables`
+della create
 by-locus in un oggetto con `observable` obbligatorio e `metadata` opzionali nella
 struttura comune `{property, values}`. `AttestationManager` usa
 `RdfMetadataCodec` e `MetadataPolicy`, aggiunge ogni valore al modello con
 soggetto l'IRI della specifica attestazione e persiste l'intero batch nel named
 graph documentale. La risposta conserva la struttura delle attestazioni e
-include i metadata creati. I 37 test mirati e la suite completa di 143 test sono
+include i metadata creati. I 38 test mirati e la suite completa di 144 test sono
 passati il 4 agosto 2026; gli end-to-end REST non sono stati eseguiti.
 
 È stata predisposta e usata la base della riscrittura incrementale dei CRUD
