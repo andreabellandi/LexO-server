@@ -276,8 +276,20 @@ to zero.
 
 The response is a JSON array ordered by the effective label and then by entry
 IRI. Each compact item exposes `entry`, `label`, `type`, `pos`, `author`,
-`status`, and `senseNumber`. Entries without any effective label remain visible
-when `key` is absent. The endpoint does not apply implicit pagination.
+`status`, `senseNumber`, `senses`, `canonicalFormNumber`, `canonicalForm`,
+`otherFormNumber`, `otherForms`, and `metadata`. Sense and form lists contain
+distinct IRIs in deterministic order; their number fields are derived from the
+corresponding lists. If anomalous data contains more than one canonical form,
+`canonicalForm` is the first ordered IRI while `canonicalFormNumber` exposes the
+actual cardinality. Missing collections are empty arrays and a missing
+canonical form is `null`.
+
+Entry metadata uses the common list of `{property, values}` groups and the
+shared IRI/literal representation with language and datatype preservation.
+Reading applies `MetadataPolicy`: every protected exact predicate and every
+property in a protected namespace is omitted, including protected legacy data.
+Entries without any effective label remain visible when `key` is absent. The
+endpoint does not apply implicit pagination.
 
 Stable error prefixes include `INVALID_LANGUAGE`, `INVALID_SEARCH_MODE`,
 `INVALID_CASE`, `INVALID_TYPE_IRI`, `TYPE_NOT_FOUND`,

@@ -234,8 +234,13 @@ of the selected lexicon is returned.
 
 The response is a deterministically ordered JSON array. Each item contains
 `entry`, the effective `label` when available, `type`, `pos`, `author`, `status`,
-and `senseNumber`. This contract returns the complete result and does not apply
-implicit pagination.
+`senseNumber`, the `senses` IRI list, `canonicalFormNumber`, the deterministic
+`canonicalForm` IRI when present, `otherFormNumber`, the `otherForms` IRI list,
+and `metadata`. Metadata uses the common `{property, values}` RDF shape and
+omits every predicate protected by the global `MetadataPolicy`. Empty relation
+and metadata collections are returned as arrays; a missing canonical form is
+returned as `null`. This contract returns the complete result and does not
+apply implicit pagination.
 
 ## Lexical entry status changes
 

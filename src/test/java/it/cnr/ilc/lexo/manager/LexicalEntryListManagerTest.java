@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryListItem;
+import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.List;
 import org.eclipse.rdf4j.model.IRI;
@@ -28,6 +29,7 @@ class LexicalEntryListManagerTest {
     private static final String LEXINFO =
             "http://www.lexinfo.net/ontology/3.0/lexinfo#";
     private static final String LEXO = "https://lexo.ilc.cnr.it#";
+    private static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
     private static final String EX = "https://example.org/";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
@@ -75,7 +77,30 @@ class LexicalEntryListManagerTest {
         assertThat(direct.author).isEqualTo("alice");
         assertThat(direct.status).isEqualTo("working");
         assertThat(direct.senseNumber).isEqualTo(2);
+        assertThat(direct.senses).containsExactly(
+                EX + "sense/direct/0", EX + "sense/direct/1");
+        assertThat(direct.canonicalFormNumber).isEqualTo(2);
+        assertThat(direct.canonicalForm).isEqualTo(EX + "form/direct-canonical");
+        assertThat(direct.otherFormNumber).isEqualTo(2);
+        assertThat(direct.otherForms).containsExactly(
+                EX + "form/direct-other", EX + "form/z-direct-other");
+        RdfMetadataProperty source = metadataProperty(direct,
+                EX + "vocabulary/source");
+        assertThat(source.values).extracting(value -> value.type)
+                .containsExactly("iri", "literal");
+        assertThat(source.values).extracting(value -> value.value)
+                .containsExactly(EX + "source/1", "fonte primaria");
+        assertThat(source.values.get(1).language).isEqualTo("it");
+        assertThat(direct.metadata).extracting(property -> property.property)
+                .noneMatch(property -> property.startsWith(ONTOLEX))
+                .noneMatch(property -> property.startsWith(SKOS))
+                .doesNotContain(DCTERMS.CREATOR.stringValue());
         assertThat(entry(entries, EX + "entry/no-label").label).isNull();
+        assertThat(entry(entries, EX + "entry/no-label").senses).isEmpty();
+        assertThat(entry(entries, EX + "entry/no-label").canonicalFormNumber)
+                .isZero();
+        assertThat(entry(entries, EX + "entry/no-label").canonicalForm).isNull();
+        assertThat(entry(entries, EX + "entry/no-label").otherForms).isEmpty();
         try (RepositoryConnection connection = repository.getConnection()) {
             assertDefaultGraphEmpty(connection);
         }
@@ -199,8 +224,19 @@ class LexicalEntryListManagerTest {
             IRI direct = iri(EX + "entry/direct");
             addForm(connection, direct, "direct-canonical", "canonical ignored",
                     "canonicalForm");
+            addForm(connection, direct, "z-direct-canonical", "second canonical",
+                    "canonicalForm");
             addForm(connection, direct, "direct-other", "other ignored",
                     "otherForm");
+            addForm(connection, direct, "z-direct-other", "second other",
+                    "otherForm");
+            IRI source = iri(EX + "vocabulary/source");
+            connection.add(direct, source, iri(EX + "source/1"), italianGraph);
+            connection.add(direct, source,
+                    vf.createLiteral("fonte primaria", "it"), italianGraph);
+            connection.add(direct,
+                    iri(SKOS + "note"),
+                    vf.createLiteral("legacy protected metadata"), italianGraph);
 
             addEntry(connection, lexicon, "canonical", word, null, "bob",
                     "completed", 0);
@@ -286,6 +322,13 @@ class LexicalEntryListManagerTest {
                              (Resource) null)) {
             assertThat(statements.hasNext()).isFalse();
         }
+    }
+
+    private RdfMetadataProperty metadataProperty(LexicalEntryListItem item,
+                                                 String property) {
+        return item.metadata.stream()
+                .filter(candidate -> property.equals(candidate.property))
+                .findFirst().orElseThrow(AssertionError::new);
     }
 
     private IRI iri(String value) {

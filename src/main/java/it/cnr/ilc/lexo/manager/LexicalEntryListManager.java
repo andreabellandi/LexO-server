@@ -2,13 +2,19 @@ package it.cnr.ilc.lexo.manager;
 
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
+import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
+import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryListItem;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
@@ -32,6 +38,7 @@ public final class LexicalEntryListManager implements Manager {
             "http://www.lexinfo.net/ontology/3.0/lexinfo#";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
     private final Repository repository;
 
     /** Runtime constructor used by {@link ManagerFactory}. */
@@ -57,7 +64,10 @@ public final class LexicalEntryListManager implements Manager {
             Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());
             validateType(connection, filter.type, graph, schemaGraph);
             validatePartOfSpeech(connection, filter.pos, graph, schemaGraph);
-            return execute(connection, graph, schemaGraph, filter);
+            List<LexicalEntryListItem> entries = execute(
+                    connection, graph, schemaGraph, filter);
+            enrich(connection, graph, entries);
+            return entries;
         } finally {
             release(connection);
         }
@@ -152,7 +162,7 @@ public final class LexicalEntryListManager implements Manager {
                 .append("    OPTIONAL { ?entry lexinfo:partOfSpeech ?entryPos . }\n")
                 .append("    OPTIONAL { ?entry dcterms:creator ?entryAuthor . }\n")
                 .append("    OPTIONAL { ?entry lexo:status ?entryStatus . }\n")
-                .append("    OPTIONAL { ?entry ontolex:sense ?sense . }\n");
+                .append("    OPTIONAL { ?entry ontolex:sense ?sense . FILTER(isIRI(?sense)) }\n");
         appendFilters(query, filter);
         query.append("  }\n")
                 .append("}\n")
@@ -162,6 +172,72 @@ public final class LexicalEntryListManager implements Manager {
         }
         query.append("ORDER BY LCASE(COALESCE(?label, \"\")) STR(?entry)\n");
         return query.toString();
+    }
+
+    private void enrich(RepositoryConnection connection, Resource graph,
+                        List<LexicalEntryListItem> entries) {
+        if (entries.isEmpty()) {
+            return;
+        }
+        Map<String, EntryEnrichment> enrichment =
+                new LinkedHashMap<String, EntryEnrichment>();
+        for (LexicalEntryListItem item : entries) {
+            enrichment.put(item.entry, new EntryEnrichment());
+        }
+        IRI senseProperty = vf.createIRI(
+                "http://www.w3.org/ns/lemon/ontolex#sense");
+        IRI canonicalProperty = vf.createIRI(
+                "http://www.w3.org/ns/lemon/ontolex#canonicalForm");
+        IRI otherProperty = vf.createIRI(
+                "http://www.w3.org/ns/lemon/ontolex#otherForm");
+        try (RepositoryResult<Statement> statements = connection.getStatements(
+                null, null, null, false, graph)) {
+            while (statements.hasNext()) {
+                Statement statement = statements.next();
+                EntryEnrichment target = enrichment.get(
+                        statement.getSubject().stringValue());
+                if (target == null) {
+                    continue;
+                }
+                IRI predicate = statement.getPredicate();
+                Value object = statement.getObject();
+                if (senseProperty.equals(predicate)) {
+                    addIri(target.senses, object);
+                } else if (canonicalProperty.equals(predicate)) {
+                    addIri(target.canonicalForms, object);
+                } else if (otherProperty.equals(predicate)) {
+                    addIri(target.otherForms, object);
+                }
+                if (!MetadataPolicy.isProtected(predicate.stringValue())
+                        && (object instanceof IRI || object instanceof Literal)) {
+                    List<Value> values = target.metadata.get(predicate);
+                    if (values == null) {
+                        values = new ArrayList<Value>();
+                        target.metadata.put(predicate, values);
+                    }
+                    if (!values.contains(object)) {
+                        values.add(object);
+                    }
+                }
+            }
+        }
+        for (LexicalEntryListItem item : entries) {
+            EntryEnrichment source = enrichment.get(item.entry);
+            item.senses.addAll(source.senses);
+            item.senseNumber = item.senses.size();
+            item.canonicalFormNumber = source.canonicalForms.size();
+            item.canonicalForm = source.canonicalForms.isEmpty()
+                    ? null : source.canonicalForms.iterator().next();
+            item.otherForms.addAll(source.otherForms);
+            item.otherFormNumber = item.otherForms.size();
+            item.metadata = metadataCodec.encode(source.metadata);
+        }
+    }
+
+    private void addIri(Set<String> target, Value value) {
+        if (value instanceof IRI) {
+            target.add(value.stringValue());
+        }
     }
 
     private void appendFilters(StringBuilder query, ValidatedFilter filter) {
@@ -333,5 +409,13 @@ public final class LexicalEntryListManager implements Manager {
         String author;
         String status;
         Integer senseNumber;
+    }
+
+    private static final class EntryEnrichment {
+        final Set<String> senses = new TreeSet<String>();
+        final Set<String> canonicalForms = new TreeSet<String>();
+        final Set<String> otherForms = new TreeSet<String>();
+        final Map<IRI, List<Value>> metadata =
+                new LinkedHashMap<IRI, List<Value>>();
     }
 }

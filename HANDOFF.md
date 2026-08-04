@@ -1,6 +1,7 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 4 agosto 2026 dopo l'estensione di
+Aggiornato al 4 agosto 2026 dopo l'arricchimento della risposta di
+`GET /lexica/{language}/entries` e l'estensione di
 `POST /attestations/by-locus` con metadati RDF opzionali e distinti per ciascun
 observable, basati sul DTO e sulla policy del CRUD metadati comune.
 Il lavoro è direttamente sul branch `master`, accanto agli
@@ -132,7 +133,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   esclusivo, tipo RDF, parte del discorso, creator, stato e conteggio esatto dei
   sensi. La ricerca supporta inizio/contenimento/fine e confronto sensibile o
   insensibile al caso; le risorse di tipo e POS vengono validate nei graph
-  linguistico e di schema.
+  linguistico e di schema. Ogni elemento espone inoltre IRI e cardinalità di
+  sensi, forma canonica e altre forme, più i metadata RDF filtrati tramite la
+  policy globale condivisa.
 - Nuovo endpoint `PATCH /lexica/entries/status`: cambia atomicamente lo stato di
   una o più entrate dello stesso graph linguistico, controlla lo stato atteso e
   le sole transizioni `working`/`completed`/`revised` consentite, aggiorna
@@ -393,6 +396,13 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+La risposta di `GET /lexica/{language}/entries` include ora `senses`,
+`canonicalFormNumber`, `canonicalForm`, `otherFormNumber`, `otherForms` e
+`metadata`, oltre al precedente `senseNumber`. Liste e conteggi sono coerenti e
+ordinati deterministicamente; i metadata riusano `RdfMetadataCodec` e
+`MetadataPolicy`, quindi preservano il tipo RDF dei valori e omettono ogni
+predicato protetto anche sui dati legacy.
 
 Il lavoro corrente trasforma ogni elemento di `observables` della create
 by-locus in un oggetto con `observable` obbligatorio e `metadata` opzionali nella
