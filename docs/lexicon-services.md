@@ -409,7 +409,7 @@ The created resource receives type `ontolex:LexicalConcept`, the resolved
 `skos:prefLabel`, alternative label with the requested
 `skos:alternativeLabel`, hidden label with `skos:hiddenLabel`, and definition
 with `skos:definition`. It writes each sense through
-`ontolex:isLexicalizedSenseOf`, the optional parent through `skos:broader`, and
+`ontolex:lexicalizedSense`, the optional parent through `skos:broader`, and
 the optional concept set through `skos:inScheme`.
 
 The complete request is validated before any statement is added, and every
@@ -447,6 +447,10 @@ alternative labels, hidden labels, definitions, or sense links. A supplied
 preferred-label list must remain non-empty. Explicit JSON `null` removes
 `skos:broader` for `parent` or `skos:inScheme` for `conceptSetId`. All label
 languages are normalized and validated against the bundled ISO 639 list.
+`senseId` replaces the objects of `ontolex:lexicalizedSense`. For compatibility
+with data produced before the predicate correction, supplying `senseId` also
+removes any `ontolex:isLexicalizedSenseOf` triple whose subject is the updated
+concept; the inverse predicate is never written by this service.
 
 Replacement sense, parent, and concept-set IRIs are validated for existence and
 exact OntoLex type in the same fixed graph before writing. The service never

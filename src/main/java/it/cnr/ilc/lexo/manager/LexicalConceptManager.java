@@ -75,7 +75,7 @@ public final class LexicalConceptManager implements Manager {
             addTexts(model, lexicalConcept, iri(SKOS + "definition"),
                     input.definitions);
             for (IRI sense : input.senses) {
-                model.add(lexicalConcept, iri(ONTOLEX + "isLexicalizedSenseOf"),
+                model.add(lexicalConcept, iri(ONTOLEX + "lexicalizedSense"),
                         sense);
             }
             if (input.parent != null) {

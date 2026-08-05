@@ -206,7 +206,7 @@ requested OntoLex type in the same fixed graph. The manager validates the whole
 request before writing and rolls back on any failure. It writes creator and
 shared `xsd:dateTime` created/modified timestamps, `skos:prefLabel`,
 `skos:alternativeLabel`, `skos:hiddenLabel`, `skos:definition`,
-`ontolex:isLexicalizedSenseOf`, `skos:broader`, and `skos:inScheme` as applicable.
+`ontolex:lexicalizedSense`, `skos:broader`, and `skos:inScheme` as applicable.
 Custom `metadata` is optional: the member may be omitted or supplied as an empty
 array, in which case no custom metadata triples are created.
 
@@ -238,7 +238,9 @@ supplied, must remain non-empty. Explicit `null` removes `parent` or
 `conceptSetId`. Languages and linked resources are validated before the single
 transaction, `expectedModified` optionally protects against stale updates, and
 creator, creation time, and custom metadata remain untouched. Concept metadata
-is modified only through `/service/metadata`.
+is modified only through `/service/metadata`. `senseId` is persisted as
+`ontolex:lexicalizedSense`; when it is supplied, the update also removes any
+previously misdirected `ontolex:isLexicalizedSenseOf` triple from the concept.
 
 ## Common entity metadata
 

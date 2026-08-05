@@ -61,7 +61,7 @@ class LexicalConceptUpdateManagerTest {
                     vf.createLiteral("dimora", "it"), graph);
             connection.add(concept, iri(SKOS + "definition"),
                     vf.createLiteral("edificio", "it"), graph);
-            connection.add(concept, iri(ONTOLEX + "isLexicalizedSenseOf"),
+            connection.add(concept, iri(ONTOLEX + "lexicalizedSense"),
                     oldSense, graph);
             connection.add(concept, iri(SKOS + "broader"), oldParent, graph);
             connection.add(concept, iri(SKOS + "inScheme"), conceptSet, graph);
@@ -104,6 +104,10 @@ class LexicalConceptUpdateManagerTest {
                 new LexicalConceptLabel("domicilio", "it")));
         request.setSenseId(Arrays.asList(newSense.stringValue()));
         request.setParent(newParent.stringValue());
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(concept, iri(ONTOLEX + "isLexicalizedSenseOf"),
+                    oldSense, graph);
+        }
 
         LexicalConceptUpdateResult result = manager.update(request, "editor");
 
@@ -128,7 +132,10 @@ class LexicalConceptUpdateManagerTest {
                     iri(ONTOLEX + "isLexicalizedSenseOf"), oldSense,
                     false, graph)).isFalse();
             assertThat(connection.hasStatement(concept,
-                    iri(ONTOLEX + "isLexicalizedSenseOf"), newSense,
+                    iri(ONTOLEX + "lexicalizedSense"), oldSense,
+                    false, graph)).isFalse();
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "lexicalizedSense"), newSense,
                     false, graph)).isTrue();
             assertThat(connection.hasStatement(concept, DCTERMS.CREATOR,
                     vf.createLiteral("creator"), false, graph)).isTrue();
@@ -195,7 +202,7 @@ class LexicalConceptUpdateManagerTest {
             assertThat(connection.hasStatement(concept, iri(SKOS + "definition"),
                     vf.createLiteral("edificio", "it"), false, graph)).isTrue();
             assertThat(connection.hasStatement(concept,
-                    iri(ONTOLEX + "isLexicalizedSenseOf"), oldSense,
+                    iri(ONTOLEX + "lexicalizedSense"), oldSense,
                     false, graph)).isTrue();
             assertDefaultGraphEmpty(connection);
         }

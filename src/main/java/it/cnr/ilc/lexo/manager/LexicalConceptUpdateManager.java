@@ -72,9 +72,14 @@ public final class LexicalConceptUpdateManager implements Manager {
             replaceTexts(connection, input.concept,
                     vf.createIRI(SKOS + "definition"), input.definitions,
                     input.definitionsPresent, graph);
+            if (input.sensesPresent) {
+                connection.remove(input.concept,
+                        vf.createIRI(ONTOLEX + "isLexicalizedSenseOf"),
+                        null, graph);
+            }
             replaceIris(connection, input.concept,
-                    vf.createIRI(ONTOLEX + "isLexicalizedSenseOf"),
-                    input.senses, input.sensesPresent, graph);
+                    vf.createIRI(ONTOLEX + "lexicalizedSense"), input.senses,
+                    input.sensesPresent, graph);
             replaceIri(connection, input.concept,
                     vf.createIRI(SKOS + "broader"), input.parent,
                     input.parentPresent, graph);
@@ -318,7 +323,7 @@ public final class LexicalConceptUpdateManager implements Manager {
         result.definition = texts(connection, concept,
                 vf.createIRI(SKOS + "definition"), graph);
         result.senseId = iris(connection, concept,
-                vf.createIRI(ONTOLEX + "isLexicalizedSenseOf"), graph);
+                vf.createIRI(ONTOLEX + "lexicalizedSense"), graph);
         result.parent = first(resultIris(connection, concept,
                 vf.createIRI(SKOS + "broader"), graph));
         result.conceptSetId = first(resultIris(connection, concept,

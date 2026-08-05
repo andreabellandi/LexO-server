@@ -102,8 +102,11 @@ class LexicalConceptManagerTest {
                     vf.createLiteral("Edificio destinato ad abitazione", "it"),
                     false, graph)).isTrue();
             assertThat(connection.hasStatement(concept,
-                    iri(ONTOLEX + "isLexicalizedSenseOf"), sense,
+                    iri(ONTOLEX + "lexicalizedSense"), sense,
                     false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "isLexicalizedSenseOf"), sense,
+                    false, graph)).isFalse();
             assertThat(connection.hasStatement(concept, iri(SKOS + "broader"),
                     parent, false, graph)).isTrue();
             assertThat(connection.hasStatement(concept, iri(SKOS + "inScheme"),

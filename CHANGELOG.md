@@ -159,6 +159,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Lexical concept creation and modification now link a concept to its senses
+  with `ontolex:lexicalizedSense`; updating `senseId` also removes triples
+  previously written with the inverse `ontolex:isLexicalizedSenseOf` predicate.
 - `POST /lexica/lexicalConcept` no longer requires a metadata property when the
   optional `metadata` member is supplied as an empty array.
 - RDF-valued JSON requests for lexical entries, lexical concepts, common
