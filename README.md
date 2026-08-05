@@ -186,7 +186,9 @@ labels, definitions, lexical senses, parent concept, and concept set:
   "definition": [
     {"label": "Edificio destinato ad abitazione", "language": "it"}
   ],
-  "senseId": ["https://example.org/sense/1"],
+  "senses": [
+    {"senseId": "https://example.org/sense/1", "language": "it"}
+  ],
   "parent": "https://example.org/concept/parent",
   "conceptSetId": "https://example.org/concept-set/1",
   "metadata": [
@@ -200,11 +202,14 @@ labels, definitions, lexical senses, parent concept, and concept set:
 }
 ```
 
-Every label language is validated against the bundled ISO 639 list and
-normalized to lowercase. Every linked IRI must already exist with the exact
-requested OntoLex type in the same fixed graph. The manager validates the whole
-request before writing and rolls back on any failure. It writes creator and
-shared `xsd:dateTime` created/modified timestamps, `skos:prefLabel`,
+Every label and sense language is validated against the bundled ISO 639 list
+and normalized to lowercase. A sense must already exist as an
+`ontolex:LexicalSense`, or a declared subclass, in the language-specific graph
+`https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`. Parent concepts and
+concept sets are instead validated in the fixed lexical-concept graph. The
+manager validates the whole request before writing and rolls back on any
+failure. It writes creator and shared `xsd:dateTime` created/modified timestamps,
+`skos:prefLabel`,
 `skos:alternativeLabel`, `skos:hiddenLabel`, `skos:definition`,
 `ontolex:lexicalizedSense`, `skos:broader`, and `skos:inScheme` as applicable.
 Custom `metadata` is optional: the member may be omitted or supplied as an empty
@@ -227,7 +232,9 @@ the supplied semantic properties of an existing lexical concept in the fixed
   "expectedModified": "2026-08-04T10:20:30.000+02:00",
   "label": [{"label": "abitazione", "language": "it"}],
   "alternativeLabel": [],
-  "senseId": ["https://lexo.ilc.cnr.it#LexO_sense1"],
+  "senses": [
+    {"senseId": "https://lexo.ilc.cnr.it#LexO_sense1", "language": "it"}
+  ],
   "parent": null
 }
 ```
@@ -238,9 +245,14 @@ supplied, must remain non-empty. Explicit `null` removes `parent` or
 `conceptSetId`. Languages and linked resources are validated before the single
 transaction, `expectedModified` optionally protects against stale updates, and
 creator, creation time, and custom metadata remain untouched. Concept metadata
-is modified only through `/service/metadata`. `senseId` is persisted as
-`ontolex:lexicalizedSense`; when it is supplied, the update also removes any
-previously misdirected `ontolex:isLexicalizedSenseOf` triple from the concept.
+is modified only through `/service/metadata`. Each member of `senses` identifies
+the language graph in which the sense must exist; the relation itself is
+persisted in the fixed concept graph as `ontolex:lexicalizedSense`. When
+`senses` is supplied, the update also removes any previously misdirected
+`ontolex:isLexicalizedSenseOf` triple from the concept. An empty `senses` list
+removes every sense link. The old input member `senseId` is rejected with
+`SENSE_LANGUAGE_REQUIRED`; responses retain the `senseId` IRI list for
+compatibility.
 
 ## Common entity metadata
 

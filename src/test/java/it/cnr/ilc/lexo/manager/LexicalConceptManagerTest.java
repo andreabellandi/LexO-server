@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptSenseLink;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
@@ -35,6 +36,7 @@ class LexicalConceptManagerTest {
     private SailRepository repository;
     private LexicalConceptManager manager;
     private IRI graph;
+    private IRI italianGraph;
     private IRI sense;
     private IRI parent;
     private IRI conceptSet;
@@ -45,11 +47,13 @@ class LexicalConceptManagerTest {
         repository.init();
         manager = new LexicalConceptManager(repository);
         graph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
+        italianGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
         sense = iri("https://example.org/sense/1");
         parent = iri("https://example.org/concept/parent");
         conceptSet = iri("https://example.org/concept-set/1");
         try (RepositoryConnection connection = repository.getConnection()) {
-            connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"), graph);
+            connection.add(sense, RDF.TYPE, iri(ONTOLEX + "LexicalSense"),
+                    italianGraph);
             connection.add(parent, RDF.TYPE, iri(ONTOLEX + "LexicalConcept"), graph);
             connection.add(conceptSet, RDF.TYPE, iri(ONTOLEX + "ConceptSet"), graph);
         }
@@ -69,7 +73,8 @@ class LexicalConceptManagerTest {
                 new LexicalConceptLabel("house", "en"));
         request.definition = Arrays.asList(
                 new LexicalConceptLabel("Edificio destinato ad abitazione", "it"));
-        request.senseId = Arrays.asList(sense.stringValue());
+        request.senses = Arrays.asList(
+                new LexicalConceptSenseLink(sense.stringValue(), "IT"));
         request.parent = parent.stringValue();
         request.conceptSetId = conceptSet.stringValue();
         RdfMetadataProperty metadata = new RdfMetadataProperty();
@@ -107,6 +112,10 @@ class LexicalConceptManagerTest {
             assertThat(connection.hasStatement(concept,
                     iri(ONTOLEX + "isLexicalizedSenseOf"), sense,
                     false, graph)).isFalse();
+            assertThat(connection.hasStatement(sense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), false, italianGraph)).isTrue();
+            assertThat(connection.hasStatement(sense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), false, graph)).isFalse();
             assertThat(connection.hasStatement(concept, iri(SKOS + "broader"),
                     parent, false, graph)).isTrue();
             assertThat(connection.hasStatement(concept, iri(SKOS + "inScheme"),
@@ -190,20 +199,55 @@ class LexicalConceptManagerTest {
         invalidIri.parent = "not an IRI";
         assertThatThrownBy(() -> manager.create(invalidIri, "editor"))
                 .hasMessageStartingWith("INVALID_PARENT_IRI:");
+
+        LexicalConceptCreationRequest legacySenses = request();
+        legacySenses.senseId = Arrays.asList(sense.stringValue());
+        assertThatThrownBy(() -> manager.create(legacySenses, "editor"))
+                .hasMessageStartingWith("SENSE_LANGUAGE_REQUIRED:");
+
+        LexicalConceptCreationRequest invalidSenseLanguage = request();
+        invalidSenseLanguage.senses = Arrays.asList(
+                new LexicalConceptSenseLink(sense.stringValue(), "zz"));
+        assertThatThrownBy(() -> manager.create(invalidSenseLanguage, "editor"))
+                .hasMessageStartingWith("INVALID_SENSE_LANGUAGE:");
     }
 
     @Test
     void rejectsMissingAndMistypedLinksWithoutWritingTheConcept() {
         LexicalConceptCreationRequest missingSense = request();
-        missingSense.senseId = Arrays.asList("https://example.org/sense/missing");
+        missingSense.senses = Arrays.asList(new LexicalConceptSenseLink(
+                "https://example.org/sense/missing", "it"));
         assertThatThrownBy(() -> manager.create(missingSense, "editor"))
                 .isInstanceOf(LexicalConceptManager.LexicalConceptCreationException.class)
                 .hasMessageStartingWith("SENSE_NOT_FOUND:");
 
         LexicalConceptCreationRequest wrongSense = request();
-        wrongSense.senseId = Arrays.asList(parent.stringValue());
+        IRI wrongSenseType = iri("https://example.org/sense/wrong-type");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(wrongSenseType, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), italianGraph);
+        }
+        wrongSense.senses = Arrays.asList(new LexicalConceptSenseLink(
+                wrongSenseType.stringValue(), "it"));
         assertThatThrownBy(() -> manager.create(wrongSense, "editor"))
                 .hasMessageStartingWith("INVALID_SENSE_TYPE:");
+
+        LexicalConceptCreationRequest wrongLanguageGraph = request();
+        wrongLanguageGraph.senses = Arrays.asList(new LexicalConceptSenseLink(
+                sense.stringValue(), "en"));
+        assertThatThrownBy(() -> manager.create(wrongLanguageGraph, "editor"))
+                .hasMessageStartingWith("SENSE_NOT_FOUND:");
+
+        IRI fixedGraphSense = iri("https://example.org/sense/fixed-graph-only");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(fixedGraphSense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), graph);
+        }
+        LexicalConceptCreationRequest misplacedSense = request();
+        misplacedSense.senses = Arrays.asList(new LexicalConceptSenseLink(
+                fixedGraphSense.stringValue(), "it"));
+        assertThatThrownBy(() -> manager.create(misplacedSense, "editor"))
+                .hasMessageStartingWith("SENSE_NOT_FOUND:");
 
         LexicalConceptCreationRequest missingParent = request();
         missingParent.parent = "https://example.org/concept/missing";

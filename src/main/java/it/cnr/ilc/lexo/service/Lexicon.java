@@ -83,7 +83,7 @@ public class Lexicon extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Lexical concept update",
-            notes = "Atomically replaces the supplied labels, definitions, or links of one lexical concept in the fixed LexOLexica lexical-concept named graph; metadata is managed by the common metadata service")
+            notes = "Atomically replaces the supplied labels, definitions, or links of one lexical concept; senses are validated in their declared language graphs and linked from the fixed LexOLexica lexical-concept named graph; metadata is managed by the common metadata service")
     public Response updateLexicalConcept(
             @ApiParam(name = "Authorization",
                     value = "optional authorization header when LexO user management is enabled",
@@ -133,7 +133,7 @@ public class Lexicon extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Lexical concept creation",
-            notes = "Creates a lexical concept with multilingual labels and optional validated links in the fixed LexOLexica lexical-concept named graph")
+            notes = "Creates a lexical concept in the fixed LexOLexica lexical-concept named graph; optional senses are validated in their declared language graphs and linked without being copied")
     public Response createLexicalConcept(
             @ApiParam(name = "Authorization",
                     value = "optional authorization header when LexO user management is enabled",

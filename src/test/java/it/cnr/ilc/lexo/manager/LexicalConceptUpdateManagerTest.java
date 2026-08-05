@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptSenseLink;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptUpdateResult;
 import java.util.Arrays;
@@ -33,6 +34,8 @@ class LexicalConceptUpdateManagerTest {
     private SailRepository repository;
     private LexicalConceptUpdateManager manager;
     private IRI graph;
+    private IRI italianGraph;
+    private IRI englishGraph;
     private IRI concept;
     private IRI oldSense;
     private IRI newSense;
@@ -46,6 +49,8 @@ class LexicalConceptUpdateManagerTest {
         repository.init();
         manager = new LexicalConceptUpdateManager(repository);
         graph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
+        italianGraph = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        englishGraph = iri(LexiconCrudSupport.lexicalGraphUri("en"));
         concept = iri("https://example.org/concept/1");
         oldSense = iri("https://example.org/sense/old");
         newSense = iri("https://example.org/sense/new");
@@ -74,9 +79,9 @@ class LexicalConceptUpdateManagerTest {
             connection.add(concept, iri("https://example.org/source"),
                     vf.createLiteral("preserved metadata"), graph);
             connection.add(oldSense, RDF.TYPE,
-                    iri(ONTOLEX + "LexicalSense"), graph);
+                    iri(ONTOLEX + "LexicalSense"), italianGraph);
             connection.add(newSense, RDF.TYPE,
-                    iri(ONTOLEX + "LexicalSense"), graph);
+                    iri(ONTOLEX + "LexicalSense"), englishGraph);
             connection.add(oldParent, RDF.TYPE,
                     iri(ONTOLEX + "LexicalConcept"), graph);
             connection.add(newParent, RDF.TYPE,
@@ -102,7 +107,8 @@ class LexicalConceptUpdateManagerTest {
         request.setAlternativeLabel(Collections.<LexicalConceptLabel>emptyList());
         request.setHiddenLabel(Arrays.asList(
                 new LexicalConceptLabel("domicilio", "it")));
-        request.setSenseId(Arrays.asList(newSense.stringValue()));
+        request.setSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "EN")));
         request.setParent(newParent.stringValue());
         try (RepositoryConnection connection = repository.getConnection()) {
             connection.add(concept, iri(ONTOLEX + "isLexicalizedSenseOf"),
@@ -137,6 +143,10 @@ class LexicalConceptUpdateManagerTest {
             assertThat(connection.hasStatement(concept,
                     iri(ONTOLEX + "lexicalizedSense"), newSense,
                     false, graph)).isTrue();
+            assertThat(connection.hasStatement(newSense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), false, englishGraph)).isTrue();
+            assertThat(connection.hasStatement(newSense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), false, graph)).isFalse();
             assertThat(connection.hasStatement(concept, DCTERMS.CREATOR,
                     vf.createLiteral("creator"), false, graph)).isTrue();
             assertThat(connection.hasStatement(concept,
@@ -187,9 +197,27 @@ class LexicalConceptUpdateManagerTest {
                 .hasMessageStartingWith("MODIFIED_MISMATCH:");
 
         LexicalConceptUpdateRequest missingLink = baseRequest();
-        missingLink.setSenseId(Arrays.asList("https://example.org/sense/missing"));
+        missingLink.setSenses(Arrays.asList(new LexicalConceptSenseLink(
+                "https://example.org/sense/missing", "it")));
         assertThatThrownBy(() -> manager.update(missingLink, "editor"))
                 .hasMessageStartingWith("SENSE_NOT_FOUND:");
+
+        LexicalConceptUpdateRequest wrongLanguage = baseRequest();
+        wrongLanguage.setSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "it")));
+        assertThatThrownBy(() -> manager.update(wrongLanguage, "editor"))
+                .hasMessageStartingWith("SENSE_NOT_FOUND:");
+
+        LexicalConceptUpdateRequest legacyLink = baseRequest();
+        legacyLink.setSenseId(Arrays.asList(newSense.stringValue()));
+        assertThatThrownBy(() -> manager.update(legacyLink, "editor"))
+                .hasMessageStartingWith("SENSE_LANGUAGE_REQUIRED:");
+
+        LexicalConceptUpdateRequest invalidLanguage = baseRequest();
+        invalidLanguage.setSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "zz")));
+        assertThatThrownBy(() -> manager.update(invalidLanguage, "editor"))
+                .hasMessageStartingWith("INVALID_SENSE_LANGUAGE:");
 
         LexicalConceptUpdateRequest missingLabels = baseRequest();
         missingLabels.setLabel(Collections.<LexicalConceptLabel>emptyList());

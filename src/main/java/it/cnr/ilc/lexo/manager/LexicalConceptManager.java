@@ -6,7 +6,9 @@ import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptSenseLink;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -14,6 +16,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -74,9 +78,9 @@ public final class LexicalConceptManager implements Manager {
                     input.hiddenLabels);
             addTexts(model, lexicalConcept, iri(SKOS + "definition"),
                     input.definitions);
-            for (IRI sense : input.senses) {
+            for (ValidatedSenseLink sense : input.senses) {
                 model.add(lexicalConcept, iri(ONTOLEX + "lexicalizedSense"),
-                        sense);
+                        sense.sense);
             }
             if (input.parent != null) {
                 model.add(lexicalConcept, iri(SKOS + "broader"), input.parent);
@@ -116,13 +120,11 @@ public final class LexicalConceptManager implements Manager {
                 request.alternativeLabel, "alternativeLabel");
         List<LocalizedText> hidden = validateTexts(request.hiddenLabel, "hiddenLabel");
         List<LocalizedText> definitions = validateTexts(request.definition, "definition");
-        List<IRI> senses = new ArrayList<IRI>();
         if (request.senseId != null) {
-            for (int i = 0; i < request.senseId.size(); i++) {
-                senses.add(requireIri("senseId[" + i + "]", request.senseId.get(i),
-                        "INVALID_SENSE_IRI"));
-            }
+            throw invalid("SENSE_LANGUAGE_REQUIRED",
+                    "senseId is unsupported; use senses with senseId and language");
         }
+        List<ValidatedSenseLink> senses = validateSenses(request.senses);
         IRI parent = optionalIri("parent", request.parent, "INVALID_PARENT_IRI");
         IRI conceptSet = optionalIri("conceptSetId", request.conceptSetId,
                 "INVALID_CONCEPT_SET_IRI");
@@ -133,6 +135,39 @@ public final class LexicalConceptManager implements Manager {
         }
         return new ValidatedRequest(labels, alternatives, hidden, definitions,
                 senses, parent, conceptSet, metadata);
+    }
+
+    private List<ValidatedSenseLink> validateSenses(
+            List<LexicalConceptSenseLink> values) {
+        if (values == null) {
+            return Collections.emptyList();
+        }
+        List<ValidatedSenseLink> result =
+                new ArrayList<ValidatedSenseLink>();
+        Set<String> seen = new HashSet<String>();
+        for (int i = 0; i < values.size(); i++) {
+            LexicalConceptSenseLink value = values.get(i);
+            String path = "senses[" + i + "]";
+            if (value == null) {
+                throw invalid("INVALID_SENSE_LINK", path + " must be an object");
+            }
+            IRI sense = requireIri(path + ".senseId", value.senseId,
+                    "INVALID_SENSE_IRI");
+            String language;
+            try {
+                language = Iso639LanguageValidator.get()
+                        .requireValid(value.language);
+            } catch (IllegalArgumentException e) {
+                throw invalid("INVALID_SENSE_LANGUAGE",
+                        path + ".language must be a supported ISO 639 code");
+            }
+            if (!seen.add(sense.stringValue())) {
+                throw invalid("DUPLICATE_SENSE",
+                        sense.stringValue() + " occurs more than once");
+            }
+            result.add(new ValidatedSenseLink(sense, language));
+        }
+        return result;
     }
 
     private List<LocalizedText> validateTexts(List<LexicalConceptLabel> values,
@@ -165,9 +200,7 @@ public final class LexicalConceptManager implements Manager {
     private void validateResources(RepositoryConnection connection,
                                    ValidatedRequest input, Resource graph) {
         for (int i = 0; i < input.senses.size(); i++) {
-            validateResource(connection, input.senses.get(i),
-                    iri(ONTOLEX + "LexicalSense"), graph,
-                    "SENSE_NOT_FOUND", "INVALID_SENSE_TYPE");
+            validateSense(connection, input.senses.get(i));
         }
         if (input.parent != null) {
             validateResource(connection, input.parent,
@@ -179,6 +212,36 @@ public final class LexicalConceptManager implements Manager {
                     iri(ONTOLEX + "ConceptSet"), graph,
                     "CONCEPT_SET_NOT_FOUND", "INVALID_CONCEPT_SET_TYPE");
         }
+    }
+
+    private void validateSense(RepositoryConnection connection,
+                               ValidatedSenseLink link) {
+        Resource languageGraph = iri(
+                LexiconCrudSupport.lexicalGraphUri(link.language));
+        Resource schemaGraph = iri(LexicalNamedGraphs.schemaGraphUri());
+        if (!connection.hasStatement(link.sense, null, null, false,
+                languageGraph)) {
+            throw new LexicalConceptCreationException(404, "SENSE_NOT_FOUND",
+                    link.sense.stringValue() + " does not exist in the "
+                            + link.language + " lexical graph");
+        }
+        try (org.eclipse.rdf4j.repository.RepositoryResult<org.eclipse.rdf4j.model.Statement>
+                types = connection.getStatements(link.sense, RDF.TYPE, null,
+                        false, languageGraph)) {
+            while (types.hasNext()) {
+                Value type = types.next().getObject();
+                if (type instanceof IRI && LexiconCrudSupport.isSubclassOf(
+                        connection, (IRI) type,
+                        iri(ONTOLEX + "LexicalSense"), languageGraph,
+                        schemaGraph)) {
+                    return;
+                }
+            }
+        }
+        throw new LexicalConceptCreationException(422, "INVALID_SENSE_TYPE",
+                link.sense.stringValue()
+                        + " must be an ontolex:LexicalSense in the "
+                        + link.language + " lexical graph");
     }
 
     private void validateResource(RepositoryConnection connection, IRI resource,
@@ -211,8 +274,8 @@ public final class LexicalConceptManager implements Manager {
         result.author = author;
         result.created = timestamp;
         result.senseId = new ArrayList<String>();
-        for (IRI sense : input.senses) {
-            result.senseId.add(sense.stringValue());
+        for (ValidatedSenseLink sense : input.senses) {
+            result.senseId.add(sense.sense.stringValue());
         }
         result.parent = input.parent == null ? null : input.parent.stringValue();
         result.conceptSetId = input.conceptSet == null
@@ -295,7 +358,7 @@ public final class LexicalConceptManager implements Manager {
         final List<LocalizedText> alternativeLabels;
         final List<LocalizedText> hiddenLabels;
         final List<LocalizedText> definitions;
-        final List<IRI> senses;
+        final List<ValidatedSenseLink> senses;
         final IRI parent;
         final IRI conceptSet;
         final LinkedHashMap<IRI, List<Value>> metadata;
@@ -303,7 +366,8 @@ public final class LexicalConceptManager implements Manager {
         ValidatedRequest(List<LocalizedText> labels,
                          List<LocalizedText> alternativeLabels,
                          List<LocalizedText> hiddenLabels,
-                         List<LocalizedText> definitions, List<IRI> senses,
+                         List<LocalizedText> definitions,
+                         List<ValidatedSenseLink> senses,
                          IRI parent, IRI conceptSet,
                          LinkedHashMap<IRI, List<Value>> metadata) {
             this.labels = labels;
@@ -314,6 +378,16 @@ public final class LexicalConceptManager implements Manager {
             this.parent = parent;
             this.conceptSet = conceptSet;
             this.metadata = metadata;
+        }
+    }
+
+    private static final class ValidatedSenseLink {
+        final IRI sense;
+        final String language;
+
+        ValidatedSenseLink(IRI sense, String language) {
+            this.sense = sense;
+            this.language = language;
         }
     }
 }

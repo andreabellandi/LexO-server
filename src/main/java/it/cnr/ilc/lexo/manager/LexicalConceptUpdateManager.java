@@ -4,14 +4,18 @@ import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptLabel;
+import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptSenseLink;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptUpdateResult;
+import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.eclipse.rdf4j.model.IRI;
@@ -78,8 +82,8 @@ public final class LexicalConceptUpdateManager implements Manager {
                         null, graph);
             }
             replaceIris(connection, input.concept,
-                    vf.createIRI(ONTOLEX + "lexicalizedSense"), input.senses,
-                    input.sensesPresent, graph);
+                    vf.createIRI(ONTOLEX + "lexicalizedSense"),
+                    senseIris(input.senses), input.sensesPresent, graph);
             replaceIri(connection, input.concept,
                     vf.createIRI(SKOS + "broader"), input.parent,
                     input.parentPresent, graph);
@@ -114,7 +118,8 @@ public final class LexicalConceptUpdateManager implements Manager {
                 "INVALID_LEXICAL_CONCEPT_IRI");
         if (!request.hasLabel() && !request.hasAlternativeLabel()
                 && !request.hasHiddenLabel() && !request.hasDefinition()
-                && !request.hasSenseId() && !request.hasParent()
+                && !request.hasSenses() && !request.hasLegacySenseId()
+                && !request.hasParent()
                 && !request.hasConceptSetId()) {
             throw invalid("MISSING_LEXICAL_CONCEPT_CHANGES",
                     "at least one mutable field must be supplied");
@@ -128,8 +133,12 @@ public final class LexicalConceptUpdateManager implements Manager {
                 "hiddenLabel", request.hasHiddenLabel(), false);
         List<LocalizedText> definitions = validateTexts(request.getDefinition(),
                 "definition", request.hasDefinition(), false);
-        List<IRI> senses = validateIris(request.getSenseId(), "senseId",
-                request.hasSenseId(), "INVALID_SENSE_IRI");
+        if (request.hasLegacySenseId()) {
+            throw invalid("SENSE_LANGUAGE_REQUIRED",
+                    "senseId is unsupported; use senses with senseId and language");
+        }
+        List<ValidatedSenseLink> senses = validateSenses(request.getSenses(),
+                request.hasSenses());
         IRI parent = optionalIri(request.getParent(), "parent",
                 request.hasParent(), "INVALID_PARENT_IRI");
         IRI conceptSet = optionalIri(request.getConceptSetId(), "conceptSetId",
@@ -146,7 +155,7 @@ public final class LexicalConceptUpdateManager implements Manager {
         return new ValidatedRequest(concept, labels, request.hasLabel(),
                 alternatives, request.hasAlternativeLabel(), hidden,
                 request.hasHiddenLabel(), definitions, request.hasDefinition(),
-                senses, request.hasSenseId(), parent, request.hasParent(),
+                senses, request.hasSenses(), parent, request.hasParent(),
                 conceptSet, request.hasConceptSetId(), expected);
     }
 
@@ -185,17 +194,38 @@ public final class LexicalConceptUpdateManager implements Manager {
         return result;
     }
 
-    private List<IRI> validateIris(List<String> values, String field,
-                                   boolean present, String code) {
+    private List<ValidatedSenseLink> validateSenses(
+            List<LexicalConceptSenseLink> values, boolean present) {
         if (!present) {
             return Collections.emptyList();
         }
         if (values == null) {
-            throw invalid("INVALID_SENSE_LIST", field + " must be an array");
+            throw invalid("INVALID_SENSE_LIST", "senses must be an array");
         }
-        List<IRI> result = new ArrayList<IRI>();
+        List<ValidatedSenseLink> result =
+                new ArrayList<ValidatedSenseLink>();
+        Set<String> seen = new HashSet<String>();
         for (int i = 0; i < values.size(); i++) {
-            result.add(requireIri(field + "[" + i + "]", values.get(i), code));
+            LexicalConceptSenseLink value = values.get(i);
+            String path = "senses[" + i + "]";
+            if (value == null) {
+                throw invalid("INVALID_SENSE_LINK", path + " must be an object");
+            }
+            IRI sense = requireIri(path + ".senseId", value.senseId,
+                    "INVALID_SENSE_IRI");
+            String language;
+            try {
+                language = Iso639LanguageValidator.get()
+                        .requireValid(value.language);
+            } catch (IllegalArgumentException e) {
+                throw invalid("INVALID_SENSE_LANGUAGE",
+                        path + ".language must be a supported ISO 639 code");
+            }
+            if (!seen.add(sense.stringValue())) {
+                throw invalid("DUPLICATE_SENSE",
+                        sense.stringValue() + " occurs more than once");
+            }
+            result.add(new ValidatedSenseLink(sense, language));
         }
         return result;
     }
@@ -225,10 +255,8 @@ public final class LexicalConceptUpdateManager implements Manager {
     private void validateLinks(RepositoryConnection connection,
                                ValidatedRequest input, Resource graph) {
         if (input.sensesPresent) {
-            for (IRI sense : input.senses) {
-                validateResource(connection, sense,
-                        vf.createIRI(ONTOLEX + "LexicalSense"), graph,
-                        "SENSE_NOT_FOUND", "INVALID_SENSE_TYPE");
+            for (ValidatedSenseLink sense : input.senses) {
+                validateSense(connection, sense);
             }
         }
         if (input.parentPresent && input.parent != null) {
@@ -241,6 +269,35 @@ public final class LexicalConceptUpdateManager implements Manager {
                     vf.createIRI(ONTOLEX + "ConceptSet"), graph,
                     "CONCEPT_SET_NOT_FOUND", "INVALID_CONCEPT_SET_TYPE");
         }
+    }
+
+    private void validateSense(RepositoryConnection connection,
+                               ValidatedSenseLink link) {
+        Resource languageGraph = vf.createIRI(
+                LexiconCrudSupport.lexicalGraphUri(link.language));
+        Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());
+        if (!connection.hasStatement(link.sense, null, null, false,
+                languageGraph)) {
+            throw failure(404, "SENSE_NOT_FOUND",
+                    link.sense.stringValue() + " does not exist in the "
+                            + link.language + " lexical graph");
+        }
+        try (RepositoryResult<Statement> types = connection.getStatements(
+                link.sense, RDF.TYPE, null, false, languageGraph)) {
+            while (types.hasNext()) {
+                Value type = types.next().getObject();
+                if (type instanceof IRI && LexiconCrudSupport.isSubclassOf(
+                        connection, (IRI) type,
+                        vf.createIRI(ONTOLEX + "LexicalSense"), languageGraph,
+                        schemaGraph)) {
+                    return;
+                }
+            }
+        }
+        throw failure(422, "INVALID_SENSE_TYPE",
+                link.sense.stringValue()
+                        + " must be an ontolex:LexicalSense in the "
+                        + link.language + " lexical graph");
     }
 
     private void validateResource(RepositoryConnection connection, IRI resource,
@@ -292,6 +349,14 @@ public final class LexicalConceptUpdateManager implements Manager {
         for (IRI value : values) {
             connection.add(subject, predicate, value, graph);
         }
+    }
+
+    private List<IRI> senseIris(List<ValidatedSenseLink> senses) {
+        List<IRI> result = new ArrayList<IRI>();
+        for (ValidatedSenseLink sense : senses) {
+            result.add(sense.sense);
+        }
+        return result;
     }
 
     private void replaceIri(RepositoryConnection connection, IRI subject,
@@ -458,7 +523,7 @@ public final class LexicalConceptUpdateManager implements Manager {
         final boolean hiddenLabelsPresent;
         final List<LocalizedText> definitions;
         final boolean definitionsPresent;
-        final List<IRI> senses;
+        final List<ValidatedSenseLink> senses;
         final boolean sensesPresent;
         final IRI parent;
         final boolean parentPresent;
@@ -473,7 +538,8 @@ public final class LexicalConceptUpdateManager implements Manager {
                          List<LocalizedText> hiddenLabels,
                          boolean hiddenLabelsPresent,
                          List<LocalizedText> definitions,
-                         boolean definitionsPresent, List<IRI> senses,
+                         boolean definitionsPresent,
+                         List<ValidatedSenseLink> senses,
                          boolean sensesPresent, IRI parent,
                          boolean parentPresent, IRI conceptSet,
                          boolean conceptSetPresent, String expectedModified) {
@@ -493,6 +559,16 @@ public final class LexicalConceptUpdateManager implements Manager {
             this.conceptSet = conceptSet;
             this.conceptSetPresent = conceptSetPresent;
             this.expectedModified = expectedModified;
+        }
+    }
+
+    private static final class ValidatedSenseLink {
+        final IRI sense;
+        final String language;
+
+        ValidatedSenseLink(IRI sense, String language) {
+            this.sense = sense;
+            this.language = language;
         }
     }
 }

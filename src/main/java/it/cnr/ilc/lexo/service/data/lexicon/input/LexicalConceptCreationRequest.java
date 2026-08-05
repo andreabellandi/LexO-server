@@ -22,8 +22,13 @@ public class LexicalConceptCreationRequest implements Data {
     @ApiModelProperty(value = "optional definitions")
     public List<LexicalConceptLabel> definition;
 
-    @ApiModelProperty(value = "optional existing ontolex:LexicalSense IRIs")
+    @ApiModelProperty(value = "unsupported legacy sense IRI list; use senses with a language for each item",
+            hidden = true)
+    @Deprecated
     public List<String> senseId;
+
+    @ApiModelProperty(value = "optional existing lexical senses with their ISO 639 language graphs")
+    public List<LexicalConceptSenseLink> senses;
 
     @ApiModelProperty(value = "optional existing parent ontolex:LexicalConcept IRI")
     public String parent;

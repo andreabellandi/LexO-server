@@ -1,9 +1,12 @@
 # LexO-server — handoff per attività Codex
 
 Aggiornato al 5 agosto 2026 dopo la correzione dei collegamenti dal lexical
-concept ai lexical sense: creazione e modifica scrivono ora
-`ontolex:lexicalizedSense`, mentre il PATCH ripulisce l'inverso errato quando
-aggiorna `senseId`. Il lavoro include inoltre i servizi atomici di modifica di
+concept ai lexical sense: ogni senso è identificato in input da `senseId` e
+`language`, viene validato esclusivamente nel graph lessicale ISO della lingua
+dichiarata e non viene copiato nel graph dei concept. Creazione e modifica
+scrivono la relazione `ontolex:lexicalizedSense` nel graph fisso dei concept,
+mentre il PATCH ripulisce l'inverso errato quando aggiorna `senses`. Il lavoro
+include inoltre i servizi atomici di modifica di
 lexical entry e lexical concept, che cambiano soltanto le proprietà semantiche
 di propria competenza e lasciano i metadata al CRUD comune `/metadata`. I nuovi
 payload RDF di lexical entry, lexical concept, CRUD metadata e attestazioni
@@ -135,18 +138,22 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Nuovo endpoint `POST /lexica/lexicalConcept`: crea atomicamente un
   `ontolex:LexicalConcept` con liste multilingui di label e definizioni, audit
   Dublin Core e collegamenti opzionali a sensi, parent e concept set. Tutti gli
-  IRI collegati vengono verificati per esistenza e tipo nel solo graph fisso di
-  categoria; `metadata` può essere omesso o essere una lista vuota e la risposta
-  `201` espone IRI, autore, timestamp e collegamenti. Il collegamento dal
-  concept al sense usa `ontolex:lexicalizedSense`, non il predicato inverso
+  parent e concept set vengono verificati per esistenza e tipo nel graph fisso;
+  ogni senso usa invece `{senseId, language}` ed è verificato nel relativo graph
+  `lexica/{language}`. `metadata` può essere omesso o essere una lista vuota e
+  la risposta `201` espone IRI, autore, timestamp e collegamenti. Il collegamento
+  dal concept al sense resta nel graph fisso e usa
+  `ontolex:lexicalizedSense`, non il predicato inverso
   `ontolex:isLexicalizedSenseOf`.
 - Nuovo endpoint `PATCH /lexica/lexicalConcept`: sostituisce atomicamente i soli
   campi forniti tra label, definizioni e collegamenti semantici nel graph fisso
   di categoria. Campi assenti restano invariati, liste vuote rimuovono i valori
   opzionali e `null` esplicito rimuove parent o concept set; creator, data di
-  creazione e metadata comuni restano invariati. Quando `senseId` è presente,
+  creazione e metadata comuni restano invariati. Quando `senses` è presente,
   il servizio rimuove anche eventuali triple errate pregresse con
-  `ontolex:isLexicalizedSenseOf` e scrive `ontolex:lexicalizedSense`.
+  `ontolex:isLexicalizedSenseOf` e scrive `ontolex:lexicalizedSense`; ciascun
+  senso è prima validato nel graph della lingua dichiarata. Il precedente input
+  ambiguo `senseId` viene rifiutato con `SENSE_LANGUAGE_REQUIRED`.
 - Servizi CRUD e di consultazione per lessici OntoLex-Lemon, dizionari Lexicog,
   forme, sensi, concetti SKOS, relazioni, ECD, statistiche ed export RDF.
 - Nuovo endpoint `POST /lexica/entry` nella risorsa incrementale `Lexicon`: crea
@@ -447,9 +454,12 @@ aggiornano `dcterms:modified`. I metadata non fanno parte dei due contratti e
 restano modificabili soltanto tramite `/metadata`. I 15 test mirati dei servizi
 PATCH, i 5 test MOXy, il test esplicito dell'eccezione `skos:note` e la suite
 completa di 165 test unitari/repository sono passati il 5 agosto 2026. La
-creazione dei concept e il relativo PATCH usano ora
-`ontolex:lexicalizedSense`; quando `senseId` viene aggiornato, il PATCH elimina
-anche eventuali asserzioni pregresse errate con l'inverso. Gli
+creazione dei concept e il relativo PATCH usano ora oggetti
+`senses: [{senseId, language}]`: verificano la risorsa nel graph lessicale della
+lingua e scrivono `ontolex:lexicalizedSense` nel graph fisso dei concept. Quando
+`senses` viene aggiornato, il PATCH elimina anche eventuali asserzioni pregresse
+errate con l'inverso. I 9 test mirati dei due manager, inclusi senso collocato
+nel graph fisso e lingua dichiarata errata, sono passati il 5 agosto 2026. Gli
 end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
 
 La risposta di `GET /lexica/{language}/entries` include ora `senses`,

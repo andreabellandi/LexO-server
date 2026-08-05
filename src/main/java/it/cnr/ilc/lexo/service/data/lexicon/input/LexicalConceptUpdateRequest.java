@@ -15,6 +15,7 @@ public class LexicalConceptUpdateRequest implements Data {
     private List<LexicalConceptLabel> alternativeLabel;
     private List<LexicalConceptLabel> hiddenLabel;
     private List<LexicalConceptLabel> definition;
+    private List<LexicalConceptSenseLink> senses;
     private List<String> senseId;
     private String parent;
     private String conceptSetId;
@@ -23,7 +24,8 @@ public class LexicalConceptUpdateRequest implements Data {
     private boolean alternativeLabelPresent;
     private boolean hiddenLabelPresent;
     private boolean definitionPresent;
-    private boolean senseIdPresent;
+    private boolean sensesPresent;
+    private boolean legacySenseIdPresent;
     private boolean parentPresent;
     private boolean conceptSetIdPresent;
 
@@ -89,14 +91,27 @@ public class LexicalConceptUpdateRequest implements Data {
         this.definitionPresent = true;
     }
 
-    @ApiModelProperty(value = "replacement lexical sense links; an empty list removes them")
+    @ApiModelProperty(value = "unsupported legacy sense IRI list; use senses with a language for each item",
+            hidden = true)
+    @Deprecated
     public List<String> getSenseId() {
         return senseId;
     }
 
+    @Deprecated
     public void setSenseId(List<String> senseId) {
         this.senseId = senseId;
-        this.senseIdPresent = true;
+        this.legacySenseIdPresent = true;
+    }
+
+    @ApiModelProperty(value = "replacement lexical senses with their ISO 639 language graphs; an empty list removes all links")
+    public List<LexicalConceptSenseLink> getSenses() {
+        return senses;
+    }
+
+    public void setSenses(List<LexicalConceptSenseLink> senses) {
+        this.senses = senses;
+        this.sensesPresent = true;
     }
 
     @ApiModelProperty(value = "replacement parent lexical concept IRI; explicit null removes it")
@@ -139,8 +154,12 @@ public class LexicalConceptUpdateRequest implements Data {
         return definitionPresent;
     }
 
-    public boolean hasSenseId() {
-        return senseIdPresent;
+    public boolean hasSenses() {
+        return sensesPresent;
+    }
+
+    public boolean hasLegacySenseId() {
+        return legacySenseIdPresent;
     }
 
     public boolean hasParent() {

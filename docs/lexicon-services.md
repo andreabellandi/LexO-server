@@ -395,13 +395,15 @@ lists may be omitted or empty. Text values must be non-blank. Languages are
 validated against the first four columns of the bundled ISO 639 list,
 case-insensitively, and normalized to lowercase for RDF language tags.
 
-Optional `senseId` is a list of absolute IRIs, while `parent` and `conceptSetId`
-are single absolute IRIs. Every supplied resource must already exist as a
-subject in the fixed lexical-concept graph. Senses must have exact type
-`ontolex:LexicalSense`, the parent must have exact type
-`ontolex:LexicalConcept`, and the concept set must have exact type
-`ontolex:ConceptSet`. Validation does not consult a language-specific graph or
-the default graph.
+Optional `senses` is a list of `{senseId, language}` objects. Each `senseId`
+must be an absolute IRI and its language is validated and normalized with the
+same ISO 639 support used by the other lexical CRUD services. The sense must
+exist as an `ontolex:LexicalSense`, or a transitive subclass declared in the
+language or schema graph, exclusively in
+`https://lexo.ilc.cnr.it/graphs/lexical/lexica/{language}`. The service never
+copies the sense into the concept graph. `parent` and `conceptSetId` remain
+single absolute IRIs and must exist with their expected types in the fixed
+lexical-concept graph. No validation consults the default or legacy graph.
 
 The created resource receives type `ontolex:LexicalConcept`, the resolved
 `dcterms:creator`, and one shared `xsd:dateTime` value for `dcterms:created` and
@@ -415,7 +417,9 @@ the optional concept set through `skos:inScheme`.
 The complete request is validated before any statement is added, and every
 failure rolls back the transaction. Stable error prefixes include
 `MISSING_LEXICAL_CONCEPT`, `MISSING_LABEL`, `INVALID_LABEL`,
-`MISSING_LABEL_VALUE`, `INVALID_LABEL_LANGUAGE`, `INVALID_SENSE_IRI`,
+`MISSING_LABEL_VALUE`, `INVALID_LABEL_LANGUAGE`, `SENSE_LANGUAGE_REQUIRED`,
+`INVALID_SENSE_LINK`, `INVALID_SENSE_IRI`, `INVALID_SENSE_LANGUAGE`,
+`DUPLICATE_SENSE`,
 `INVALID_PARENT_IRI`, `INVALID_CONCEPT_SET_IRI`, `SENSE_NOT_FOUND`,
 `INVALID_SENSE_TYPE`, `PARENT_NOT_FOUND`, `INVALID_PARENT_TYPE`,
 `CONCEPT_SET_NOT_FOUND`, and `INVALID_CONCEPT_SET_TYPE`. Shape and IRI errors
@@ -439,7 +443,7 @@ lexical-concept-specific exceptions.
 This endpoint atomically updates one existing `ontolex:LexicalConcept`
 exclusively in the fixed lexical-concept named graph. Its body requires the
 absolute `lexicalConcept` IRI and at least one of `label`, `alternativeLabel`,
-`hiddenLabel`, `definition`, `senseId`, `parent`, or `conceptSetId`.
+`hiddenLabel`, `definition`, `senses`, `parent`, or `conceptSetId`.
 
 Omitted fields remain unchanged. Every supplied list replaces the complete RDF
 value set of its predicate; an empty optional list therefore removes all
@@ -447,17 +451,20 @@ alternative labels, hidden labels, definitions, or sense links. A supplied
 preferred-label list must remain non-empty. Explicit JSON `null` removes
 `skos:broader` for `parent` or `skos:inScheme` for `conceptSetId`. All label
 languages are normalized and validated against the bundled ISO 639 list.
-`senseId` replaces the objects of `ontolex:lexicalizedSense`. For compatibility
-with data produced before the predicate correction, supplying `senseId` also
+`senses` replaces the objects of `ontolex:lexicalizedSense`; every member uses
+the same `{senseId, language}` shape and language-graph validation as creation.
+The relation triple is always written in the fixed concept graph, while the
+sense resource remains in its language graph. For compatibility with data
+produced before the predicate correction, supplying `senses` also
 removes any `ontolex:isLexicalizedSenseOf` triple whose subject is the updated
 concept; the inverse predicate is never written by this service.
 
-Replacement sense, parent, and concept-set IRIs are validated for existence and
-exact OntoLex type in the same fixed graph before writing. The service never
-consults a language graph, the legacy graph, or the default graph. A concept
-cannot be its own parent. Optional `expectedModified` provides the same exact
-typed-timestamp concurrency check as lexical-entry update and returns HTTP 409
-on mismatch.
+Replacement senses are validated for existence and compatible type in their
+declared language graphs and the schema graph. Parent and concept-set IRIs are
+validated in the fixed graph. The service never consults the legacy graph or
+the default graph. A concept cannot be its own parent. Optional
+`expectedModified` provides the same exact typed-timestamp concurrency check as
+lexical-entry update and returns HTTP 409 on mismatch.
 
 Success replaces `dcterms:modified` without changing creator, creation time, or
 custom metadata and returns HTTP 200 with all effective labels, definitions,
@@ -467,7 +474,9 @@ nor mutated by this endpoint and remains exclusive to `/metadata`.
 Stable error prefixes include `MISSING_LEXICAL_CONCEPT_UPDATE`,
 `INVALID_LEXICAL_CONCEPT_IRI`, `MISSING_LEXICAL_CONCEPT_CHANGES`,
 `MISSING_LABEL`, `INVALID_LABEL`, `MISSING_LABEL_VALUE`,
-`INVALID_LABEL_LANGUAGE`, `INVALID_SENSE_LIST`, `INVALID_SENSE_IRI`, `INVALID_PARENT_IRI`,
+`INVALID_LABEL_LANGUAGE`, `SENSE_LANGUAGE_REQUIRED`, `INVALID_SENSE_LIST`,
+`INVALID_SENSE_LINK`, `INVALID_SENSE_IRI`, `INVALID_SENSE_LANGUAGE`,
+`DUPLICATE_SENSE`, `INVALID_PARENT_IRI`,
 `INVALID_CONCEPT_SET_IRI`, `INVALID_PARENT`, `LEXICAL_CONCEPT_NOT_FOUND`,
 `INVALID_LEXICAL_CONCEPT_TYPE`, `SENSE_NOT_FOUND`, `INVALID_SENSE_TYPE`,
 `PARENT_NOT_FOUND`, `INVALID_PARENT_TYPE`, `CONCEPT_SET_NOT_FOUND`,

@@ -159,8 +159,12 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Lexical concept creation and modification now validate each linked sense in
+  its declared ISO language graph while keeping `ontolex:lexicalizedSense` in
+  the fixed lexical-concept graph; requests use language-aware `senses`
+  objects, and the ambiguous legacy `senseId` input is rejected.
 - Lexical concept creation and modification now link a concept to its senses
-  with `ontolex:lexicalizedSense`; updating `senseId` also removes triples
+  with `ontolex:lexicalizedSense`; updating `senses` also removes triples
   previously written with the inverse `ontolex:isLexicalizedSenseOf` predicate.
 - `POST /lexica/lexicalConcept` no longer requires a metadata property when the
   optional `metadata` member is supplied as an empty array.
