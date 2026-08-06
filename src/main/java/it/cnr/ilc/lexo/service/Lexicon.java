@@ -83,7 +83,7 @@ public class Lexicon extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Lexical concept update",
-            notes = "Atomically replaces the supplied labels, definitions, or links of one lexical concept; senses are validated in their declared language graphs and linked from the fixed LexOLexica lexical-concept named graph; metadata is managed by the common metadata service")
+            notes = "Atomically replaces supplied properties or incrementally changes preferred, alternative, and hidden labels, definitions, and sense links; added and replacement senses are validated in their declared language graphs and linked from the fixed LexOLexica lexical-concept named graph; metadata is managed by the common metadata service")
     public Response updateLexicalConcept(
             @ApiParam(name = "Authorization",
                     value = "optional authorization header when LexO user management is enabled",
@@ -94,7 +94,7 @@ public class Lexicon extends Service {
                     example = "editor", required = false)
             @QueryParam("author") String author,
             @ApiParam(name = "lexicalConceptUpdate",
-                    value = "target lexical concept and presence-aware semantic property replacements",
+                    value = "target lexical concept and presence-aware replacements or incremental text and sense changes",
                     required = true)
             LexicalConceptUpdateRequest request) {
         try {

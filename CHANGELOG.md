@@ -15,10 +15,13 @@ starts from the ongoing `Unreleased` work.
   status, forms, or senses.
 - `PATCH /lexica/lexicalConcept` now atomically replaces supplied multilingual
   labels, definitions, sense links, parent, or concept-set membership in the
-  fixed lexical-concept graph, while leaving common entity metadata untouched.
+  fixed lexical-concept graph, and supports idempotent incremental changes for
+  preferred, alternative, and hidden labels, definitions, and sense links,
+  while leaving common entity metadata untouched.
 - `GET`, `PATCH`, and `DELETE /metadata` now provide common RDF metadata CRUD
   for lexical entries, lexical senses, forms, lexical concepts, and attestations
-  with safe named-graph resolution and one global protected-predicate policy.
+  with safe named-graph resolution, one global protected-predicate policy, and
+  idempotent `addValues`/`removeValues` operations for exact RDF values.
 - `POST /lexica/lexicalConcept` now accepts and returns multivalued RDF metadata
   using the common IRI/literal, language, and datatype representation.
 - `POST /lexica/lexicalConcept` now atomically creates a multilingual lexical

@@ -65,15 +65,21 @@ public final class RdfMetadataCodec {
 
     public LinkedHashMap<IRI, List<Value>> decodeProperties(
             List<RdfMetadataProperty> properties, boolean allowEmptyValues) {
+        return decodeProperties(properties, allowEmptyValues, "properties");
+    }
+
+    public LinkedHashMap<IRI, List<Value>> decodeProperties(
+            List<RdfMetadataProperty> properties, boolean allowEmptyValues,
+            String field) {
         if (properties == null || properties.isEmpty()) {
             throw invalid("MISSING_METADATA_PROPERTIES",
-                    "at least one metadata property is required");
+                    "at least one metadata property is required in " + field);
         }
         LinkedHashMap<IRI, List<Value>> result =
                 new LinkedHashMap<IRI, List<Value>>();
         for (int i = 0; i < properties.size(); i++) {
             RdfMetadataProperty property = properties.get(i);
-            String path = "properties[" + i + "]";
+            String path = field + "[" + i + "]";
             if (property == null) {
                 throw invalid("INVALID_METADATA_PROPERTY", path + " is null");
             }
@@ -94,7 +100,7 @@ public final class RdfMetadataCodec {
             }
             if (!allowEmptyValues && property.values.isEmpty()) {
                 throw invalid("MISSING_METADATA_VALUES",
-                        path + ".values must not be empty during creation");
+                        path + ".values must not be empty");
             }
             List<Value> values = new ArrayList<Value>();
             for (int j = 0; j < property.values.size(); j++) {

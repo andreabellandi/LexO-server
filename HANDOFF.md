@@ -1,11 +1,20 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 5 agosto 2026 dopo la correzione dei collegamenti dal lexical
-concept ai lexical sense: ogni senso è identificato in input da `senseId` e
+Aggiornato al 6 agosto 2026 dopo l'aggiunta delle modifiche incrementali al
+PATCH comune dei metadata e al PATCH dei lexical concept. I metadata accettano
+`addValues` e `removeValues` per modificare valori RDF esatti senza reinviare
+l'intera proprietà. Preferred label, alternative label, hidden label e
+definition hanno coppie add/remove indipendenti e idempotenti; la rimozione non
+può lasciare un concept privo di preferred label. Per i sense il PATCH accetta
+`addSenses` per aggiungere link senza sostituire quelli esistenti e
+`removeSenseIds` per rimuovere soltanto i link indicati; entrambe le operazioni
+sono idempotenti e possono essere combinate. La modalità `senses` continua a
+sostituire l'intera collezione ed è mutuamente esclusiva con le modalità
+incrementali. Ogni senso aggiunto o sostitutivo è identificato da `senseId` e
 `language`, viene validato esclusivamente nel graph lessicale ISO della lingua
 dichiarata e non viene copiato nel graph dei concept. Creazione e modifica
 scrivono la relazione `ontolex:lexicalizedSense` nel graph fisso dei concept,
-mentre il PATCH ripulisce l'inverso errato quando aggiorna `senses`. Il lavoro
+mentre il PATCH ripulisce l'inverso errato per ogni modifica dei sensi. Il lavoro
 include inoltre i servizi atomici di modifica di
 lexical entry e lexical concept, che cambiano soltanto le proprietà semantiche
 di propria competenza e lasciano i metadata al CRUD comune `/metadata`. I nuovi
@@ -125,7 +134,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
   lexical concept e attestazioni. Entry, sense e form richiedono la lingua e
   usano il relativo graph linguistico; il resolver seleziona internamente anche
   il graph fisso dei concept o il graph documentale, verifica tipo e sottoclassi
-  ammesse e applica la policy globale dei predicati protetti.
+  ammesse e applica la policy globale dei predicati protetti. Il PATCH mantiene
+  `properties` per il replace completo e offre `addValues`/`removeValues` per
+  variazioni esatte, idempotenti e atomiche che preservano gli altri valori.
 - `MetadataPolicy` vieta per ogni entità presente e futura tutti i predicati nei
   namespace OntoLex, FRAC, LIME, VarTrans, SynSem, SKOS e Decomp, oltre a
   `dcterms:creator`, `dcterms:created`, `dcterms:modified`, `rdf:type` e
@@ -153,7 +164,13 @@ appartenenza ai corpora sono persistiti in GraphDB.
   il servizio rimuove anche eventuali triple errate pregresse con
   `ontolex:isLexicalizedSenseOf` e scrive `ontolex:lexicalizedSense`; ciascun
   senso è prima validato nel graph della lingua dichiarata. Il precedente input
-  ambiguo `senseId` viene rifiutato con `SENSE_LANGUAGE_REQUIRED`.
+  ambiguo `senseId` viene rifiutato con `SENSE_LANGUAGE_REQUIRED`. Per evitare
+  di reinviare l'intera collezione, `addSenses` aggiunge link validati per lingua
+  e `removeSenseIds` rimuove soltanto gli IRI indicati; le operazioni sono
+  idempotenti, atomiche e non possono essere combinate con il replace `senses`.
+  Anche preferred label, alternative label, hidden label e definition espongono
+  coppie add/remove distinte che preservano gli altri valori; le preferred label
+  non possono essere rimosse tutte.
 - Servizi CRUD e di consultazione per lessici OntoLex-Lemon, dizionari Lexicog,
   forme, sensi, concetti SKOS, relazioni, ECD, statistiche ed export RDF.
 - Nuovo endpoint `POST /lexica/entry` nella risorsa incrementale `Lexicon`: crea
@@ -451,15 +468,21 @@ esclusivamente `lexica/{language}`, mentre il concept update usa esclusivamente
 il graph fisso `lexicalConcept`; entrambi supportano il controllo concorrente
 opzionale `expectedModified`, preservano creator e data di creazione e
 aggiornano `dcterms:modified`. I metadata non fanno parte dei due contratti e
-restano modificabili soltanto tramite `/metadata`. I 15 test mirati dei servizi
+restano modificabili soltanto tramite `/metadata`. I test mirati dei servizi
 PATCH, i 5 test MOXy, il test esplicito dell'eccezione `skos:note` e la suite
-completa di 165 test unitari/repository sono passati il 5 agosto 2026. La
-creazione dei concept e il relativo PATCH usano ora oggetti
-`senses: [{senseId, language}]`: verificano la risorsa nel graph lessicale della
-lingua e scrivono `ontolex:lexicalizedSense` nel graph fisso dei concept. Quando
-`senses` viene aggiornato, il PATCH elimina anche eventuali asserzioni pregresse
-errate con l'inverso. I 9 test mirati dei due manager, inclusi senso collocato
-nel graph fisso e lingua dichiarata errata, sono passati il 5 agosto 2026. Gli
+completa di 168 test unitari/repository sono passati il 6 agosto 2026. La
+creazione dei concept e il relativo PATCH usano oggetti
+`{senseId, language}` per sostituzioni e aggiunte: verificano la risorsa nel
+graph lessicale della lingua e scrivono `ontolex:lexicalizedSense` nel graph
+fisso dei concept. Il PATCH supporta inoltre `removeSenseIds` senza richiedere
+di rileggere o reinviare gli altri collegamenti, ed elimina eventuali asserzioni
+pregresse errate con l'inverso per ogni modifica dei sensi. Il lavoro corrente
+aggiunge inoltre add/remove distinti per preferred, alternative e hidden label,
+definition e valori metadata RDF esatti. I test mirati coprono replace,
+add, remove, idempotenza, conflitti, cardinalità delle preferred label,
+rollback, graph, lingua e tipo RDF. Gli 11 test mirati dei manager metadata e
+lexical concept sono passati il 6 agosto 2026.
+Gli
 end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
 
 La risposta di `GET /lexica/{language}/entries` include ora `senses`,

@@ -443,7 +443,8 @@ lexical-concept-specific exceptions.
 This endpoint atomically updates one existing `ontolex:LexicalConcept`
 exclusively in the fixed lexical-concept named graph. Its body requires the
 absolute `lexicalConcept` IRI and at least one of `label`, `alternativeLabel`,
-`hiddenLabel`, `definition`, `senses`, `parent`, or `conceptSetId`.
+`hiddenLabel`, `definition`, their category-specific incremental fields,
+`senses`, `addSenses`, `removeSenseIds`, `parent`, or `conceptSetId`.
 
 Omitted fields remain unchanged. Every supplied list replaces the complete RDF
 value set of its predicate; an empty optional list therefore removes all
@@ -458,6 +459,28 @@ sense resource remains in its language graph. For compatibility with data
 produced before the predicate correction, supplying `senses` also
 removes any `ontolex:isLexicalizedSenseOf` triple whose subject is the updated
 concept; the inverse predicate is never written by this service.
+
+For incremental updates, `addSenses` uses the same `{senseId, language}` shape,
+validates each added resource in its declared language graph, and preserves all
+other links. `removeSenseIds` accepts absolute sense IRIs and removes only those
+objects from the fixed concept graph; a language is unnecessary because no
+sense resource is read or deleted. Both operations are idempotent and may be
+combined, except that one IRI cannot be added and removed in the same request.
+Empty incremental lists make no change and, when they are the only supplied
+mutable fields, produce `MISSING_LEXICAL_CONCEPT_CHANGES`. Complete replacement
+through `senses` is mutually exclusive with both incremental fields.
+
+Preferred, alternative, and hidden labels remain distinct operations, as do
+definitions. Complete replacement uses `label`, `alternativeLabel`,
+`hiddenLabel`, or `definition`. Incremental changes use respectively
+`addLabels`/`removeLabels`,
+`addAlternativeLabels`/`removeAlternativeLabels`,
+`addHiddenLabels`/`removeHiddenLabels`, and
+`addDefinitions`/`removeDefinitions`. Values are matched by exact text and
+normalized language. Each pair is idempotent and preserves all other values;
+its replacement field is mutually exclusive with that pair, and the same value
+cannot appear in both add and remove. Preferred-label mutations must leave at
+least one `skos:prefLabel`.
 
 Replacement senses are validated for existence and compatible type in their
 declared language graphs and the schema graph. Parent and concept-set IRIs are
@@ -475,8 +498,11 @@ Stable error prefixes include `MISSING_LEXICAL_CONCEPT_UPDATE`,
 `INVALID_LEXICAL_CONCEPT_IRI`, `MISSING_LEXICAL_CONCEPT_CHANGES`,
 `MISSING_LABEL`, `INVALID_LABEL`, `MISSING_LABEL_VALUE`,
 `INVALID_LABEL_LANGUAGE`, `SENSE_LANGUAGE_REQUIRED`, `INVALID_SENSE_LIST`,
+`CONFLICTING_TEXT_OPERATIONS`, `CONFLICTING_TEXT_CHANGE`,
 `INVALID_SENSE_LINK`, `INVALID_SENSE_IRI`, `INVALID_SENSE_LANGUAGE`,
-`DUPLICATE_SENSE`, `INVALID_PARENT_IRI`,
+`DUPLICATE_SENSE`, `CONFLICTING_SENSE_OPERATIONS`,
+`CONFLICTING_SENSE_CHANGE`, `INVALID_REMOVE_SENSE_LIST`,
+`INVALID_REMOVE_SENSE_IRI`, `DUPLICATE_REMOVE_SENSE`, `INVALID_PARENT_IRI`,
 `INVALID_CONCEPT_SET_IRI`, `INVALID_PARENT`, `LEXICAL_CONCEPT_NOT_FOUND`,
 `INVALID_LEXICAL_CONCEPT_TYPE`, `SENSE_NOT_FOUND`, `INVALID_SENSE_TYPE`,
 `PARENT_NOT_FOUND`, `INVALID_PARENT_TYPE`, `CONCEPT_SET_NOT_FOUND`,
@@ -495,9 +521,16 @@ OntoLex or FRAC type, including transitive OntoLex subclasses for the three
 language-scoped entity kinds, are checked in the resolved graph before every
 read or mutation.
 
-`PATCH` performs atomic property-wise replacement and treats `values: []` as
-deletion. `DELETE` removes an explicit property list. Both update
+`PATCH` uses `properties` for atomic property-wise replacement and treats
+`values: []` as deletion. It also accepts `addValues` and `removeValues` for
+idempotent exact-value changes that preserve the property's other RDF values.
+A property cannot be replaced and changed incrementally in the same request;
+add and remove may target the same property only when the exact values differ.
+Empty incremental lists make no change and an otherwise empty request is
+rejected. `DELETE` removes an explicit property list. Both endpoints update
 `dcterms:modified`. Input and output preserve multiple IRIs, plain literals,
 language-tagged literals, and typed literals in the same `{property, values}`
-shape. The former attestation-specific metadata mutation endpoint has been
-removed; attestation metadata now uses this common API exclusively.
+shape. Stable incremental error prefixes include
+`CONFLICTING_METADATA_OPERATIONS` and `CONFLICTING_METADATA_VALUE`. The former
+attestation-specific metadata mutation endpoint has been removed; attestation
+metadata now uses this common API exclusively.

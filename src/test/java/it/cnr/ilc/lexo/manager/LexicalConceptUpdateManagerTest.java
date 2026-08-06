@@ -188,6 +188,115 @@ class LexicalConceptUpdateManagerTest {
     }
 
     @Test
+    void incrementallyAddsAndRemovesSensesWithoutReplacingOtherLinks() {
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(concept, iri(ONTOLEX + "isLexicalizedSenseOf"),
+                    oldSense, graph);
+        }
+        LexicalConceptUpdateRequest add = baseRequest();
+        add.setAddSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "EN")));
+
+        LexicalConceptUpdateResult added = manager.update(add, "editor");
+
+        assertThat(added.senseId).containsExactly(
+                newSense.stringValue(), oldSense.stringValue());
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "lexicalizedSense"), oldSense,
+                    false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "lexicalizedSense"), newSense,
+                    false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "isLexicalizedSenseOf"), oldSense,
+                    false, graph)).isFalse();
+            assertDefaultGraphEmpty(connection);
+        }
+
+        LexicalConceptUpdateRequest remove = baseRequest();
+        remove.setRemoveSenseIds(Arrays.asList(oldSense.stringValue(),
+                "https://example.org/sense/not-linked"));
+
+        LexicalConceptUpdateResult removed = manager.update(remove, "editor");
+
+        assertThat(removed.senseId).containsExactly(newSense.stringValue());
+
+        LexicalConceptUpdateRequest addAgain = baseRequest();
+        addAgain.setAddSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "en")));
+
+        LexicalConceptUpdateResult idempotent = manager.update(
+                addAgain, "editor");
+
+        assertThat(idempotent.senseId).containsExactly(newSense.stringValue());
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "lexicalizedSense"), oldSense,
+                    false, graph)).isFalse();
+            assertThat(connection.hasStatement(concept,
+                    iri(ONTOLEX + "lexicalizedSense"), newSense,
+                    false, graph)).isTrue();
+            assertThat(connection.hasStatement(oldSense, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalSense"), false,
+                    italianGraph)).isTrue();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void incrementallyChangesPreferredAlternativeHiddenLabelsAndDefinitions() {
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(concept, iri(SKOS + "definition"),
+                    vf.createLiteral("costruzione", "it"), graph);
+            connection.add(concept, iri(SKOS + "hiddenLabel"),
+                    vf.createLiteral("segreto", "it"), graph);
+        }
+        LexicalConceptUpdateRequest request = baseRequest();
+        request.setAddLabels(Arrays.asList(
+                new LexicalConceptLabel("house", "EN")));
+        request.setAddAlternativeLabels(Arrays.asList(
+                new LexicalConceptLabel("residence", "en")));
+        request.setRemoveAlternativeLabels(Arrays.asList(
+                new LexicalConceptLabel("dimora", "IT")));
+        request.setAddHiddenLabels(Arrays.asList(
+                new LexicalConceptLabel("domicilio", "it")));
+        request.setRemoveHiddenLabels(Arrays.asList(
+                new LexicalConceptLabel("segreto", "it")));
+        request.setAddDefinitions(Arrays.asList(
+                new LexicalConceptLabel("building", "en")));
+        request.setRemoveDefinitions(Arrays.asList(
+                new LexicalConceptLabel("edificio", "it")));
+
+        LexicalConceptUpdateResult first = manager.update(request, "editor");
+        LexicalConceptUpdateResult second = manager.update(request, "editor");
+
+        assertThat(first.label).extracting(item -> item.label)
+                .containsExactly("house", "casa");
+        assertThat(second.alternativeLabel).extracting(item -> item.label)
+                .containsExactly("residence");
+        assertThat(second.hiddenLabel).extracting(item -> item.label)
+                .containsExactly("domicilio");
+        assertThat(second.definition).extracting(item -> item.label)
+                .containsExactly("building", "costruzione");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(concept,
+                    iri(SKOS + "prefLabel"), vf.createLiteral("casa", "it"),
+                    false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri(SKOS + "prefLabel"), vf.createLiteral("house", "en"),
+                    false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept,
+                    iri(SKOS + "alternativeLabel"),
+                    vf.createLiteral("dimora", "it"), false, graph)).isFalse();
+            assertThat(connection.hasStatement(concept,
+                    iri(SKOS + "definition"),
+                    vf.createLiteral("costruzione", "it"), false, graph)).isTrue();
+            assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
     void rejectsStaleOrInvalidRequestsAndRollsBack() {
         LexicalConceptUpdateRequest stale = baseRequest();
         stale.setDefinition(Collections.<LexicalConceptLabel>emptyList());
@@ -197,8 +306,9 @@ class LexicalConceptUpdateManagerTest {
                 .hasMessageStartingWith("MODIFIED_MISMATCH:");
 
         LexicalConceptUpdateRequest missingLink = baseRequest();
-        missingLink.setSenses(Arrays.asList(new LexicalConceptSenseLink(
+        missingLink.setAddSenses(Arrays.asList(new LexicalConceptSenseLink(
                 "https://example.org/sense/missing", "it")));
+        missingLink.setRemoveSenseIds(Arrays.asList(oldSense.stringValue()));
         assertThatThrownBy(() -> manager.update(missingLink, "editor"))
                 .hasMessageStartingWith("SENSE_NOT_FOUND:");
 
@@ -219,6 +329,60 @@ class LexicalConceptUpdateManagerTest {
         assertThatThrownBy(() -> manager.update(invalidLanguage, "editor"))
                 .hasMessageStartingWith("INVALID_SENSE_LANGUAGE:");
 
+        LexicalConceptUpdateRequest mixedModes = baseRequest();
+        mixedModes.setSenses(Collections.<LexicalConceptSenseLink>emptyList());
+        mixedModes.setAddSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "en")));
+        assertThatThrownBy(() -> manager.update(mixedModes, "editor"))
+                .hasMessageStartingWith("CONFLICTING_SENSE_OPERATIONS:");
+
+        LexicalConceptUpdateRequest contradictory = baseRequest();
+        contradictory.setAddSenses(Arrays.asList(new LexicalConceptSenseLink(
+                newSense.stringValue(), "en")));
+        contradictory.setRemoveSenseIds(Arrays.asList(newSense.stringValue()));
+        assertThatThrownBy(() -> manager.update(contradictory, "editor"))
+                .hasMessageStartingWith("CONFLICTING_SENSE_CHANGE:");
+
+        LexicalConceptUpdateRequest invalidRemoval = baseRequest();
+        invalidRemoval.setRemoveSenseIds(Arrays.asList("not-an-iri"));
+        assertThatThrownBy(() -> manager.update(invalidRemoval, "editor"))
+                .hasMessageStartingWith("INVALID_REMOVE_SENSE_IRI:");
+
+        LexicalConceptUpdateRequest emptyIncrement = baseRequest();
+        emptyIncrement.setAddSenses(
+                Collections.<LexicalConceptSenseLink>emptyList());
+        assertThatThrownBy(() -> manager.update(emptyIncrement, "editor"))
+                .hasMessageStartingWith("MISSING_LEXICAL_CONCEPT_CHANGES:");
+
+        LexicalConceptUpdateRequest mixedLabelModes = baseRequest();
+        mixedLabelModes.setLabel(Arrays.asList(
+                new LexicalConceptLabel("abitazione", "it")));
+        mixedLabelModes.setAddLabels(Arrays.asList(
+                new LexicalConceptLabel("house", "en")));
+        assertThatThrownBy(() -> manager.update(mixedLabelModes, "editor"))
+                .hasMessageStartingWith("CONFLICTING_TEXT_OPERATIONS:");
+
+        LexicalConceptUpdateRequest contradictoryLabels = baseRequest();
+        contradictoryLabels.setAddAlternativeLabels(Arrays.asList(
+                new LexicalConceptLabel("dimora", "it")));
+        contradictoryLabels.setRemoveAlternativeLabels(Arrays.asList(
+                new LexicalConceptLabel("dimora", "IT")));
+        assertThatThrownBy(() -> manager.update(contradictoryLabels, "editor"))
+                .hasMessageStartingWith("CONFLICTING_TEXT_CHANGE:");
+
+        LexicalConceptUpdateRequest emptyTextIncrement = baseRequest();
+        emptyTextIncrement.setAddDefinitions(
+                Collections.<LexicalConceptLabel>emptyList());
+        assertThatThrownBy(() -> manager.update(emptyTextIncrement, "editor"))
+                .hasMessageStartingWith("MISSING_LEXICAL_CONCEPT_CHANGES:");
+
+        LexicalConceptUpdateRequest removeOnlyPreferredLabel = baseRequest();
+        removeOnlyPreferredLabel.setRemoveLabels(Arrays.asList(
+                new LexicalConceptLabel("casa", "it")));
+        assertThatThrownBy(() -> manager.update(
+                removeOnlyPreferredLabel, "editor"))
+                .hasMessageStartingWith("MISSING_LABEL:");
+
         LexicalConceptUpdateRequest missingLabels = baseRequest();
         missingLabels.setLabel(Collections.<LexicalConceptLabel>emptyList());
         assertThatThrownBy(() -> manager.update(missingLabels, "editor"))
@@ -232,6 +396,8 @@ class LexicalConceptUpdateManagerTest {
             assertThat(connection.hasStatement(concept,
                     iri(ONTOLEX + "lexicalizedSense"), oldSense,
                     false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept, iri(SKOS + "prefLabel"),
+                    vf.createLiteral("casa", "it"), false, graph)).isTrue();
             assertDefaultGraphEmpty(connection);
         }
     }

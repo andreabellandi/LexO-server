@@ -222,19 +222,26 @@ the IRI, resolved author, timestamp, and accepted links. Malformed input returns
 
 ## Lexical concept update
 
-`PATCH /service/lexica/lexicalConcept?author=editor` atomically replaces only
+`PATCH /service/lexica/lexicalConcept?author=editor` atomically modifies only
 the supplied semantic properties of an existing lexical concept in the fixed
-`lexicalConcept` named graph:
+`lexicalConcept` named graph. Sense links support both complete replacement and
+incremental changes:
 
 ```json
 {
   "lexicalConcept": "https://lexo.ilc.cnr.it#LexO_concept1",
   "expectedModified": "2026-08-04T10:20:30.000+02:00",
-  "label": [{"label": "abitazione", "language": "it"}],
-  "alternativeLabel": [],
-  "senses": [
-    {"senseId": "https://lexo.ilc.cnr.it#LexO_sense1", "language": "it"}
+  "addLabels": [{"label": "abitazione", "language": "it"}],
+  "removeAlternativeLabels": [
+    {"label": "vecchia alternativa", "language": "it"}
   ],
+  "addDefinitions": [
+    {"label": "Edificio destinato ad abitazione", "language": "it"}
+  ],
+  "addSenses": [
+    {"senseId": "https://lexo.ilc.cnr.it#LexO_sense2", "language": "it"}
+  ],
+  "removeSenseIds": ["https://lexo.ilc.cnr.it#LexO_sense1"],
   "parent": null
 }
 ```
@@ -245,14 +252,31 @@ supplied, must remain non-empty. Explicit `null` removes `parent` or
 `conceptSetId`. Languages and linked resources are validated before the single
 transaction, `expectedModified` optionally protects against stale updates, and
 creator, creation time, and custom metadata remain untouched. Concept metadata
-is modified only through `/service/metadata`. Each member of `senses` identifies
-the language graph in which the sense must exist; the relation itself is
-persisted in the fixed concept graph as `ontolex:lexicalizedSense`. When
-`senses` is supplied, the update also removes any previously misdirected
-`ontolex:isLexicalizedSenseOf` triple from the concept. An empty `senses` list
-removes every sense link. The old input member `senseId` is rejected with
+is modified only through `/service/metadata`. `senses` retains replacement
+semantics: it replaces every `ontolex:lexicalizedSense` object and `[]` removes
+all links. `addSenses` adds only its language-aware links and preserves existing
+ones; adding an existing link is idempotent. `removeSenseIds` removes only the
+listed IRIs from the fixed concept graph, without requiring a language, and
+removing an absent link is idempotent. `senses` cannot be combined with either
+incremental field, while `addSenses` and `removeSenseIds` may be used together
+unless the same IRI appears in both. Empty incremental lists make no change.
+Every added or replacement sense is validated in its declared language graph;
+the relation itself is persisted in the fixed concept graph. Any sense-link
+mutation also removes previously misdirected `ontolex:isLexicalizedSenseOf`
+triples. The old input member `senseId` is rejected with
 `SENSE_LANGUAGE_REQUIRED`; responses retain the `senseId` IRI list for
 compatibility.
+
+Text collections have the same dual contract, kept separate by SKOS category:
+`label`, `alternativeLabel`, `hiddenLabel`, and `definition` replace their
+complete value sets; the incremental pairs are `addLabels`/`removeLabels`,
+`addAlternativeLabels`/`removeAlternativeLabels`,
+`addHiddenLabels`/`removeHiddenLabels`, and
+`addDefinitions`/`removeDefinitions`. An exact text value is identified by its
+text and normalized language. Incremental operations are idempotent, preserve
+all other values, and cannot be combined with the corresponding replacement
+field. The same value cannot be added and removed together. A preferred-label
+change must leave at least one `skos:prefLabel` on the concept.
 
 ## Common entity metadata
 
@@ -262,10 +286,31 @@ The same shared DTO, RDF codec, and global protection policy are used by entity
 creation and future resources.
 
 The common shape is a list of `{property, values}` objects. Values may be IRIs,
-plain literals, BCP 47 language-tagged literals, or typed literals. `PATCH`
-replaces the complete value set of each supplied property; `values: []` removes
-that property. `DELETE` accepts an explicit list of property IRIs. Every
-mutation updates `dcterms:modified` and returns the resulting canonical metadata.
+plain literals, BCP 47 language-tagged literals, or typed literals. In `PATCH`,
+`properties` replaces the complete value set of each supplied property and
+`values: []` removes that property. `addValues` and `removeValues` modify only
+the exact RDF values listed and preserve every other value:
+
+```json
+{
+  "entityType": "lexicalConcept",
+  "resource": "https://lexo.ilc.cnr.it#LexO_concept1",
+  "addValues": [{
+    "property": "https://example.org/source",
+    "values": [{"value": "https://example.org/new", "type": "iri"}]
+  }],
+  "removeValues": [{
+    "property": "https://example.org/source",
+    "values": [{"value": "old", "type": "literal", "language": "en"}]
+  }]
+}
+```
+
+Incremental metadata changes are idempotent. Replacement cannot be combined
+with incremental changes for the same property, while add and remove may be
+combined when their exact RDF values differ. `DELETE` accepts an explicit list
+of property IRIs. Every mutation updates `dcterms:modified` and returns the
+resulting canonical metadata.
 
 The client supplies `entityType` and the context needed to select the graph:
 `language` for `lexicalEntry`, `lexicalSense`, and `form`, no context for

@@ -15,7 +15,17 @@ public class LexicalConceptUpdateRequest implements Data {
     private List<LexicalConceptLabel> alternativeLabel;
     private List<LexicalConceptLabel> hiddenLabel;
     private List<LexicalConceptLabel> definition;
+    private List<LexicalConceptLabel> addLabels;
+    private List<LexicalConceptLabel> removeLabels;
+    private List<LexicalConceptLabel> addAlternativeLabels;
+    private List<LexicalConceptLabel> removeAlternativeLabels;
+    private List<LexicalConceptLabel> addHiddenLabels;
+    private List<LexicalConceptLabel> removeHiddenLabels;
+    private List<LexicalConceptLabel> addDefinitions;
+    private List<LexicalConceptLabel> removeDefinitions;
     private List<LexicalConceptSenseLink> senses;
+    private List<LexicalConceptSenseLink> addSenses;
+    private List<String> removeSenseIds;
     private List<String> senseId;
     private String parent;
     private String conceptSetId;
@@ -24,7 +34,17 @@ public class LexicalConceptUpdateRequest implements Data {
     private boolean alternativeLabelPresent;
     private boolean hiddenLabelPresent;
     private boolean definitionPresent;
+    private boolean addLabelsPresent;
+    private boolean removeLabelsPresent;
+    private boolean addAlternativeLabelsPresent;
+    private boolean removeAlternativeLabelsPresent;
+    private boolean addHiddenLabelsPresent;
+    private boolean removeHiddenLabelsPresent;
+    private boolean addDefinitionsPresent;
+    private boolean removeDefinitionsPresent;
     private boolean sensesPresent;
+    private boolean addSensesPresent;
+    private boolean removeSenseIdsPresent;
     private boolean legacySenseIdPresent;
     private boolean parentPresent;
     private boolean conceptSetIdPresent;
@@ -91,6 +111,92 @@ public class LexicalConceptUpdateRequest implements Data {
         this.definitionPresent = true;
     }
 
+    @ApiModelProperty(value = "preferred labels to add without replacing existing labels")
+    public List<LexicalConceptLabel> getAddLabels() {
+        return addLabels;
+    }
+
+    public void setAddLabels(List<LexicalConceptLabel> addLabels) {
+        this.addLabels = addLabels;
+        this.addLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "exact preferred labels to remove while preserving the others")
+    public List<LexicalConceptLabel> getRemoveLabels() {
+        return removeLabels;
+    }
+
+    public void setRemoveLabels(List<LexicalConceptLabel> removeLabels) {
+        this.removeLabels = removeLabels;
+        this.removeLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "alternative labels to add without replacing existing labels")
+    public List<LexicalConceptLabel> getAddAlternativeLabels() {
+        return addAlternativeLabels;
+    }
+
+    public void setAddAlternativeLabels(
+            List<LexicalConceptLabel> addAlternativeLabels) {
+        this.addAlternativeLabels = addAlternativeLabels;
+        this.addAlternativeLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "exact alternative labels to remove while preserving the others")
+    public List<LexicalConceptLabel> getRemoveAlternativeLabels() {
+        return removeAlternativeLabels;
+    }
+
+    public void setRemoveAlternativeLabels(
+            List<LexicalConceptLabel> removeAlternativeLabels) {
+        this.removeAlternativeLabels = removeAlternativeLabels;
+        this.removeAlternativeLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "hidden labels to add without replacing existing labels")
+    public List<LexicalConceptLabel> getAddHiddenLabels() {
+        return addHiddenLabels;
+    }
+
+    public void setAddHiddenLabels(
+            List<LexicalConceptLabel> addHiddenLabels) {
+        this.addHiddenLabels = addHiddenLabels;
+        this.addHiddenLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "exact hidden labels to remove while preserving the others")
+    public List<LexicalConceptLabel> getRemoveHiddenLabels() {
+        return removeHiddenLabels;
+    }
+
+    public void setRemoveHiddenLabels(
+            List<LexicalConceptLabel> removeHiddenLabels) {
+        this.removeHiddenLabels = removeHiddenLabels;
+        this.removeHiddenLabelsPresent = true;
+    }
+
+    @ApiModelProperty(value = "definitions to add without replacing existing definitions")
+    public List<LexicalConceptLabel> getAddDefinitions() {
+        return addDefinitions;
+    }
+
+    public void setAddDefinitions(
+            List<LexicalConceptLabel> addDefinitions) {
+        this.addDefinitions = addDefinitions;
+        this.addDefinitionsPresent = true;
+    }
+
+    @ApiModelProperty(value = "exact definitions to remove while preserving the others")
+    public List<LexicalConceptLabel> getRemoveDefinitions() {
+        return removeDefinitions;
+    }
+
+    public void setRemoveDefinitions(
+            List<LexicalConceptLabel> removeDefinitions) {
+        this.removeDefinitions = removeDefinitions;
+        this.removeDefinitionsPresent = true;
+    }
+
     @ApiModelProperty(value = "unsupported legacy sense IRI list; use senses with a language for each item",
             hidden = true)
     @Deprecated
@@ -112,6 +218,26 @@ public class LexicalConceptUpdateRequest implements Data {
     public void setSenses(List<LexicalConceptSenseLink> senses) {
         this.senses = senses;
         this.sensesPresent = true;
+    }
+
+    @ApiModelProperty(value = "lexical senses to add without replacing existing links; each item selects its ISO 639 language graph")
+    public List<LexicalConceptSenseLink> getAddSenses() {
+        return addSenses;
+    }
+
+    public void setAddSenses(List<LexicalConceptSenseLink> addSenses) {
+        this.addSenses = addSenses;
+        this.addSensesPresent = true;
+    }
+
+    @ApiModelProperty(value = "lexical sense IRIs to unlink without changing other sense links")
+    public List<String> getRemoveSenseIds() {
+        return removeSenseIds;
+    }
+
+    public void setRemoveSenseIds(List<String> removeSenseIds) {
+        this.removeSenseIds = removeSenseIds;
+        this.removeSenseIdsPresent = true;
     }
 
     @ApiModelProperty(value = "replacement parent lexical concept IRI; explicit null removes it")
@@ -154,8 +280,48 @@ public class LexicalConceptUpdateRequest implements Data {
         return definitionPresent;
     }
 
+    public boolean hasAddLabels() {
+        return addLabelsPresent;
+    }
+
+    public boolean hasRemoveLabels() {
+        return removeLabelsPresent;
+    }
+
+    public boolean hasAddAlternativeLabels() {
+        return addAlternativeLabelsPresent;
+    }
+
+    public boolean hasRemoveAlternativeLabels() {
+        return removeAlternativeLabelsPresent;
+    }
+
+    public boolean hasAddHiddenLabels() {
+        return addHiddenLabelsPresent;
+    }
+
+    public boolean hasRemoveHiddenLabels() {
+        return removeHiddenLabelsPresent;
+    }
+
+    public boolean hasAddDefinitions() {
+        return addDefinitionsPresent;
+    }
+
+    public boolean hasRemoveDefinitions() {
+        return removeDefinitionsPresent;
+    }
+
     public boolean hasSenses() {
         return sensesPresent;
+    }
+
+    public boolean hasAddSenses() {
+        return addSensesPresent;
+    }
+
+    public boolean hasRemoveSenseIds() {
+        return removeSenseIdsPresent;
     }
 
     public boolean hasLegacySenseId() {

@@ -76,12 +76,12 @@ public class Metadata extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Entity metadata update",
-            notes = "Atomically replaces selected metadata properties; an empty values list removes that property")
+            notes = "Atomically replaces selected metadata properties or incrementally adds and removes exact RDF values; an empty replacement values list removes that property")
     public Response patch(
             @ApiParam(name = "Authorization", value = "optional authorization header",
                     required = false)
             @HeaderParam("Authorization") String key,
-            @ApiParam(name = "metadataUpdate", value = "target and property replacements",
+            @ApiParam(name = "metadataUpdate", value = "target and property replacements or incremental exact-value changes",
                     required = true)
             MetadataPatchRequest request) {
         try {

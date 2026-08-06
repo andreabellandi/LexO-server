@@ -60,9 +60,14 @@ public final class MetadataManager implements Manager {
 
     public MetadataResult patch(MetadataPatchRequest request) {
         ResolvedTarget resolved = resolve(request);
-        LinkedHashMap<IRI, List<Value>> properties = codec.decodeProperties(
-                request.properties, true);
-        return mutate(resolved, properties);
+        LinkedHashMap<IRI, List<Value>> replacements = decodeOptional(
+                request.properties, true, "properties");
+        LinkedHashMap<IRI, List<Value>> additions = decodeOptional(
+                request.addValues, false, "addValues");
+        LinkedHashMap<IRI, List<Value>> removals = decodeOptional(
+                request.removeValues, false, "removeValues");
+        validatePatchOperations(replacements, additions, removals);
+        return mutate(resolved, replacements, additions, removals);
     }
 
     public MetadataResult delete(MetadataDeleteRequest request) {
@@ -84,18 +89,74 @@ public final class MetadataManager implements Manager {
                 throw invalid("DUPLICATE_METADATA_PROPERTY", property.stringValue());
             }
         }
-        return mutate(resolved, properties);
+        return mutate(resolved, properties,
+                new LinkedHashMap<IRI, List<Value>>(),
+                new LinkedHashMap<IRI, List<Value>>());
+    }
+
+    private LinkedHashMap<IRI, List<Value>> decodeOptional(
+            List<RdfMetadataProperty> properties, boolean allowEmptyValues,
+            String field) {
+        if (properties == null || properties.isEmpty()) {
+            return new LinkedHashMap<IRI, List<Value>>();
+        }
+        return codec.decodeProperties(properties, allowEmptyValues, field);
+    }
+
+    private void validatePatchOperations(
+            LinkedHashMap<IRI, List<Value>> replacements,
+            LinkedHashMap<IRI, List<Value>> additions,
+            LinkedHashMap<IRI, List<Value>> removals) {
+        if (replacements.isEmpty() && additions.isEmpty()
+                && removals.isEmpty()) {
+            throw invalid("MISSING_METADATA_PROPERTIES",
+                    "at least one metadata operation is required");
+        }
+        for (IRI property : replacements.keySet()) {
+            if (additions.containsKey(property) || removals.containsKey(property)) {
+                throw invalid("CONFLICTING_METADATA_OPERATIONS",
+                        property.stringValue()
+                                + " cannot be replaced and changed incrementally");
+            }
+        }
+        for (Map.Entry<IRI, List<Value>> addition : additions.entrySet()) {
+            List<Value> removed = removals.get(addition.getKey());
+            if (removed == null) {
+                continue;
+            }
+            for (Value value : addition.getValue()) {
+                if (removed.contains(value)) {
+                    throw invalid("CONFLICTING_METADATA_VALUE",
+                            addition.getKey().stringValue()
+                                    + " contains a value in both addValues and removeValues");
+                }
+            }
+        }
     }
 
     private MetadataResult mutate(ResolvedTarget resolved,
-                                  LinkedHashMap<IRI, List<Value>> properties) {
+                                  LinkedHashMap<IRI, List<Value>> replacements,
+                                  LinkedHashMap<IRI, List<Value>> additions,
+                                  LinkedHashMap<IRI, List<Value>> removals) {
         RepositoryConnection connection = acquire();
         try {
             validateResource(connection, resolved);
             connection.begin();
-            for (Map.Entry<IRI, List<Value>> property : properties.entrySet()) {
+            for (Map.Entry<IRI, List<Value>> property : replacements.entrySet()) {
                 connection.remove(resolved.resource, property.getKey(), null,
                         resolved.graph);
+                for (Value value : property.getValue()) {
+                    connection.add(resolved.resource, property.getKey(), value,
+                            resolved.graph);
+                }
+            }
+            for (Map.Entry<IRI, List<Value>> property : removals.entrySet()) {
+                for (Value value : property.getValue()) {
+                    connection.remove(resolved.resource, property.getKey(),
+                            value, resolved.graph);
+                }
+            }
+            for (Map.Entry<IRI, List<Value>> property : additions.entrySet()) {
                 for (Value value : property.getValue()) {
                     connection.add(resolved.resource, property.getKey(), value,
                             resolved.graph);

@@ -12,6 +12,7 @@ import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.util.Arrays;
+import java.util.Collections;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -233,6 +234,68 @@ class MetadataManagerTest {
         assertThat(manager.read(target).metadata)
                 .extracting(item -> item.property)
                 .containsExactly(DCTERMS.TITLE.stringValue());
+    }
+
+    @Test
+    void incrementallyAddsAndRemovesExactMetadataValuesIdempotently() {
+        IRI graph = iri(LexiconCrudSupport.lexicalConceptGraphUri());
+        IRI concept = iri("https://example.org/concept/incremental-metadata");
+        IRI source = iri("https://example.org/source");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(concept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"), graph);
+            connection.add(concept, source, vf.createLiteral("old"), graph);
+            connection.add(concept, source, vf.createLiteral("preserved"), graph);
+        }
+        MetadataPatchRequest patch = patch("lexicalConcept",
+                concept.stringValue());
+        patch.addValues = Arrays.asList(property(source.stringValue(),
+                new RdfMetadataValue("https://example.org/new", "iri",
+                        null, null)));
+        patch.removeValues = Arrays.asList(property(source.stringValue(),
+                new RdfMetadataValue("old", "literal", null, null),
+                new RdfMetadataValue("absent", "literal", null, null)));
+
+        MetadataResult first = manager.patch(patch);
+        MetadataResult second = manager.patch(patch);
+
+        assertThat(first.metadata).hasSize(1);
+        assertThat(second.metadata.get(0).values).hasSize(2);
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.hasStatement(concept, source,
+                    vf.createLiteral("old"), false, graph)).isFalse();
+            assertThat(connection.hasStatement(concept, source,
+                    vf.createLiteral("preserved"), false, graph)).isTrue();
+            assertThat(connection.hasStatement(concept, source,
+                    iri("https://example.org/new"), false, graph)).isTrue();
+            assertDefaultGraphEmpty(connection);
+        }
+
+        MetadataPatchRequest mixedModes = patch("lexicalConcept",
+                concept.stringValue());
+        mixedModes.properties = Arrays.asList(property(source.stringValue(),
+                new RdfMetadataValue("replacement", "literal", null, null)));
+        mixedModes.addValues = Arrays.asList(property(source.stringValue(),
+                new RdfMetadataValue("addition", "literal", null, null)));
+        assertThatThrownBy(() -> manager.patch(mixedModes))
+                .hasMessageStartingWith("CONFLICTING_METADATA_OPERATIONS:");
+
+        MetadataPatchRequest contradictory = patch("lexicalConcept",
+                concept.stringValue());
+        RdfMetadataValue same = new RdfMetadataValue("same", "literal",
+                "it", null);
+        contradictory.addValues = Arrays.asList(
+                property(source.stringValue(), same));
+        contradictory.removeValues = Arrays.asList(property(source.stringValue(),
+                new RdfMetadataValue("same", "literal", "it", null)));
+        assertThatThrownBy(() -> manager.patch(contradictory))
+                .hasMessageStartingWith("CONFLICTING_METADATA_VALUE:");
+
+        MetadataPatchRequest empty = patch("lexicalConcept",
+                concept.stringValue());
+        empty.addValues = Collections.emptyList();
+        assertThatThrownBy(() -> manager.patch(empty))
+                .hasMessageStartingWith("MISSING_METADATA_PROPERTIES:");
     }
 
     @Test

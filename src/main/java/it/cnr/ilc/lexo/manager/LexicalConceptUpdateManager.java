@@ -63,27 +63,40 @@ public final class LexicalConceptUpdateManager implements Manager {
             validateExpectedModified(connection, input.concept,
                     input.expectedModified, graph);
 
-            replaceTexts(connection, input.concept,
-                    vf.createIRI(SKOS + "prefLabel"), input.labels,
-                    input.labelsPresent, graph);
-            replaceTexts(connection, input.concept,
+            IRI preferredLabel = vf.createIRI(SKOS + "prefLabel");
+            applyTextChanges(connection, input.concept, preferredLabel,
+                    input.labels, graph);
+            applyTextChanges(connection, input.concept,
                     vf.createIRI(SKOS + "alternativeLabel"),
-                    input.alternativeLabels, input.alternativeLabelsPresent,
-                    graph);
-            replaceTexts(connection, input.concept,
+                    input.alternativeLabels, graph);
+            applyTextChanges(connection, input.concept,
                     vf.createIRI(SKOS + "hiddenLabel"), input.hiddenLabels,
-                    input.hiddenLabelsPresent, graph);
-            replaceTexts(connection, input.concept,
+                    graph);
+            applyTextChanges(connection, input.concept,
                     vf.createIRI(SKOS + "definition"), input.definitions,
-                    input.definitionsPresent, graph);
-            if (input.sensesPresent) {
+                    graph);
+            if (input.labels.hasChanges()
+                    && !connection.hasStatement(input.concept, preferredLabel,
+                            null, false, graph)) {
+                throw invalid("MISSING_LABEL",
+                        "a lexical concept must retain at least one preferred label");
+            }
+            if (input.hasSenseChanges()) {
                 connection.remove(input.concept,
                         vf.createIRI(ONTOLEX + "isLexicalizedSenseOf"),
                         null, graph);
             }
-            replaceIris(connection, input.concept,
-                    vf.createIRI(ONTOLEX + "lexicalizedSense"),
-                    senseIris(input.senses), input.sensesPresent, graph);
+            IRI lexicalizedSense = vf.createIRI(
+                    ONTOLEX + "lexicalizedSense");
+            if (input.sensesPresent) {
+                replaceIris(connection, input.concept, lexicalizedSense,
+                        senseIris(input.senses), true, graph);
+            } else {
+                removeIris(connection, input.concept, lexicalizedSense,
+                        input.removeSenseIds, graph);
+                addSenseLinks(connection, input.concept, lexicalizedSense,
+                        input.addSenses, graph);
+            }
             replaceIri(connection, input.concept,
                     vf.createIRI(SKOS + "broader"), input.parent,
                     input.parentPresent, graph);
@@ -116,29 +129,61 @@ public final class LexicalConceptUpdateManager implements Manager {
         }
         IRI concept = requireIri("lexicalConcept", request.getLexicalConcept(),
                 "INVALID_LEXICAL_CONCEPT_IRI");
-        if (!request.hasLabel() && !request.hasAlternativeLabel()
-                && !request.hasHiddenLabel() && !request.hasDefinition()
-                && !request.hasSenses() && !request.hasLegacySenseId()
+        if (!hasRequestedTextChange(request)
+                && !request.hasSenses() && !request.hasAddSenses()
+                && !request.hasRemoveSenseIds()
+                && !request.hasLegacySenseId()
                 && !request.hasParent()
                 && !request.hasConceptSetId()) {
             throw invalid("MISSING_LEXICAL_CONCEPT_CHANGES",
                     "at least one mutable field must be supplied");
         }
-        List<LocalizedText> labels = validateTexts(request.getLabel(), "label",
-                request.hasLabel(), true);
-        List<LocalizedText> alternatives = validateTexts(
-                request.getAlternativeLabel(), "alternativeLabel",
-                request.hasAlternativeLabel(), false);
-        List<LocalizedText> hidden = validateTexts(request.getHiddenLabel(),
-                "hiddenLabel", request.hasHiddenLabel(), false);
-        List<LocalizedText> definitions = validateTexts(request.getDefinition(),
-                "definition", request.hasDefinition(), false);
+        TextChanges labels = validateTextChanges(request.getLabel(),
+                request.hasLabel(), request.getAddLabels(),
+                request.hasAddLabels(), request.getRemoveLabels(),
+                request.hasRemoveLabels(), "label", "addLabels",
+                "removeLabels", true);
+        TextChanges alternatives = validateTextChanges(
+                request.getAlternativeLabel(), request.hasAlternativeLabel(),
+                request.getAddAlternativeLabels(),
+                request.hasAddAlternativeLabels(),
+                request.getRemoveAlternativeLabels(),
+                request.hasRemoveAlternativeLabels(), "alternativeLabel",
+                "addAlternativeLabels", "removeAlternativeLabels", false);
+        TextChanges hidden = validateTextChanges(request.getHiddenLabel(),
+                request.hasHiddenLabel(), request.getAddHiddenLabels(),
+                request.hasAddHiddenLabels(), request.getRemoveHiddenLabels(),
+                request.hasRemoveHiddenLabels(), "hiddenLabel",
+                "addHiddenLabels", "removeHiddenLabels", false);
+        TextChanges definitions = validateTextChanges(request.getDefinition(),
+                request.hasDefinition(), request.getAddDefinitions(),
+                request.hasAddDefinitions(), request.getRemoveDefinitions(),
+                request.hasRemoveDefinitions(), "definition",
+                "addDefinitions", "removeDefinitions", false);
         if (request.hasLegacySenseId()) {
             throw invalid("SENSE_LANGUAGE_REQUIRED",
                     "senseId is unsupported; use senses with senseId and language");
         }
+        if (request.hasSenses()
+                && (request.hasAddSenses() || request.hasRemoveSenseIds())) {
+            throw invalid("CONFLICTING_SENSE_OPERATIONS",
+                    "senses cannot be combined with addSenses or removeSenseIds");
+        }
         List<ValidatedSenseLink> senses = validateSenses(request.getSenses(),
-                request.hasSenses());
+                request.hasSenses(), "senses");
+        List<ValidatedSenseLink> addSenses = validateSenses(
+                request.getAddSenses(), request.hasAddSenses(), "addSenses");
+        List<IRI> removeSenseIds = validateSenseIris(
+                request.getRemoveSenseIds(), request.hasRemoveSenseIds());
+        rejectConflictingSenseChanges(addSenses, removeSenseIds);
+        if (!labels.hasChanges() && !alternatives.hasChanges()
+                && !hidden.hasChanges() && !definitions.hasChanges()
+                && !request.hasSenses() && addSenses.isEmpty()
+                && removeSenseIds.isEmpty() && !request.hasParent()
+                && !request.hasConceptSetId()) {
+            throw invalid("MISSING_LEXICAL_CONCEPT_CHANGES",
+                    "empty incremental lists do not modify the concept");
+        }
         IRI parent = optionalIri(request.getParent(), "parent",
                 request.hasParent(), "INVALID_PARENT_IRI");
         IRI conceptSet = optionalIri(request.getConceptSetId(), "conceptSetId",
@@ -152,11 +197,67 @@ public final class LexicalConceptUpdateManager implements Manager {
                     "INVALID_EXPECTED_MODIFIED",
                     "expectedModified must not be blank");
         }
-        return new ValidatedRequest(concept, labels, request.hasLabel(),
-                alternatives, request.hasAlternativeLabel(), hidden,
-                request.hasHiddenLabel(), definitions, request.hasDefinition(),
-                senses, request.hasSenses(), parent, request.hasParent(),
+        return new ValidatedRequest(concept, labels, alternatives, hidden,
+                definitions,
+                senses, request.hasSenses(), addSenses, removeSenseIds,
+                parent, request.hasParent(),
                 conceptSet, request.hasConceptSetId(), expected);
+    }
+
+    private boolean hasRequestedTextChange(
+            LexicalConceptUpdateRequest request) {
+        return request.hasLabel() || request.hasAddLabels()
+                || request.hasRemoveLabels()
+                || request.hasAlternativeLabel()
+                || request.hasAddAlternativeLabels()
+                || request.hasRemoveAlternativeLabels()
+                || request.hasHiddenLabel() || request.hasAddHiddenLabels()
+                || request.hasRemoveHiddenLabels()
+                || request.hasDefinition() || request.hasAddDefinitions()
+                || request.hasRemoveDefinitions();
+    }
+
+    private TextChanges validateTextChanges(
+            List<LexicalConceptLabel> replacement, boolean replacementPresent,
+            List<LexicalConceptLabel> additions, boolean additionsPresent,
+            List<LexicalConceptLabel> removals, boolean removalsPresent,
+            String replacementField, String additionField,
+            String removalField, boolean replacementRequiredNonEmpty) {
+        if (replacementPresent && (additionsPresent || removalsPresent)) {
+            throw invalid("CONFLICTING_TEXT_OPERATIONS", replacementField
+                    + " cannot be combined with " + additionField + " or "
+                    + removalField);
+        }
+        List<LocalizedText> validatedReplacement = validateTexts(replacement,
+                replacementField, replacementPresent,
+                replacementRequiredNonEmpty);
+        List<LocalizedText> validatedAdditions = validateTexts(additions,
+                additionField, additionsPresent, false);
+        List<LocalizedText> validatedRemovals = validateTexts(removals,
+                removalField, removalsPresent, false);
+        rejectConflictingTextChanges(validatedAdditions, validatedRemovals,
+                replacementField);
+        return new TextChanges(validatedReplacement, replacementPresent,
+                validatedAdditions, validatedRemovals);
+    }
+
+    private void rejectConflictingTextChanges(List<LocalizedText> additions,
+                                              List<LocalizedText> removals,
+                                              String field) {
+        Set<String> added = new HashSet<String>();
+        for (LocalizedText addition : additions) {
+            added.add(textKey(addition));
+        }
+        for (LocalizedText removal : removals) {
+            if (added.contains(textKey(removal))) {
+                throw invalid("CONFLICTING_TEXT_CHANGE", field
+                        + " contains the same value in add and remove operations");
+            }
+        }
+    }
+
+    private String textKey(LocalizedText value) {
+        return value.language + "\u0000" + value.text;
     }
 
     private List<LocalizedText> validateTexts(List<LexicalConceptLabel> values,
@@ -195,19 +296,20 @@ public final class LexicalConceptUpdateManager implements Manager {
     }
 
     private List<ValidatedSenseLink> validateSenses(
-            List<LexicalConceptSenseLink> values, boolean present) {
+            List<LexicalConceptSenseLink> values, boolean present,
+            String field) {
         if (!present) {
             return Collections.emptyList();
         }
         if (values == null) {
-            throw invalid("INVALID_SENSE_LIST", "senses must be an array");
+            throw invalid("INVALID_SENSE_LIST", field + " must be an array");
         }
         List<ValidatedSenseLink> result =
                 new ArrayList<ValidatedSenseLink>();
         Set<String> seen = new HashSet<String>();
         for (int i = 0; i < values.size(); i++) {
             LexicalConceptSenseLink value = values.get(i);
-            String path = "senses[" + i + "]";
+            String path = field + "[" + i + "]";
             if (value == null) {
                 throw invalid("INVALID_SENSE_LINK", path + " must be an object");
             }
@@ -228,6 +330,44 @@ public final class LexicalConceptUpdateManager implements Manager {
             result.add(new ValidatedSenseLink(sense, language));
         }
         return result;
+    }
+
+    private List<IRI> validateSenseIris(List<String> values,
+                                        boolean present) {
+        if (!present) {
+            return Collections.emptyList();
+        }
+        if (values == null) {
+            throw invalid("INVALID_REMOVE_SENSE_LIST",
+                    "removeSenseIds must be an array");
+        }
+        List<IRI> result = new ArrayList<IRI>();
+        Set<String> seen = new HashSet<String>();
+        for (int i = 0; i < values.size(); i++) {
+            IRI sense = requireIri("removeSenseIds[" + i + "]",
+                    values.get(i), "INVALID_REMOVE_SENSE_IRI");
+            if (!seen.add(sense.stringValue())) {
+                throw invalid("DUPLICATE_REMOVE_SENSE",
+                        sense.stringValue() + " occurs more than once");
+            }
+            result.add(sense);
+        }
+        return result;
+    }
+
+    private void rejectConflictingSenseChanges(
+            List<ValidatedSenseLink> additions, List<IRI> removals) {
+        Set<String> added = new HashSet<String>();
+        for (ValidatedSenseLink addition : additions) {
+            added.add(addition.sense.stringValue());
+        }
+        for (IRI removal : removals) {
+            if (added.contains(removal.stringValue())) {
+                throw invalid("CONFLICTING_SENSE_CHANGE",
+                        removal.stringValue()
+                                + " cannot be added and removed together");
+            }
+        }
     }
 
     private IRI optionalIri(String value, String field, boolean present,
@@ -256,6 +396,11 @@ public final class LexicalConceptUpdateManager implements Manager {
                                ValidatedRequest input, Resource graph) {
         if (input.sensesPresent) {
             for (ValidatedSenseLink sense : input.senses) {
+                validateSense(connection, sense);
+            }
+        }
+        if (!input.addSenses.isEmpty()) {
+            for (ValidatedSenseLink sense : input.addSenses) {
                 validateSense(connection, sense);
             }
         }
@@ -326,13 +471,25 @@ public final class LexicalConceptUpdateManager implements Manager {
         }
     }
 
-    private void replaceTexts(RepositoryConnection connection, IRI subject,
-                              IRI predicate, List<LocalizedText> values,
-                              boolean present, Resource graph) {
-        if (!present) {
+    private void applyTextChanges(RepositoryConnection connection, IRI subject,
+                                  IRI predicate, TextChanges changes,
+                                  Resource graph) {
+        if (changes.replacementPresent) {
+            connection.remove(subject, predicate, null, graph);
+            addTexts(connection, subject, predicate, changes.replacement,
+                    graph);
             return;
         }
-        connection.remove(subject, predicate, null, graph);
+        for (LocalizedText value : changes.removals) {
+            connection.remove(subject, predicate,
+                    vf.createLiteral(value.text, value.language), graph);
+        }
+        addTexts(connection, subject, predicate, changes.additions, graph);
+    }
+
+    private void addTexts(RepositoryConnection connection, IRI subject,
+                          IRI predicate, List<LocalizedText> values,
+                          Resource graph) {
         for (LocalizedText value : values) {
             connection.add(subject, predicate,
                     vf.createLiteral(value.text, value.language), graph);
@@ -357,6 +514,22 @@ public final class LexicalConceptUpdateManager implements Manager {
             result.add(sense.sense);
         }
         return result;
+    }
+
+    private void removeIris(RepositoryConnection connection, IRI subject,
+                            IRI predicate, List<IRI> values, Resource graph) {
+        for (IRI value : values) {
+            connection.remove(subject, predicate, value, graph);
+        }
+    }
+
+    private void addSenseLinks(RepositoryConnection connection, IRI subject,
+                               IRI predicate,
+                               List<ValidatedSenseLink> values,
+                               Resource graph) {
+        for (ValidatedSenseLink value : values) {
+            connection.add(subject, predicate, value.sense, graph);
+        }
     }
 
     private void replaceIri(RepositoryConnection connection, IRI subject,
@@ -515,50 +688,72 @@ public final class LexicalConceptUpdateManager implements Manager {
 
     private static final class ValidatedRequest {
         final IRI concept;
-        final List<LocalizedText> labels;
-        final boolean labelsPresent;
-        final List<LocalizedText> alternativeLabels;
-        final boolean alternativeLabelsPresent;
-        final List<LocalizedText> hiddenLabels;
-        final boolean hiddenLabelsPresent;
-        final List<LocalizedText> definitions;
-        final boolean definitionsPresent;
+        final TextChanges labels;
+        final TextChanges alternativeLabels;
+        final TextChanges hiddenLabels;
+        final TextChanges definitions;
         final List<ValidatedSenseLink> senses;
         final boolean sensesPresent;
+        final List<ValidatedSenseLink> addSenses;
+        final List<IRI> removeSenseIds;
         final IRI parent;
         final boolean parentPresent;
         final IRI conceptSet;
         final boolean conceptSetPresent;
         final String expectedModified;
 
-        ValidatedRequest(IRI concept, List<LocalizedText> labels,
-                         boolean labelsPresent,
-                         List<LocalizedText> alternativeLabels,
-                         boolean alternativeLabelsPresent,
-                         List<LocalizedText> hiddenLabels,
-                         boolean hiddenLabelsPresent,
-                         List<LocalizedText> definitions,
-                         boolean definitionsPresent,
+        ValidatedRequest(IRI concept, TextChanges labels,
+                         TextChanges alternativeLabels,
+                         TextChanges hiddenLabels,
+                         TextChanges definitions,
                          List<ValidatedSenseLink> senses,
-                         boolean sensesPresent, IRI parent,
+                         boolean sensesPresent,
+                         List<ValidatedSenseLink> addSenses,
+                         List<IRI> removeSenseIds,
+                         IRI parent,
                          boolean parentPresent, IRI conceptSet,
                          boolean conceptSetPresent, String expectedModified) {
             this.concept = concept;
             this.labels = labels;
-            this.labelsPresent = labelsPresent;
             this.alternativeLabels = alternativeLabels;
-            this.alternativeLabelsPresent = alternativeLabelsPresent;
             this.hiddenLabels = hiddenLabels;
-            this.hiddenLabelsPresent = hiddenLabelsPresent;
             this.definitions = definitions;
-            this.definitionsPresent = definitionsPresent;
             this.senses = senses;
             this.sensesPresent = sensesPresent;
+            this.addSenses = addSenses;
+            this.removeSenseIds = removeSenseIds;
             this.parent = parent;
             this.parentPresent = parentPresent;
             this.conceptSet = conceptSet;
             this.conceptSetPresent = conceptSetPresent;
             this.expectedModified = expectedModified;
+        }
+
+        boolean hasSenseChanges() {
+            return sensesPresent || !addSenses.isEmpty()
+                    || !removeSenseIds.isEmpty();
+        }
+    }
+
+    private static final class TextChanges {
+        final List<LocalizedText> replacement;
+        final boolean replacementPresent;
+        final List<LocalizedText> additions;
+        final List<LocalizedText> removals;
+
+        TextChanges(List<LocalizedText> replacement,
+                    boolean replacementPresent,
+                    List<LocalizedText> additions,
+                    List<LocalizedText> removals) {
+            this.replacement = replacement;
+            this.replacementPresent = replacementPresent;
+            this.additions = additions;
+            this.removals = removals;
+        }
+
+        boolean hasChanges() {
+            return replacementPresent || !additions.isEmpty()
+                    || !removals.isEmpty();
         }
     }
 
