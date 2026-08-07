@@ -9,6 +9,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `GET /lexica/lexicalConcept` now returns one validated lexical concept with
+  every multilingual label and definition, linked entries and senses resolved
+  across ISO-language lexical graphs with ordered label fallbacks, concept-set
+  memberships, direct and transitive SKOS hierarchy relations, and common RDF
+  metadata.
 - `PATCH /lexica/entry` now atomically updates a lexical entry's label, RDF
   type, or part of speech in its ISO-language named graph, with optional
   modification-time concurrency checking and without changing metadata,

@@ -89,6 +89,23 @@ class LexiconTest {
     }
 
     @Test
+    void exposesDocumentedGetLexicalConceptEndpointAndEveryParameter()
+            throws Exception {
+        Method method = Lexicon.class.getMethod("getLexicalConcept",
+                String.class, String.class, String.class);
+
+        assertThat(method.getAnnotation(GET.class)).isNotNull();
+        assertThat(method.getAnnotation(Path.class).value())
+                .isEqualTo("lexicalConcept");
+        assertThat(method.getAnnotation(ApiOperation.class).value())
+                .isEqualTo("Lexical concept details");
+        Annotation[][] annotations = method.getParameterAnnotations();
+        for (Annotation[] parameterAnnotations : annotations) {
+            assertThat(hasApiParam(parameterAnnotations)).isTrue();
+        }
+    }
+
+    @Test
     void exposesDocumentedPatchEntryEndpointAndEveryParameter()
             throws Exception {
         Method method = Lexicon.class.getMethod("updateEntry", String.class,

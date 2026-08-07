@@ -1,7 +1,10 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 6 agosto 2026 dopo l'aggiunta delle modifiche incrementali al
-PATCH comune dei metadata e al PATCH dei lexical concept. I metadata accettano
+Aggiornato al 7 agosto 2026 dopo l'aggiunta di
+`GET /lexica/lexicalConcept`, che restituisce il modello completo di un lexical
+concept dal graph fisso: label e definizioni multilingui, entry e sense risolti
+nei soli graph ISO con fallback di label, concept set, gerarchie SKOS dirette e
+transitive distinte e metadata comuni. I metadata accettano
 `addValues` e `removeValues` per modificare valori RDF esatti senza reinviare
 l'intera proprietà. Preferred label, alternative label, hidden label e
 definition hanno coppie add/remove indipendenti e idempotenti; la rimozione non
@@ -129,6 +132,14 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 ## Funzionalità completate
 
+- Nuovo endpoint `GET /lexica/lexicalConcept`: valida il target esclusivamente
+  nel graph fisso dei concept e restituisce tutte le label tipizzate e
+  multilingui, le definizioni, le entry collegate tramite `isEvokedBy`/`evokes`,
+  i sense collegati tramite `lexicalizedSense`/`isLexicalizedSenseOf`, i concept
+  set, figli e parent SKOS diretti/transitivi e i metadata nel formato comune.
+  Entry e sense vengono arricchiti soltanto dai graph `lexica/{language}` ISO
+  validi con i fallback richiesti; default graph, graph legacy e graph con
+  pseudo-codici lingua restano esclusi.
 - Nuovi endpoint `GET`, `PATCH` e `DELETE /metadata`: leggono, sostituiscono e
   cancellano metadati RDF multivalore su lexical entry, lexical sense, form,
   lexical concept e attestazioni. Entry, sense e form richiedono la lingua e
@@ -235,10 +246,11 @@ appartenenza ai corpora sono persistiti in GraphDB.
   originali dopo conversione riuscita.
 - Correzione delle ricerche esatte di lexical entry, forme, sensi e dictionary
   entry quando manca una label.
-- Suite corrente: 165 test unitari/repository passati il 5 agosto 2026, inclusi
-  i 5 test di regressione della deserializzazione MOXy dei valori RDF,
-  i 7 test repository dei nuovi servizi PATCH e gli 8 test del contratto
-  Swagger di `Lexicon`, oltre ai test del nuovo lexical concept manager e degli
+- Suite corrente: 172 test unitari/repository passati il 7 agosto 2026, inclusi
+  i 3 test repository del dettaglio completo dei lexical concept, i 5 test di
+  regressione della deserializzazione MOXy dei valori RDF, i 7 test repository
+  dei servizi PATCH e i 9 test del contratto Swagger di `Lexicon`, oltre ai
+  test del nuovo lexical concept manager e degli
   altri servizi lessicali, i 3
   test repository dei totali FRAC,
   i 6 test mirati del bulk testuale, i 42 test delle attestazioni, i 2 test del
@@ -329,9 +341,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
 ## Funzionalità ancora da completare o validare
 
 - Implementare progressivamente i restanti CRUD per lexical concepts e concept
-  sets nella classe `Lexicon.java`. Creazione e modifica del lexical concept
-  sono completate; gli endpoint futuri continueranno a usare esclusivamente il
-  graph fisso di categoria senza modificare i servizi legacy.
+  sets nella classe `Lexicon.java`. Creazione, lettura completa e modifica del
+  lexical concept sono completate; gli endpoint futuri continueranno a usare
+  esclusivamente il graph fisso di categoria senza modificare i servizi legacy.
 - Eseguire regolarmente `TextServicesIT` e `TextServiceUseCasesIT` contro una
   coppia di repository e una directory filesystem dedicati ai test. Questi test
   sono esclusi da `mvn test` e non sono stati eseguiti nell'ultima validazione;
@@ -453,14 +465,23 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale è stato allineato in fast-forward. I servizi PATCH lessicali e
-  la correzione dei payload RDF MOXy sono organizzati in commit focalizzati
-  direttamente su `master`.
+  branch locale è stato allineato in fast-forward. Il nuovo GET dei lexical
+  concept è presente nel worktree direttamente su `master` e non è ancora
+  committato.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
 
-Il lavoro corrente aggiunge `PATCH /lexica/entry` e
+Il lavoro corrente aggiunge `GET /lexica/lexicalConcept` in `Lexicon.java`,
+`LexicalConceptDetailsManager` e i DTO di risposta sotto
+`service/data/lexicon/output`. Il servizio valida il target nel graph fisso,
+risolve entry e sense esclusivamente nei graph ISO, applica i fallback di label
+richiesti, separa le relazioni SKOS dirette e transitive e serializza i metadata
+tramite `MetadataPolicy` e `RdfMetadataCodec`. I 3 test repository dedicati, i
+9 test Swagger di `Lexicon` e la suite completa di 172 test sono passati il 7
+agosto 2026; gli end-to-end REST contro GraphDB/Tomcat non sono stati eseguiti.
+
+Il lavoro precedente aggiunge `PATCH /lexica/entry` e
 `PATCH /lexica/lexicalConcept` in `Lexicon.java`, i DTO presence-aware sotto
 `service/data/lexicon`, i risultati senza metadata e i manager transazionali
 `LexicalEntryUpdateManager` e `LexicalConceptUpdateManager`. L'entry update usa

@@ -278,6 +278,33 @@ all other values, and cannot be combined with the corresponding replacement
 field. The same value cannot be added and removed together. A preferred-label
 change must leave at least one `skos:prefLabel` on the concept.
 
+## Lexical concept details
+
+`GET /service/lexica/lexicalConcept?lexicalConcept={iri}` returns the complete
+data of one lexical concept validated in the fixed `lexicalConcept` named
+graph. The optional `author` query parameter follows the common lexical-service
+fallback to `anonymous`.
+
+The JSON response contains all `rdfs:label`, preferred, alternative, and hidden
+SKOS labels with their property and language; every multilingual definition;
+concept-set memberships; common RDF metadata; and four distinct hierarchy
+collections under `children.direct`, `children.transitive`, `parents.direct`,
+and `parents.transitive`. Related concepts include all their label types and
+languages. The transitive fields use the standard SKOS predicates
+`skos:broaderTransitive` and `skos:narrowerTransitive`.
+
+Linked entries are discovered through both `ontolex:isEvokedBy` and
+`ontolex:evokes`. Their labels prefer all `rdfs:label` values, then canonical
+form written representations, then other-form written representations. Linked
+senses are discovered through both `ontolex:lexicalizedSense` and
+`ontolex:isLexicalizedSenseOf`; their labels prefer definitions, then RDFS
+labels, then the same fallback on the entry linked through `ontolex:isSenseOf`
+or `ontolex:sense`. Missing labels are empty arrays.
+
+Entry and sense data is read only from valid ISO-language
+`lexica/{language}` graphs. The legacy lexical graph, default graph, unrelated
+contexts, and graph names containing invalid language codes are ignored.
+
 ## Common entity metadata
 
 `GET`, `PATCH`, and `DELETE /service/metadata` provide one RDF metadata contract

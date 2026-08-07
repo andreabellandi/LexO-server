@@ -438,6 +438,59 @@ metadata. Empty `values` lists inside a supplied property are rejected during
 creation. The global RDF metadata protection policy is applied without
 lexical-concept-specific exceptions.
 
+## GET `/lexica/lexicalConcept`
+
+This endpoint accepts the required `lexicalConcept` query parameter and returns
+the complete read model of that resource. The optional `author` query parameter
+follows the shared authenticated-user and `anonymous` fallback rule. The target
+must be an absolute IRI typed as `ontolex:LexicalConcept`, or a transitive
+subclass, exclusively in the fixed
+`https://lexo.ilc.cnr.it/graphs/lexical/lexicalConcept` graph. The legacy graph,
+language graphs, unrelated named graphs, and the default graph cannot make an
+otherwise invalid target visible.
+
+The `labels` array contains every asserted `rdfs:label`, `skos:prefLabel`,
+standard `skos:altLabel`, the existing CRUD predicate
+`skos:alternativeLabel`, and `skos:hiddenLabel`. Each item exposes `property`,
+`value`, and the optional `language` or `datatype`, so label kinds and
+multilingual values remain distinguishable. `definitions` contains every
+literal `skos:definition` with the common RDF value shape.
+
+`lexicalEntries` combines both supported relation directions: concept
+`ontolex:isEvokedBy` entry and entry `ontolex:evokes` concept. Each linked IRI
+must be a lexical entry, or a transitive subclass, in a validated
+`lexica/{language}` graph. Its `labels` use the first non-empty fallback as a
+complete value set: all `rdfs:label` values, otherwise all
+`ontolex:writtenRep` values of canonical forms, otherwise those of other forms.
+An unresolved label is represented by an empty array.
+
+`lexicalSenses` likewise combines concept `ontolex:lexicalizedSense` sense and
+sense `ontolex:isLexicalizedSenseOf` concept. Linked senses must exist with a
+compatible type in a validated language graph. Their label fallback is all
+`skos:definition` values, otherwise all `rdfs:label` values, otherwise the
+linked entry found through either `ontolex:isSenseOf` or the asserted inverse
+`ontolex:sense`, followed by the entry fallback above. Missing labels remain an
+empty array.
+
+`conceptSets` lists every IRI linked through `skos:inScheme`. Hierarchical
+relations remain separated in `children.direct`, `children.transitive`,
+`parents.direct`, and `parents.transitive`. Children are the lexical concept
+subjects linked to the target by `skos:broader` or the standard SKOS predicate
+`skos:broaderTransitive`; parents are subjects linked by `skos:narrower` or
+`skos:narrowerTransitive`. The equivalent asserted inverse direction is also
+accepted, so concepts created with `concept skos:broader parent` are returned
+without relying on repository inference. Each related concept includes all
+supported label types and languages.
+
+`metadata` uses the common `{property, values}` RDF representation and the
+global `MetadataPolicy`, including the permanent `skos:note` exception. All
+collections are deterministically ordered. Only valid ISO-language graph-family
+members are searched for linked entries and senses; the legacy lexical graph,
+default graph, and syntactically similar graph IRIs with invalid language codes
+are ignored. Stable errors are `MISSING_LEXICAL_CONCEPT_IRI`,
+`INVALID_LEXICAL_CONCEPT_IRI`, `LEXICAL_CONCEPT_NOT_FOUND`, and
+`INVALID_LEXICAL_CONCEPT_TYPE`.
+
 ## PATCH `/lexica/lexicalConcept`
 
 This endpoint atomically updates one existing `ontolex:LexicalConcept`

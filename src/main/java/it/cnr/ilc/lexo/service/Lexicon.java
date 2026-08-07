@@ -6,6 +6,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.LexiconCrudSupport;
+import it.cnr.ilc.lexo.manager.LexicalConceptDetailsManager;
 import it.cnr.ilc.lexo.manager.LexicalConceptManager;
 import it.cnr.ilc.lexo.manager.LexicalConceptUpdateManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryListManager;
@@ -20,6 +21,7 @@ import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeReques
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryCreationResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptCreationResult;
+import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptDetailsResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryStatusChangeResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalConceptUpdateResult;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryUpdateResult;
@@ -52,6 +54,7 @@ public class Lexicon extends Service {
     private final LexicalEntryStatusManager statusManager;
     private final LexicalEntryListManager listManager;
     private final LexicalConceptManager conceptManager;
+    private final LexicalConceptDetailsManager conceptDetailsManager;
     private final LexicalEntryUpdateManager entryUpdateManager;
     private final LexicalConceptUpdateManager conceptUpdateManager;
 
@@ -60,6 +63,7 @@ public class Lexicon extends Service {
                 ManagerFactory.getManager(LexicalEntryStatusManager.class),
                 ManagerFactory.getManager(LexicalEntryListManager.class),
                 ManagerFactory.getManager(LexicalConceptManager.class),
+                ManagerFactory.getManager(LexicalConceptDetailsManager.class),
                 ManagerFactory.getManager(LexicalEntryUpdateManager.class),
                 ManagerFactory.getManager(LexicalConceptUpdateManager.class));
     }
@@ -68,14 +72,66 @@ public class Lexicon extends Service {
             LexicalEntryStatusManager statusManager,
             LexicalEntryListManager listManager,
             LexicalConceptManager conceptManager,
+            LexicalConceptDetailsManager conceptDetailsManager,
             LexicalEntryUpdateManager entryUpdateManager,
             LexicalConceptUpdateManager conceptUpdateManager) {
         this.entryManager = entryManager;
         this.statusManager = statusManager;
         this.listManager = listManager;
         this.conceptManager = conceptManager;
+        this.conceptDetailsManager = conceptDetailsManager;
         this.entryUpdateManager = entryUpdateManager;
         this.conceptUpdateManager = conceptUpdateManager;
+    }
+
+    @GET
+    @Path("lexicalConcept")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Lexical concept details",
+            notes = "Returns all multilingual labels, definitions, linked entries and senses with label fallbacks, concept sets, distinguished hierarchical relations, and common metadata for one lexical concept")
+    public Response getLexicalConcept(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header when LexO user management is enabled",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "lexicalConcept",
+                    value = "absolute IRI of the lexical concept in the fixed lexical-concept named graph",
+                    required = true)
+            @QueryParam("lexicalConcept") String lexicalConcept,
+            @ApiParam(name = "author",
+                    value = "optional account requesting the lexical concept when LexO user management is disabled",
+                    example = "editor", required = false)
+            @QueryParam("author") String author) {
+        try {
+            checkKey(key);
+            resolveAuthor(author);
+            log(Level.INFO, "/lexica/lexicalConcept: retrieving concept="
+                    + lexicalConcept);
+            LexicalConceptDetailsResult result =
+                    conceptDetailsManager.get(lexicalConcept);
+            log(Level.INFO, "/lexica/lexicalConcept: retrieved concept="
+                    + result.lexicalConcept);
+            return jsonOk(result);
+        } catch (IllegalArgumentException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage());
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (LexicalConceptDetailsManager.DetailsException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            String username = authenticationData == null
+                    || authenticationData.getUsername() == null
+                    ? "" : authenticationData.getUsername();
+            log(Level.ERROR, "/lexica/lexicalConcept: " + username
+                    + " not authorized");
+            return plain(Response.Status.BAD_REQUEST,
+                    username + " not authorized");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/lexica/lexicalConcept: " + e.getMessage(), e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
     }
 
     @PATCH
