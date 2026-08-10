@@ -1,6 +1,16 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 7 agosto 2026 dopo l'aggiunta di
+Aggiornato al 9 agosto 2026 dopo la revisione di
+`PATCH /attestations/{fileId}/locus`: il servizio ricollega ora una singola
+attestazione senza modificare fisicamente il locus precedente. Riusa una
+destinazione compatibile, di sistema o LexO, oppure crea un nuovo locus marcato
+LexO quando la destinazione manca. Conserva sempre i loci di sistema e quelli
+ancora condivisi; elimina il precedente soltanto quando è LexO-owned e rimasto
+orfano nell'intera famiglia dei graph di attestazione. I test repository
+dedicati coprono tutte queste combinazioni e gli offset Unicode. La validazione
+completa `mvn test` del 9 agosto 2026 ha eseguito 176 test senza errori o test
+saltati. Rimane valido
+il lavoro del 7 agosto 2026 relativo a
 `GET /lexica/lexicalConcept`, che restituisce il modello completo di un lexical
 concept dal graph fisso: label e definizioni multilingui, entry e sense risolti
 nei soli graph ISO con fallback di label, concept set, gerarchie SKOS dirette e
@@ -585,13 +595,15 @@ completa di 99 test sono passati il 30 luglio 2026; gli end-to-end REST restano
 da eseguire in un ambiente dedicato.
 
 Il lavoro precedente aggiunge `PATCH /attestations/{fileId}/locus` e
-`PATCH /attestations/{fileId}/observable`. Il primo modifica soltanto loci
-LexO non condivisi, ricava la nuova anchor dal testo canonico con offset Unicode,
-sposta l'IRI `#char=start,end` e coordina le transazioni sui due repository con
-compensazione. Il secondo sostituisce atomicamente l'observable per una lista
-validata di attestazioni nello stesso named graph. I DTO dedicati documentano
-input e risultati, inclusi `updateGloss`, locus precedente e observable
-precedenti.
+`PATCH /attestations/{fileId}/observable`. Il primo ricava la nuova anchor dal
+testo canonico con offset Unicode e ricollega una singola attestazione all'IRI
+`#char=start,end`: crea la destinazione se assente, riusa una destinazione
+compatibile se già presente e conserva il vecchio locus quando è di sistema o
+ancora condiviso. Un vecchio locus LexO viene eliminato soltanto se orfano. Le
+transazioni sui due repository mantengono la compensazione. Il secondo
+sostituisce atomicamente l'observable per una lista validata di attestazioni
+nello stesso named graph. I DTO dedicati documentano input e risultati, inclusi
+`updateGloss`, locus precedente e observable precedenti.
 
 Lo stesso lavoro precedente aggiunge inoltre
 `POST /attestations/by-observable` e il DTO ricorsivo

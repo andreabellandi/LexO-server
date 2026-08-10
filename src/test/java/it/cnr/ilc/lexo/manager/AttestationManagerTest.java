@@ -1208,7 +1208,7 @@ class AttestationManagerTest {
     }
 
     @Test
-    void rejectsSharedOrNonGeneratedLocusWithoutChangingAnything()
+    void relinksSharedAttestationsIndividuallyAndDeletesOldLocusWhenOrphaned()
             throws Exception {
         IRI form = iri("https://example.org/lexicon/shared-form");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
@@ -1223,41 +1223,168 @@ class AttestationManagerTest {
         update.start = Integer.valueOf(1);
         update.end = Integer.valueOf(3);
 
-        assertThatThrownBy(() -> manager.updateLocus("file-a", update))
-                .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("LOCUS_NOT_MODIFIABLE")
-                .hasMessageContaining("shared");
+        AttestationLocusUpdateResult result = manager.updateLocus("file-a", update);
 
         IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
         IRI oldLocus = iri(shared.get(0).locus);
+        IRI newLocus = iri("https://example.org/text/interview#char=1,3");
+        assertThat(result.previousLocus).isEqualTo(oldLocus.stringValue());
+        assertThat(result.locus).isEqualTo(newLocus.stringValue());
         try (RepositoryConnection lexical = lexicalRepository.getConnection();
              RepositoryConnection text = textRepository.getConnection()) {
             assertThat(lexical.hasStatement(iri(shared.get(0).attestation),
+                    iri(FRAC + "locus"), newLocus, false, graph)).isTrue();
+            assertThat(lexical.hasStatement(iri(shared.get(1).attestation),
                     iri(FRAC + "locus"), oldLocus, false, graph)).isTrue();
             assertThat(text.hasStatement(oldLocus, iri(NIF + "anchorOf"),
                     vf.createLiteral("A", "it"), false, textGraph)).isTrue();
+            assertThat(text.hasStatement(newLocus,
+                    iri(PROV + "wasGeneratedBy"),
+                    iri("https://lexo.ilc.cnr.it#AttestationService"), false,
+                    textGraph)).isTrue();
         }
 
-        IRI importedLocus = iri("https://example.org/text/interview#char=4,7");
-        try (RepositoryConnection text = textRepository.getConnection()) {
-            text.add(importedLocus, RDF.TYPE, iri(NIF + "Phrase"), textGraph);
-            text.add(importedLocus, iri(NIF + "anchorOf"),
-                    vf.createLiteral("gli", "it"), textGraph);
-            text.add(importedLocus, iri(NIF + "beginIndex"),
-                    vf.createLiteral("4", XSD.NON_NEGATIVE_INTEGER), textGraph);
-            text.add(importedLocus, iri(NIF + "endIndex"),
-                    vf.createLiteral("7", XSD.NON_NEGATIVE_INTEGER), textGraph);
-            text.add(importedLocus, iri(NIF + "referenceContext"), context,
-                    textGraph);
+        update.attestation = shared.get(1).attestation;
+        manager.updateLocus("file-a", update);
+
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(shared.get(0).attestation),
+                    iri(FRAC + "locus"), newLocus, false, graph)).isTrue();
+            assertThat(lexical.hasStatement(iri(shared.get(1).attestation),
+                    iri(FRAC + "locus"), newLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, null, null, false,
+                    textGraph)).isFalse();
+            assertThat(text.hasStatement(newLocus, null, null, false,
+                    textGraph)).isTrue();
         }
+    }
+
+    @Test
+    void relinksFromSystemLocusToNewGeneratedLocusAndPreservesSystemLocus()
+            throws Exception {
+        IRI importedLocus = iri("https://example.org/text/interview#char=4,7");
+        addSystemLocus(importedLocus, "gli", 4, 7);
         Attestation imported = manager.create(observable.stringValue(), "gli", "4",
                 "7", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
         update.attestation = imported.attestation;
+        update.start = Integer.valueOf(1);
+        update.end = Integer.valueOf(3);
+
+        AttestationLocusUpdateResult result = manager.updateLocus("file-a", update);
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        IRI newLocus = iri("https://example.org/text/interview#char=1,3");
+        assertThat(result.locus).isEqualTo(newLocus.stringValue());
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(imported.attestation),
+                    iri(FRAC + "locus"), newLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(importedLocus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("gli", "it"), false, textGraph)).isTrue();
+            assertThat(text.hasStatement(importedLocus,
+                    iri(PROV + "wasGeneratedBy"), null, false,
+                    textGraph)).isFalse();
+            assertThat(text.hasStatement(newLocus,
+                    iri(PROV + "wasGeneratedBy"),
+                    iri("https://lexo.ilc.cnr.it#AttestationService"), false,
+                    textGraph)).isTrue();
+        }
+    }
+
+    @Test
+    void reusesCompatibleSystemDestinationWithoutChangingItsOwnership()
+            throws Exception {
+        IRI oldLocus = iri("https://example.org/text/interview#char=4,7");
+        IRI targetLocus = iri("https://example.org/text/interview#char=8,14");
+        addSystemLocus(oldLocus, "gli", 4, 7);
+        addSystemLocus(targetLocus, "stessi", 8, 14);
+        Attestation imported = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = imported.attestation;
+        update.start = Integer.valueOf(8);
+        update.end = Integer.valueOf(14);
+
+        manager.updateLocus("file-a", update);
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(imported.attestation),
+                    iri(FRAC + "locus"), targetLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, null, null, false,
+                    textGraph)).isTrue();
+            assertThat(text.hasStatement(targetLocus,
+                    iri(PROV + "wasGeneratedBy"), null, false,
+                    textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void reusesCompatibleLexoDestinationAndMakesItShared() throws Exception {
+        IRI oldLocus = iri("https://example.org/text/interview#char=4,7");
+        addSystemLocus(oldLocus, "gli", 4, 7);
+        Attestation target = manager.create(observable.stringValue(), "stessi", "8",
+                "14", context.stringValue(), false, "user7");
+        Attestation imported = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = imported.attestation;
+        update.start = Integer.valueOf(8);
+        update.end = Integer.valueOf(14);
+
+        manager.updateLocus("file-a", update);
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        IRI targetLocus = iri(target.locus);
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(target.attestation),
+                    iri(FRAC + "locus"), targetLocus, false, graph)).isTrue();
+            assertThat(lexical.hasStatement(iri(imported.attestation),
+                    iri(FRAC + "locus"), targetLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(targetLocus,
+                    iri(PROV + "wasGeneratedBy"),
+                    iri("https://lexo.ilc.cnr.it#AttestationService"), false,
+                    textGraph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, null, null, false,
+                    textGraph)).isTrue();
+        }
+    }
+
+    @Test
+    void rejectsIncompatibleDestinationWithoutRelinkingOrDeletingOldLocus()
+            throws Exception {
+        IRI oldLocus = iri("https://example.org/text/interview#char=4,7");
+        IRI targetLocus = iri("https://example.org/text/interview#char=1,3");
+        addSystemLocus(oldLocus, "gli", 4, 7);
+        addSystemLocus(targetLocus, "different", 1, 3);
+        Attestation imported = manager.create(observable.stringValue(), "gli", "4",
+                "7", context.stringValue(), false, "user7");
+        AttestationLocusUpdate update = new AttestationLocusUpdate();
+        update.attestation = imported.attestation;
+        update.start = Integer.valueOf(1);
+        update.end = Integer.valueOf(3);
 
         assertThatThrownBy(() -> manager.updateLocus("file-a", update))
                 .isInstanceOf(ManagerException.class)
-                .hasMessageContaining("LOCUS_NOT_MODIFIABLE")
-                .hasMessageContaining("not generated");
+                .hasMessageContaining("LOCUS_CONFLICT");
+
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(iri(imported.attestation),
+                    iri(FRAC + "locus"), oldLocus, false, graph)).isTrue();
+            assertThat(text.hasStatement(oldLocus, null, null, false,
+                    textGraph)).isTrue();
+            assertThat(text.hasStatement(targetLocus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("different", "it"), false,
+                    textGraph)).isTrue();
+            assertDefaultGraphEmpty(lexical);
+            assertDefaultGraphEmpty(text);
+        }
     }
 
     @Test
@@ -1572,6 +1699,22 @@ class AttestationManagerTest {
                     vf.createLiteral(Integer.toString(end), XSD.NON_NEGATIVE_INTEGER),
                     locusGraph);
             connection.add(locus, iri(NIF + "referenceContext"), context, locusGraph);
+        }
+    }
+
+    private void addSystemLocus(IRI locus, String value, int start, int end) {
+        try (RepositoryConnection connection = textRepository.getConnection()) {
+            connection.add(locus, RDF.TYPE, iri(NIF + "Phrase"), textGraph);
+            connection.add(locus, iri(NIF + "anchorOf"),
+                    vf.createLiteral(value, "it"), textGraph);
+            connection.add(locus, iri(NIF + "beginIndex"),
+                    vf.createLiteral(Integer.toString(start),
+                            XSD.NON_NEGATIVE_INTEGER), textGraph);
+            connection.add(locus, iri(NIF + "endIndex"),
+                    vf.createLiteral(Integer.toString(end),
+                            XSD.NON_NEGATIVE_INTEGER), textGraph);
+            connection.add(locus, iri(NIF + "referenceContext"), context,
+                    textGraph);
         }
     }
 

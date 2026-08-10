@@ -373,7 +373,7 @@ public class AttestationManager implements Manager {
         }
     }
 
-    /** Updates the LexO-generated, unshared NIF locus of one attestation. */
+    /** Relinks one attestation to a validated NIF locus at new offsets. */
     public AttestationLocusUpdateResult updateLocus(String fileIdValue,
                                                      AttestationLocusUpdate input)
             throws ManagerException {
@@ -405,8 +405,8 @@ public class AttestationManager implements Manager {
 
         RepositoryConnection lexical = null;
         RepositoryConnection text = null;
-        Model oldLocusStatements = null;
-        Model newLocusStatements = null;
+        Model removedOldLocusStatements = new LinkedHashModel();
+        Model addedNewLocusStatements = new LinkedHashModel();
         IRI oldLocus = null;
         IRI newLocus = null;
         boolean textCommitted = false;
@@ -424,8 +424,6 @@ public class AttestationManager implements Manager {
                     vf.createIRI(FRAC + "locus"), attestationGraph,
                     "ATTESTATION_LOCUS_MISSING",
                     "ATTESTATION_LOCUS_AMBIGUOUS");
-            ensureModifiableLocus(lexical, text, attestation, oldLocus,
-                    attestationGraph, textGraph);
             IRI referenceContext = uniqueIriObject(text, oldLocus,
                     vf.createIRI(NIF + "referenceContext"), textGraph,
                     "LOCUS_REFERENCE_CONTEXT_MISSING",
@@ -438,29 +436,32 @@ public class AttestationManager implements Manager {
             }
             String value = unicodeSubstring(canonical.getLabel(), start, end);
             newLocus = vf.createIRI(phraseUri(referenceContext, start, end));
-            if (!newLocus.equals(oldLocus)
-                    && text.hasStatement(newLocus, null, null, false, textGraph)) {
-                throw new ManagerException("LOCUS_CONFLICT: the target NIF locus "
-                        + "already exists in the text graph");
-            }
-
-            oldLocusStatements = statementsForSubject(text, oldLocus, textGraph);
             Literal oldAnchor = firstLiteral(text, oldLocus,
                     vf.createIRI(NIF + "anchorOf"), textGraph);
             String language = oldAnchor != null && oldAnchor.getLanguage().isPresent()
                     ? oldAnchor.getLanguage().get()
                     : canonical.getLanguage().orElse(null);
-            newLocusStatements = movedLocusStatements(oldLocusStatements,
-                    newLocus, referenceContext, value, start, end,
-                    language);
+            Model expectedNewLocus = phraseModel(newLocus, referenceContext,
+                    value, start, end, language);
+            addedNewLocusStatements = newStatements(text, expectedNewLocus,
+                    textGraph, newLocus);
+            if (!newLocus.equals(oldLocus)
+                    && isGeneratedLocus(text, oldLocus, textGraph)
+                    && !hasRemainingAttestation(lexical, oldLocus,
+                            Collections.singleton(attestation.stringValue()))) {
+                removedOldLocusStatements = statementsForSubject(text, oldLocus,
+                        textGraph);
+            }
             String modified = timestamp(new Timestamp(System.currentTimeMillis()));
             Literal attestedValue = blank(language) ? vf.createLiteral(value)
                     : vf.createLiteral(value, language);
 
             lexical.begin();
             text.begin();
-            text.remove(oldLocus, null, null, textGraph);
-            text.add(newLocusStatements, textGraph);
+            if (!removedOldLocusStatements.isEmpty()) {
+                text.remove(oldLocus, null, null, textGraph);
+            }
+            text.add(addedNewLocusStatements, textGraph);
             lexical.remove(attestation, vf.createIRI(FRAC + "locus"), null,
                     attestationGraph);
             lexical.add(attestation, vf.createIRI(FRAC + "locus"), newLocus,
@@ -499,9 +500,9 @@ public class AttestationManager implements Manager {
         } catch (RuntimeException e) {
             rollback(lexical);
             rollback(text);
-            if (textCommitted && oldLocusStatements != null && newLocus != null) {
-                compensateLocusUpdate(text, oldLocusStatements, newLocus,
-                        textGraph);
+            if (textCommitted) {
+                compensateLocusRelink(text, removedOldLocusStatements,
+                        addedNewLocusStatements, textGraph);
             }
             throw new ManagerException("ATTESTATION_LOCUS_UPDATE_FAILED: "
                     + message(e), e);
@@ -2479,31 +2480,10 @@ public class AttestationManager implements Manager {
         return result;
     }
 
-    private void ensureModifiableLocus(RepositoryConnection lexical,
-                                       RepositoryConnection text,
-                                       IRI attestation, IRI locus,
-                                       Resource attestationGraph,
-                                       Resource textGraph)
-            throws ManagerException {
-        if (!text.hasStatement(locus, vf.createIRI(PROV + "wasGeneratedBy"),
-                attestationServiceIri(), false, textGraph)) {
-            throw new ManagerException("LOCUS_NOT_MODIFIABLE: the locus was not "
-                    + "generated by LexO AttestationService");
-        }
-        String graphBase = LexicalNamedGraphs.attestationGraphBaseUri();
-        try (RepositoryResult<Statement> statements = lexical.getStatements(null,
-                vf.createIRI(FRAC + "locus"), locus, false)) {
-            while (statements.hasNext()) {
-                Statement statement = statements.next();
-                Resource graph = statement.getContext();
-                if (graph != null && graph.stringValue().startsWith(graphBase)
-                        && (!attestation.equals(statement.getSubject())
-                        || !attestationGraph.equals(graph))) {
-                    throw new ManagerException("LOCUS_NOT_MODIFIABLE: the locus "
-                            + "is shared by another attestation");
-                }
-            }
-        }
+    private boolean isGeneratedLocus(RepositoryConnection text, IRI locus,
+                                     Resource textGraph) {
+        return text.hasStatement(locus, vf.createIRI(PROV + "wasGeneratedBy"),
+                attestationServiceIri(), false, textGraph);
     }
 
     private Model statementsForSubject(RepositoryConnection connection,
@@ -2515,43 +2495,6 @@ public class AttestationManager implements Manager {
                 result.add(statements.next());
             }
         }
-        return result;
-    }
-
-    private Model movedLocusStatements(Model existing, IRI newLocus,
-                                       IRI referenceContext,
-                                       String value, int start, int end,
-                                       String language) {
-        Model result = new LinkedHashModel();
-        Set<String> replaced = new HashSet<String>();
-        replaced.add(NIF + "anchorOf");
-        replaced.add(NIF + "beginIndex");
-        replaced.add(NIF + "endIndex");
-        replaced.add(NIF + "referenceContext");
-        for (Statement statement : existing) {
-            if (!replaced.contains(statement.getPredicate().stringValue())) {
-                result.add(newLocus, statement.getPredicate(),
-                        statement.getObject());
-            }
-        }
-        if (!result.contains(newLocus, RDF.TYPE, vf.createIRI(NIF + "Phrase"))) {
-            result.add(newLocus, RDF.TYPE, vf.createIRI(NIF + "Phrase"));
-        }
-        if (!result.contains(newLocus, RDF.TYPE,
-                vf.createIRI(NIF + "RFC5147String"))) {
-            result.add(newLocus, RDF.TYPE, vf.createIRI(NIF + "RFC5147String"));
-        }
-        Literal anchor = blank(language) ? vf.createLiteral(value)
-                : vf.createLiteral(value, language);
-        result.add(newLocus, vf.createIRI(NIF + "anchorOf"), anchor);
-        result.add(newLocus, vf.createIRI(NIF + "beginIndex"),
-                vf.createLiteral(Integer.toString(start),
-                        XSD.NON_NEGATIVE_INTEGER));
-        result.add(newLocus, vf.createIRI(NIF + "endIndex"),
-                vf.createLiteral(Integer.toString(end),
-                        XSD.NON_NEGATIVE_INTEGER));
-        result.add(newLocus, vf.createIRI(NIF + "referenceContext"),
-                referenceContext);
         return result;
     }
 
@@ -2567,13 +2510,14 @@ public class AttestationManager implements Manager {
         return canonical.substring(beginIndex, endIndex);
     }
 
-    private void compensateLocusUpdate(RepositoryConnection connection,
-                                       Model oldStatements, IRI newLocus,
+    private void compensateLocusRelink(RepositoryConnection connection,
+                                       Model removedOldStatements,
+                                       Model addedNewStatements,
                                        Resource textGraph) {
         try {
             connection.begin();
-            connection.remove(newLocus, null, null, textGraph);
-            connection.add(oldStatements, textGraph);
+            connection.remove(addedNewStatements, textGraph);
+            connection.add(removedOldStatements, textGraph);
             connection.commit();
         } catch (RuntimeException compensationFailure) {
             rollback(connection);

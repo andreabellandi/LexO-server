@@ -57,9 +57,11 @@ starts from the ongoing `Unreleased` work.
   the corresponding NIF locus data.
 - A paginated `POST /attestations/by-observable` service now retrieves one
   observable's attestations across all configured per-text attestation graphs.
-- A `PATCH /attestations/{fileId}/locus` service now moves one unshared,
-  LexO-generated NIF locus to new Unicode code-point offsets and recalculates
-  the attested value from the canonical text, with optional gloss preservation.
+- A `PATCH /attestations/{fileId}/locus` service now relinks one attestation to
+  new Unicode code-point offsets and recalculates the attested value from the
+  canonical text, reusing compatible system or LexO destinations, preserving
+  system and shared previous loci, deleting only orphan LexO loci, and allowing
+  optional gloss preservation.
 - A `PATCH /attestations/{fileId}/observable` service now atomically replaces
   the observable of one or more attestations in one per-document graph.
 - `DELETE /attestations/{fileId}/by-observable` and

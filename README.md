@@ -708,10 +708,10 @@ format (for example, `casa@it`); missing values fall back to `"no label"`.
 `PATCH /service/attestations/{fileId}/locus` changes the locus of one
 attestation. `start` and `end` are Unicode code-point offsets on the canonical
 `nif:isString`; the service derives the replacement text rather than accepting
-it from the client. It moves the NIF resource to the corresponding deterministic
-`#char=start,end` IRI and updates `nif:anchorOf`, `nif:beginIndex`,
-`nif:endIndex`, `rdf:value`, and `dcterms:modified`. `frac:gloss` is updated by
-default and is preserved when `updateGloss` is `false`.
+it from the client. It relinks the selected attestation to the corresponding
+deterministic `#char=start,end` IRI and updates `rdf:value` and
+`dcterms:modified`. `frac:gloss` is updated by default and is preserved when
+`updateGloss` is `false`.
 
 ```json
 {
@@ -722,10 +722,15 @@ default and is preserved when `updateGloss` is `false`.
 }
 ```
 
-Only a locus marked `prov:wasGeneratedBy lexo:AttestationService` and referenced
-exclusively by the selected attestation can be changed. A reused/imported or
-shared locus produces `LOCUS_NOT_MODIFIABLE` without modifying either
-repository. A pre-existing destination IRI produces `LOCUS_CONFLICT`.
+The previous NIF locus is never rewritten or moved. A system locus or a locus
+still shared by another attestation is preserved. An orphan previous locus is
+removed only when it is marked
+`prov:wasGeneratedBy lexo:AttestationService`. If the target IRI does not exist,
+the service creates a new LexO-owned NIF locus with
+`nif:anchorOf`, `nif:beginIndex`, `nif:endIndex`, and `nif:referenceContext`.
+If the target already exists with the same identity data, it is reused without
+changing its types or ownership marker; incompatible data produces
+`LOCUS_CONFLICT`.
 
 `PATCH /service/attestations/{fileId}/observable` replaces the inverse
 `observable frac:attestation attestation` relation for one or more attestations.

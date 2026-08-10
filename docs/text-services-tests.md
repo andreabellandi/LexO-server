@@ -259,10 +259,12 @@ e che un predicato protetto annulli l'intero batch senza scritture parziali.
 
 La stessa classe verifica l'aggiornamento del locus di una singola attestazione:
 gli offset sono interpretati come code point Unicode, il nuovo valore viene
-estratto da `nif:isString`, l'IRI RFC5147 e le triple NIF vengono spostati nel
-graph documento e `rdf:value`/`frac:gloss` vengono aggiornati nel graph delle
-attestazioni. Sono coperti anche `updateGloss=false` e il rifiuto senza effetti
-dei loci condivisi o privi del marcatore LexO. L'aggiornamento observable è
+estratto da `nif:isString`, l'attestazione viene ricollegata all'IRI RFC5147 di
+destinazione e `rdf:value`/`frac:gloss` vengono aggiornati nel graph delle
+attestazioni. I test coprono `updateGloss=false`, la creazione di una
+destinazione assente, il riuso di destinazioni compatibili sia di sistema sia
+LexO, la conservazione dei loci precedenti di sistema o ancora condivisi e la
+cancellazione del solo locus LexO rimasto orfano. L'aggiornamento observable è
 verificato sia come bulk riuscito sia come batch interamente respinto quando una
 delle attestazioni non appartiene al graph selezionato.
 
