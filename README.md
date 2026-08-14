@@ -634,8 +634,9 @@ the batch size. Creation and paginated retrieval JSON items expose the resulting
 integer in `frequency`.
 
 `POST /service/attestations/{fileId}` returns the attestations of one text as a
-paginated JSON response. `observableType` and `author` optionally filter the RDF
-type of the observed lexical entity and the exact `dcterms:creator` value.
+paginated JSON response. `observable` optionally restricts the result to the
+exact IRI of one supported observed lexical entity; `observableType` and
+`author` optionally filter its RDF type and the exact `dcterms:creator` value.
 `limit` defaults to 50 and `offset` defaults to 0. Each result combines FRAC
 metadata from `LexOLexica` with anchor, offsets, language, RDF types and reference
 context read from the corresponding NIF locus in `LexOTexts`. The response does
@@ -680,9 +681,11 @@ IRI or a literal and, for literals, its language or datatype.
 ```
 
 `textMetadata` also supports `EXISTS` without `rdfValues`. Filter trees are
-limited to 50 nodes and five levels. The legacy `author` and `observableType`
-query parameters remain supported and are combined with the JSON filter using
-`AND`. As in the other common RDF payloads, each `rdfValues[].type` is ordinary
+limited to 50 nodes and five levels. The `observable`, `author`, and
+`observableType` query parameters are combined with one another and with the
+JSON filter using `AND`. Exact observable matching is applied before pagination,
+so `totalHits`, `limit`, and `offset` refer only to that observable. As in the
+other common RDF payloads, each `rdfValues[].type` is ordinary
 data and accepts `literal` or `iri` under the Jersey/MOXy binding.
 
 `POST /service/attestations/by-observable?observable={iri}` returns the same

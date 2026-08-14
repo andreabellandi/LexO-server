@@ -768,6 +768,33 @@ class AttestationManagerTest {
     }
 
     @Test
+    void filtersOneTextByExactObservableBeforePagination() throws Exception {
+        IRI form = iri("https://example.org/lexicon/form");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(form, RDF.TYPE, iri(ONTOLEX + "Form"),
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
+        }
+        addPersistedAttestation("file-a", "a", observable, "user7", "A", 0, 1);
+        addPersistedAttestation("file-a", "b", form, "user7", "😀B", 1, 3);
+        addPersistedAttestation("file-a", "c", observable, "user8", "gli", 4, 7);
+
+        AttestationPage page = manager.list("file-a", observable.stringValue(),
+                null, null, null, "1", "1");
+        AttestationPage combined = manager.list("file-a",
+                observable.stringValue(), ONTOLEX + "LexicalEntry", "user7",
+                null, null, null);
+
+        assertThat(page.totalHits).isEqualTo(2);
+        assertThat(page.list).extracting(item -> item.attestation)
+                .containsExactly("https://example.org/attestation/c");
+        assertThat(page.list).extracting(item -> item.observable)
+                .containsOnly(observable.stringValue());
+        assertThat(combined.totalHits).isEqualTo(1);
+        assertThat(combined.list).extracting(item -> item.attestation)
+                .containsExactly("https://example.org/attestation/a");
+    }
+
+    @Test
     void listsOneObservableAcrossTextGraphsAndPaginates() throws Exception {
         IRI secondTextGraph = iri(TEXT_GRAPH_BASE + "file-b");
         try (RepositoryConnection connection = textRepository.getConnection()) {
@@ -1133,6 +1160,10 @@ class AttestationManagerTest {
                 null, null))
                 .isInstanceOf(ManagerException.class)
                 .hasMessageContaining("INVALID_FILE_ID");
+        assertThatThrownBy(() -> manager.list("file-a", "not an IRI", null,
+                null, null, null, null))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageContaining("INVALID_IRI");
     }
 
     @Test

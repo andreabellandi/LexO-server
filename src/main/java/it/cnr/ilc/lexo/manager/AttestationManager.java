@@ -1203,7 +1203,7 @@ public class AttestationManager implements Manager {
     public AttestationPage list(String fileIdValue, String observableTypeValue,
                                 String authorValue, String limitValue,
                                 String offsetValue) throws ManagerException {
-        return list(fileIdValue, observableTypeValue, authorValue, null,
+        return list(fileIdValue, null, observableTypeValue, authorValue, null,
                 limitValue, offsetValue);
     }
 
@@ -1212,7 +1212,18 @@ public class AttestationManager implements Manager {
                                 String authorValue, AttestationFilter filter,
                                 String limitValue, String offsetValue)
             throws ManagerException {
+        return list(fileIdValue, null, observableTypeValue, authorValue, filter,
+                limitValue, offsetValue);
+    }
+
+    /** Returns one filtered page, optionally restricted to one exact observable. */
+    public AttestationPage list(String fileIdValue, String observableValue,
+                                String observableTypeValue, String authorValue,
+                                AttestationFilter filter, String limitValue,
+                                String offsetValue) throws ManagerException {
         String fileId = required("fileId", fileIdValue);
+        IRI requestedObservable = blank(observableValue) ? null
+                : iri("observable", observableValue.trim());
         final IRI attestationGraph;
         try {
             attestationGraph = vf.createIRI(
@@ -1235,6 +1246,13 @@ public class AttestationManager implements Manager {
             List<AttestationMatch> matches = new ArrayList<AttestationMatch>();
             Map<String, Resource> textSubjects = new HashMap<String, Resource>();
             Map<String, Resource> observableGraphs = new HashMap<String, Resource>();
+            Resource requestedObservableGraph = null;
+            if (requestedObservable != null) {
+                requestedObservableGraph = resolveObservableGraph(lexical,
+                        requestedObservable);
+                observableGraphs.put(requestedObservable.stringValue(),
+                        requestedObservableGraph);
+            }
             try (RepositoryResult<Statement> statements = lexical.getStatements(null,
                     RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false,
                     attestationGraph)) {
@@ -1242,16 +1260,28 @@ public class AttestationManager implements Manager {
                     Resource resource = statements.next().getSubject();
                     List<Resource> observables = observablesForAttestation(lexical,
                             resource, attestationGraph);
+                    if (requestedObservable != null
+                            && !observables.contains(requestedObservable)) {
+                        continue;
+                    }
+                    List<Resource> filteredObservables = requestedObservable == null
+                            ? observables : Collections.<Resource>singletonList(
+                                    requestedObservable);
                     if (!matchesFilter(effectiveFilter, lexical, text, resource,
-                            observables, attestationGraph, textGraph, fileId,
+                            filteredObservables, attestationGraph, textGraph, fileId,
                             textSubjects, observableGraphs)) {
                         continue;
                     }
-                    Resource preferred = preferredObservable(lexical, observables,
-                            effectiveFilter, observableGraphs);
+                    Resource preferred = requestedObservable == null
+                            ? preferredObservable(lexical, observables,
+                                    effectiveFilter, observableGraphs)
+                            : requestedObservable;
                     matches.add(new AttestationMatch(resource, preferred,
-                            attestationGraph, fileId, observableGraph(lexical,
-                                    preferred, observableGraphs)));
+                            attestationGraph, fileId,
+                            requestedObservable == null
+                                    ? observableGraph(lexical, preferred,
+                                            observableGraphs)
+                                    : requestedObservableGraph));
                 }
             }
             return page(lexical, text, matches, limit, offset);

@@ -1,6 +1,14 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 9 agosto 2026 dopo la revisione di
+Aggiornato al 14 agosto 2026 dopo l'aggiunta del filtro query opzionale
+`observable` a `POST /attestations/{fileId}`. Il vincolo seleziona l'IRI esatta
+nel named graph documentale, si combina in `AND` con autore, tipo e filtro JSON
+ed è applicato prima del conteggio e della paginazione. Il test repository
+dedicato verifica selezione, composizione dei filtri e `totalHits`. La suite
+completa del 14 agosto 2026 ha eseguito 177 test senza errori o test saltati;
+restano soltanto i warning ambientali già noti sui tracking file Maven nel
+sandbox e sul binding SLF4J. Rimane valido il lavoro del 9 agosto 2026 dopo la
+revisione di
 `PATCH /attestations/{fileId}/locus`: il servizio ricollega ora una singola
 attestazione senza modificare fisicamente il locus precedente. Riusa una
 destinazione compatibile, di sistema o LexO, oppure crea un nuovo locus marcato
@@ -289,8 +297,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
   `dcterms:language` del contesto testuale viene applicato a `nif:anchorOf`,
   `frac:gloss` e `rdf:value` quando disponibile. Le occorrenze non accettano più
   `description` e le nuove attestazioni non scrivono `dcterms:description`.
-- Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per tipo
-  dell'osservabile e creator, arricchito con i dati del locus da `LexOTexts`.
+- Endpoint paginato `POST /attestations/{fileId}` con filtri opzionali per IRI
+  esatta dell'observable, tipo dell'osservabile e creator, arricchito con i dati
+  del locus da `LexOTexts`; ogni filtro viene applicato prima di conteggio e
+  paginazione.
 - Endpoint paginato `POST /attestations/by-observable` per recuperare le
   attestazioni di un observable attraverso tutti i named graph per documento,
   con lo stesso output arricchito del servizio per testo.

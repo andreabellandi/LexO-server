@@ -88,6 +88,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- `POST /attestations/{fileId}` now accepts an optional exact `observable` IRI
+  filter, combined with the existing query and JSON filters before counting and
+  pagination.
 - The global metadata policy now always permits `skos:note` on writes and
   includes it in metadata reads, while other SKOS properties remain protected.
 - New lexical CRUD and attestation services now resolve application data only

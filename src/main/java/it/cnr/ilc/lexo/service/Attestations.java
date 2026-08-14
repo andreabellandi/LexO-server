@@ -339,13 +339,17 @@ public class Attestations extends Service {
     @javax.ws.rs.Path("{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text attestations retrieval",
-            notes = "This method returns a paginated list of the attestations stored for one text, including observable display labels, per-text frequencies, and NIF locus data; an optional JSON filter supports nested AND/OR conditions on attestation creators, text metadata, and observable types; attestation descriptions are not included")
+            notes = "This method returns a paginated list of the attestations stored for one text, including observable display labels, per-text frequencies, and NIF locus data; optional query parameters filter by the exact observable, observable type, or creator, while an optional JSON filter supports nested AND/OR conditions on attestation creators, text metadata, and observable types; attestation descriptions are not included")
     public Response list(
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "fileId",
                     value = "id of the text whose attestation graph must be queried",
                     example = "550e8400-e29b-41d4-a716-446655440000", required = true)
             @PathParam("fileId") String fileId,
+            @ApiParam(name = "observable",
+                    value = "optional exact IRI of the observed lexical entity whose attestations must be returned",
+                    example = "https://lexo.ilc.cnr.it#LexO_example", required = false)
+            @QueryParam("observable") String observable,
             @ApiParam(name = "observableType",
                     value = "optional RDF type IRI used to filter the observed lexical entities",
                     example = "http://www.w3.org/ns/lemon/ontolex#LexicalEntry", required = false)
@@ -363,15 +367,15 @@ public class Attestations extends Service {
                     example = "0", required = false)
             @QueryParam("offset") String offset,
             @ApiParam(name = "filter",
-                    value = "optional nested AND/OR filter tree; legacy observableType and author parameters are combined with it using AND",
+                    value = "optional nested AND/OR filter tree; observable, observableType, and author query parameters are combined with it using AND",
                     required = false)
             AttestationFilter filter) {
         try {
             checkKey(key);
             log(Level.INFO, "/attestations/{fileId}: listing attestations for fileId="
                     + fileId);
-            return json(manager.list(fileId, observableType, author, filter,
-                    limit, offset));
+            return json(manager.list(fileId, observable, observableType, author,
+                    filter, limit, offset));
         } catch (ManagerException e) {
             log(Level.ERROR, "/attestations/{fileId}: " + e.getMessage());
             return plain(Response.Status.BAD_REQUEST, e.getMessage());

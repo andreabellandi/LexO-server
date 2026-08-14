@@ -272,7 +272,10 @@ delle attestazioni non appartiene al graph selezionato.
 
 I test repository in `AttestationManagerTest` verificano anche la ricerca
 paginata delle attestazioni di un observable attraverso più named graph e il
-filtro condiviso con la consultazione per testo. La copertura comprende gruppi
+filtro condiviso con la consultazione per testo. La consultazione per testo
+copre inoltre il filtro query opzionale per IRI esatta dell'observable, applicato
+prima di conteggio e paginazione e combinabile in `AND` con autore, tipo e body.
+La copertura comprende gruppi
 `AND`/`OR` annidati, più autori in alternativa, metadati del testo confrontati
 come valori RDF esatti, più tipi OntoLex in `OR` e sottoclassi transitive di
 `ontolex:LexicalEntry`. Sono verificati inoltre `totalHits`, `limit`, `offset`,
