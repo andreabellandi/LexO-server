@@ -91,6 +91,10 @@ starts from the ongoing `Unreleased` work.
 - `POST /attestations/{fileId}` now accepts an optional exact `observable` IRI
   filter, combined with the existing query and JSON filters before counting and
   pagination.
+- Unfiltered `POST /attestations/{fileId}` retrieval, including exact-observable
+  requests, now counts, orders, and paginates in GraphDB and batch-loads the
+  selected FRAC and NIF details, avoiding full in-memory scans and per-field
+  repository round trips.
 - The global metadata policy now always permits `skos:note` on writes and
   includes it in metadata reads, while other SKOS properties remain protected.
 - New lexical CRUD and attestation services now resolve application data only

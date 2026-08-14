@@ -707,6 +707,12 @@ class AttestationManagerTest {
         addFrequency("file-a", observable, context, 2);
         addFrequency("file-a", form, context, 1);
         addFrequency("file-b", observable, context, 1);
+        IRI source = iri("https://example.org/vocabulary/source");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(iri("https://example.org/attestation/a"), source,
+                    vf.createLiteral("batch-loaded", "en"),
+                    iri(LexicalNamedGraphs.attestationGraphUri("file-a")));
+        }
 
         AttestationPage page = manager.list("file-a", null, null, null, null);
 
@@ -728,6 +734,12 @@ class AttestationManagerTest {
         assertThat(first.language).isEqualTo("it");
         assertThat(first.referenceContext).isEqualTo(context.stringValue());
         assertThat(first.locusTypes).contains(NIF + "Phrase", NIF + "RFC5147String");
+        assertThat(first.metadata).containsKey(source.stringValue());
+        assertThat(first.metadata.get(source.stringValue())).singleElement()
+                .satisfies(value -> {
+                    assertThat(value.value).isEqualTo("batch-loaded");
+                    assertThat(value.language).isEqualTo("en");
+                });
         assertThat(new ObjectMapper().writeValueAsString(page))
                 .doesNotContain("\"description\"");
         try (RepositoryConnection connection = lexicalRepository.getConnection()) {
@@ -736,6 +748,25 @@ class AttestationManagerTest {
                     vf.createLiteral("Description a"), false,
                     iri(LexicalNamedGraphs.attestationGraphUri("file-a")))).isTrue();
         }
+    }
+
+    @Test
+    void serverSidePageRetainsAnAttestationWithoutObservable() throws Exception {
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        IRI orphan = iri("https://example.org/attestation/orphan");
+        try (RepositoryConnection connection = lexicalRepository.getConnection()) {
+            connection.add(orphan, RDF.TYPE, iri(FRAC + "Attestation"), graph);
+            connection.add(orphan, RDF.VALUE, vf.createLiteral("orphan"), graph);
+        }
+
+        AttestationPage page = manager.list("file-a", null, null, null, null);
+
+        assertThat(page.totalHits).isEqualTo(1);
+        assertThat(page.list).singleElement().satisfies(item -> {
+            assertThat(item.attestation).isEqualTo(orphan.stringValue());
+            assertThat(item.observable).isNull();
+            assertThat(item.value).isEqualTo("orphan");
+        });
     }
 
     @Test

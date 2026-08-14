@@ -24,7 +24,6 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpda
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
-import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -54,9 +53,16 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.XSD;
+import org.eclipse.rdf4j.query.BindingSet;
+import org.eclipse.rdf4j.query.GraphQuery;
+import org.eclipse.rdf4j.query.GraphQueryResult;
+import org.eclipse.rdf4j.query.QueryLanguage;
+import org.eclipse.rdf4j.query.TupleQuery;
+import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryResult;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 
 /** Manages FRAC attestations, their metadata, and corresponding NIF loci. */
 public class AttestationManager implements Manager {
@@ -1253,6 +1259,39 @@ public class AttestationManager implements Manager {
                 observableGraphs.put(requestedObservable.stringValue(),
                         requestedObservableGraph);
             }
+            if (effectiveFilter == null) {
+                return queryPage(lexical, text, attestationGraph, fileId,
+                        requestedObservable, requestedObservableGraph,
+                        observableGraphs, limit, offset);
+            }
+            if (requestedObservable != null) {
+                IRI relation = vf.createIRI(FRAC + "attestation");
+                try (RepositoryResult<Statement> statements = lexical.getStatements(
+                        requestedObservable, relation, null, false,
+                        attestationGraph)) {
+                    while (statements.hasNext()) {
+                        Value value = statements.next().getObject();
+                        if (!(value instanceof Resource)
+                                || !lexical.hasStatement((Resource) value,
+                                        RDF.TYPE, vf.createIRI(FRAC + "Attestation"),
+                                        false, attestationGraph)) {
+                            continue;
+                        }
+                        List<Resource> observables =
+                                Collections.<Resource>singletonList(
+                                        requestedObservable);
+                        if (matchesFilter(effectiveFilter, lexical, text,
+                                (Resource) value, observables, attestationGraph,
+                                textGraph, fileId, textSubjects,
+                                observableGraphs)) {
+                            matches.add(new AttestationMatch((Resource) value,
+                                    requestedObservable, attestationGraph, fileId,
+                                    requestedObservableGraph));
+                        }
+                    }
+                }
+                return page(lexical, text, matches, limit, offset);
+            }
             try (RepositoryResult<Statement> statements = lexical.getStatements(null,
                     RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false,
                     attestationGraph)) {
@@ -1291,6 +1330,203 @@ public class AttestationManager implements Manager {
             connections.release(RepositoryTarget.TEXT, text);
             connections.release(RepositoryTarget.LEXICON, lexical);
         }
+    }
+
+    private AttestationPage queryPage(RepositoryConnection lexical,
+                                      RepositoryConnection text,
+                                      IRI attestationGraph, String fileId,
+                                      IRI requestedObservable,
+                                      Resource requestedObservableGraph,
+                                      Map<String, Resource> observableGraphs,
+                                      int limit, int offset)
+            throws ManagerException {
+        int totalHits = countPageCandidates(lexical, attestationGraph,
+                requestedObservable);
+        AttestationPage page = new AttestationPage();
+        page.totalHits = totalHits;
+        page.limit = limit;
+        page.offset = offset;
+        if (offset >= totalHits) {
+            return page;
+        }
+        List<AttestationMatch> matches = selectPageCandidates(lexical,
+                attestationGraph, fileId, requestedObservable,
+                requestedObservableGraph, observableGraphs, limit, offset);
+        return fillPage(lexical, text, matches, page);
+    }
+
+    private int countPageCandidates(RepositoryConnection connection,
+                                    Resource graph, IRI requestedObservable)
+            throws ManagerException {
+        StringBuilder sparql = new StringBuilder();
+        sparql.append("SELECT (COUNT(DISTINCT ?attestation) AS ?totalHits) WHERE { ")
+                .append("GRAPH ?attestationGraph { ")
+                .append("?attestation ?typePredicate ?attestationType . ");
+        if (requestedObservable != null) {
+            sparql.append("?requestedObservable ?relation ?attestation . ");
+        }
+        sparql.append("} }");
+        TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL,
+                sparql.toString());
+        bindAttestationSelection(query, graph, requestedObservable);
+        query.setIncludeInferred(false);
+        try (TupleQueryResult result = query.evaluate()) {
+            if (!result.hasNext()) {
+                return 0;
+            }
+            Value total = result.next().getValue("totalHits");
+            if (!(total instanceof Literal)) {
+                return 0;
+            }
+            return ((Literal) total).intValue();
+        } catch (RuntimeException e) {
+            throw new ManagerException("ATTESTATION_COUNT_FAILED: " + message(e), e);
+        }
+    }
+
+    private List<AttestationMatch> selectPageCandidates(
+            RepositoryConnection connection, Resource graph, String fileId,
+            IRI requestedObservable, Resource requestedObservableGraph,
+            Map<String, Resource> observableGraphs, int limit, int offset)
+            throws ManagerException {
+        StringBuilder sparql = new StringBuilder();
+        if (requestedObservable == null) {
+            sparql.append("SELECT ?attestation (MIN(STR(?candidate)) AS ?observableValue) ");
+        } else {
+            sparql.append("SELECT ?attestation ");
+        }
+        sparql.append("WHERE { GRAPH ?attestationGraph { ")
+                .append("?attestation ?typePredicate ?attestationType . ");
+        if (requestedObservable == null) {
+            sparql.append("OPTIONAL { ?candidate ?relation ?attestation . } ");
+        } else {
+            sparql.append("?requestedObservable ?relation ?attestation . ");
+        }
+        sparql.append("} } ");
+        if (requestedObservable == null) {
+            sparql.append("GROUP BY ?attestation ");
+        }
+        sparql.append("ORDER BY STR(?attestation) LIMIT ")
+                .append(limit).append(" OFFSET ").append(offset);
+        TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL,
+                sparql.toString());
+        bindAttestationSelection(query, graph, requestedObservable);
+        query.setIncludeInferred(false);
+        List<PageCandidate> candidates = new ArrayList<PageCandidate>();
+        try (TupleQueryResult result = query.evaluate()) {
+            while (result.hasNext()) {
+                BindingSet row = result.next();
+                Value attestationValue = row.getValue("attestation");
+                if (!(attestationValue instanceof Resource)) {
+                    continue;
+                }
+                Resource observable = requestedObservable;
+                if (observable == null) {
+                    Value observableValue = row.getValue("observableValue");
+                    if (observableValue instanceof Literal
+                            && !blank(observableValue.stringValue())) {
+                        observable = vf.createIRI(observableValue.stringValue());
+                    }
+                }
+                candidates.add(new PageCandidate((Resource) attestationValue,
+                        observable));
+            }
+        } catch (RuntimeException e) {
+            throw new ManagerException("ATTESTATION_PAGE_FAILED: " + message(e), e);
+        }
+        if (requestedObservable == null) {
+            List<Resource> observables = new ArrayList<Resource>();
+            for (PageCandidate candidate : candidates) {
+                if (candidate.observable != null
+                        && !observables.contains(candidate.observable)) {
+                    observables.add(candidate.observable);
+                }
+            }
+            resolveObservableGraphs(connection, observables, observableGraphs);
+        }
+        List<AttestationMatch> matches = new ArrayList<AttestationMatch>();
+        for (PageCandidate candidate : candidates) {
+            Resource observableGraph = requestedObservableGraph;
+            if (requestedObservable == null && candidate.observable != null) {
+                observableGraph = observableGraphs.get(
+                        candidate.observable.stringValue());
+            }
+            matches.add(new AttestationMatch(candidate.attestation,
+                    candidate.observable, graph, fileId, observableGraph));
+        }
+        return matches;
+    }
+
+    private void bindAttestationSelection(TupleQuery query, Resource graph,
+                                          IRI requestedObservable) {
+        query.setBinding("attestationGraph", graph);
+        query.setBinding("typePredicate", RDF.TYPE);
+        query.setBinding("attestationType", vf.createIRI(FRAC + "Attestation"));
+        query.setBinding("relation", vf.createIRI(FRAC + "attestation"));
+        if (requestedObservable != null) {
+            query.setBinding("requestedObservable", requestedObservable);
+        }
+    }
+
+    private void resolveObservableGraphs(RepositoryConnection connection,
+                                         List<Resource> observables,
+                                         Map<String, Resource> cache)
+            throws ManagerException {
+        List<Resource> unresolved = new ArrayList<Resource>();
+        for (Resource observable : observables) {
+            if (!cache.containsKey(observable.stringValue())) {
+                unresolved.add(observable);
+            }
+        }
+        if (unresolved.isEmpty()) {
+            return;
+        }
+        String sparql = "SELECT DISTINCT ?observable ?type ?graph WHERE { "
+                + "VALUES ?observable { " + sparqlValues(unresolved)
+                + " } GRAPH ?graph { ?observable <" + RDF.TYPE.stringValue()
+                + "> ?type . } }";
+        TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL,
+                sparql);
+        query.setIncludeInferred(true);
+        try (TupleQueryResult result = query.evaluate()) {
+            while (result.hasNext()) {
+                BindingSet row = result.next();
+                Value observableValue = row.getValue("observable");
+                Value type = row.getValue("type");
+                Value graphValue = row.getValue("graph");
+                if (!(observableValue instanceof Resource)
+                        || !(type instanceof IRI)
+                        || !(graphValue instanceof Resource)
+                        || !isObservableGraph((Resource) graphValue)
+                        || !isDirectObservableType((IRI) type,
+                                (Resource) graphValue)) {
+                    continue;
+                }
+                String key = observableValue.stringValue();
+                Resource previous = cache.get(key);
+                if (previous != null && !previous.equals(graphValue)) {
+                    throw new ManagerException("AMBIGUOUS_OBSERVABLE_GRAPH: observable "
+                            + key + " is defined in more than one supported named graph");
+                }
+                cache.put(key, (Resource) graphValue);
+            }
+        }
+        for (Resource observable : unresolved) {
+            if (!cache.containsKey(observable.stringValue())) {
+                Resource graph = findObservableGraph(connection, observable);
+                cache.put(observable.stringValue(), graph);
+            }
+        }
+    }
+
+    private boolean isDirectObservableType(IRI type, Resource graph) {
+        if (graph.stringValue().equals(LexiconCrudSupport.lexicalConceptGraphUri())) {
+            return type.stringValue().equals(ONTOLEX + "LexicalConcept");
+        }
+        String value = type.stringValue();
+        return value.equals(ONTOLEX + "LexicalEntry")
+                || value.equals(ONTOLEX + "Form")
+                || value.equals(ONTOLEX + "LexicalSense");
     }
 
     /** Returns attestations of one observable across all per-text graphs. */
@@ -1384,15 +1620,147 @@ public class AttestationManager implements Manager {
         }
         int end = (int) Math.min((long) matches.size(),
                 (long) offset + (long) limit);
+        return fillPage(lexical, text,
+                new ArrayList<AttestationMatch>(matches.subList(offset, end)),
+                page);
+    }
+
+    private AttestationPage fillPage(RepositoryConnection lexical,
+                                     RepositoryConnection text,
+                                     List<AttestationMatch> matches,
+                                     AttestationPage page) {
+        PageModels models = loadPageModels(lexical, text, matches);
         Map<String, String> observableLabels = new HashMap<String, String>();
-        for (AttestationMatch match : matches.subList(offset, end)) {
+        Map<String, List<String>> observableTypes =
+                new HashMap<String, List<String>>();
+        for (AttestationMatch match : matches) {
             Resource textGraph = vf.createIRI(textGraphBase + "documents/"
                     + match.fileId);
-            page.list.add(readAttestation(lexical, text, match.attestation,
-                    match.observable, match.graph, match.observableGraph, textGraph,
-                    match.fileId, observableLabels));
+            page.list.add(readAttestation(lexical, match.attestation,
+                    match.observable, match.observableGraph, match.fileId,
+                    observableLabels, observableTypes,
+                    models.lexical(match.graph), models.text(textGraph)));
         }
         return page;
+    }
+
+    private PageModels loadPageModels(RepositoryConnection lexical,
+                                      RepositoryConnection text,
+                                      List<AttestationMatch> matches) {
+        PageModels result = new PageModels();
+        Map<String, ResourceGroup> attestationGroups =
+                new LinkedHashMap<String, ResourceGroup>();
+        for (AttestationMatch match : matches) {
+            addResource(attestationGroups, match.graph, match.attestation);
+        }
+        for (ResourceGroup group : attestationGroups.values()) {
+            Model model = loadAttestationModel(lexical, group.graph,
+                    group.resources);
+            result.lexical.put(group.graph.stringValue(), model);
+            for (Statement statement : model.filter(null,
+                    vf.createIRI(FRAC + "locus"), null)) {
+                if (statement.getObject() instanceof Resource) {
+                    String fileId = fileIdForAttestation(matches,
+                            statement.getSubject(), group.graph);
+                    if (fileId != null) {
+                        Resource textGraph = vf.createIRI(textGraphBase
+                                + "documents/" + fileId);
+                        addResource(result.locusGroups, textGraph,
+                                (Resource) statement.getObject());
+                    }
+                }
+            }
+        }
+        for (ResourceGroup group : result.locusGroups.values()) {
+            result.text.put(group.graph.stringValue(), loadResourceModel(text,
+                    group.graph, group.resources));
+        }
+        return result;
+    }
+
+    private void addResource(Map<String, ResourceGroup> groups, Resource graph,
+                             Resource resource) {
+        String key = graph.stringValue();
+        ResourceGroup group = groups.get(key);
+        if (group == null) {
+            group = new ResourceGroup(graph);
+            groups.put(key, group);
+        }
+        if (!group.resources.contains(resource)) {
+            group.resources.add(resource);
+        }
+    }
+
+    private String fileIdForAttestation(List<AttestationMatch> matches,
+                                        Resource attestation, Resource graph) {
+        for (AttestationMatch match : matches) {
+            if (match.graph.equals(graph)
+                    && match.attestation.equals(attestation)) {
+                return match.fileId;
+            }
+        }
+        return null;
+    }
+
+    private Model loadAttestationModel(RepositoryConnection connection,
+                                       Resource graph,
+                                       List<Resource> attestations) {
+        if (attestations.isEmpty()) {
+            return new LinkedHashModel();
+        }
+        String values = sparqlValues(attestations);
+        String sparql = "CONSTRUCT { "
+                + "?attestation ?property ?value . "
+                + "?observable <" + FRAC + "attestation> ?attestation . "
+                + "?observable <" + FRAC + "frequency> ?frequency . "
+                + "?frequency ?frequencyProperty ?frequencyValue . "
+                + "} WHERE { GRAPH ?graph { VALUES ?attestation { " + values
+                + " } { ?attestation ?property ?value . } UNION { "
+                + "?observable <" + FRAC + "attestation> ?attestation . "
+                + "} UNION { ?observable <" + FRAC
+                + "attestation> ?attestation ; <" + FRAC
+                + "frequency> ?frequency . "
+                + "?frequency ?frequencyProperty ?frequencyValue . } } }";
+        return evaluateGraphQuery(connection, graph, sparql);
+    }
+
+    private Model loadResourceModel(RepositoryConnection connection,
+                                    Resource graph,
+                                    List<Resource> resources) {
+        if (resources.isEmpty()) {
+            return new LinkedHashModel();
+        }
+        String sparql = "CONSTRUCT { ?resource ?property ?value . } "
+                + "WHERE { GRAPH ?graph { VALUES ?resource { "
+                + sparqlValues(resources)
+                + " } ?resource ?property ?value . } }";
+        return evaluateGraphQuery(connection, graph, sparql);
+    }
+
+    private Model evaluateGraphQuery(RepositoryConnection connection,
+                                     Resource graph, String sparql) {
+        GraphQuery query = connection.prepareGraphQuery(QueryLanguage.SPARQL,
+                sparql);
+        query.setBinding("graph", graph);
+        query.setIncludeInferred(false);
+        Model result = new LinkedHashModel();
+        try (GraphQueryResult statements = query.evaluate()) {
+            while (statements.hasNext()) {
+                result.add(statements.next());
+            }
+        }
+        return result;
+    }
+
+    private String sparqlValues(List<Resource> resources) {
+        StringBuilder result = new StringBuilder();
+        for (Resource resource : resources) {
+            if (result.length() > 0) {
+                result.append(' ');
+            }
+            result.append(NTriplesUtil.toNTriplesString(resource));
+        }
+        return result.toString();
     }
 
     private List<Resource> observablesForAttestation(RepositoryConnection connection,
@@ -1700,14 +2068,12 @@ public class AttestationManager implements Manager {
         return false;
     }
 
-    private AttestationListItem readAttestation(RepositoryConnection lexical,
-                                                RepositoryConnection text,
-                                                Resource attestation,
-                                                Resource observable,
-                                                Resource attestationGraph,
-                                                Resource lexicalGraph,
-                                                Resource textGraph, String fileId,
-                                                Map<String, String> observableLabels) {
+    private AttestationListItem readAttestation(
+            RepositoryConnection lexical, Resource attestation,
+            Resource observable, Resource lexicalGraph, String fileId,
+            Map<String, String> observableLabels,
+            Map<String, List<String>> observableTypes,
+            Model attestationModel, Model textModel) {
         AttestationListItem result = new AttestationListItem();
         result.attestation = attestation.stringValue();
         result.fileId = fileId;
@@ -1715,55 +2081,60 @@ public class AttestationManager implements Manager {
         result.observable = observable == null ? null : observable.stringValue();
         result.observableLabel = NO_LABEL;
         if (observable != null && lexicalGraph != null) {
-            result.observableTypes = rdfTypes(lexical, observable, lexicalGraph);
             String key = observable.stringValue();
+            if (!observableTypes.containsKey(key)) {
+                observableTypes.put(key, rdfTypes(lexical, observable,
+                        lexicalGraph));
+            }
+            result.observableTypes = new ArrayList<String>(
+                    observableTypes.get(key));
             if (!observableLabels.containsKey(key)) {
                 observableLabels.put(key, observableLabel(lexical, observable,
                         lexicalGraph));
             }
             result.observableLabel = observableLabels.get(key);
         }
-        result.creator = firstString(lexical, attestation, DCTERMS.CREATOR,
-                attestationGraph);
-        result.creationDate = firstString(lexical, attestation, DCTERMS.CREATED,
-                attestationGraph);
-        result.lastUpdate = firstString(lexical, attestation, DCTERMS.MODIFIED,
-                attestationGraph);
-        result.metadata = readMetadata(lexical, attestation, attestationGraph);
-        result.value = firstString(lexical, attestation, RDF.VALUE, attestationGraph);
+        result.creator = firstString(attestationModel, attestation,
+                DCTERMS.CREATOR);
+        result.creationDate = firstString(attestationModel, attestation,
+                DCTERMS.CREATED);
+        result.lastUpdate = firstString(attestationModel, attestation,
+                DCTERMS.MODIFIED);
+        result.metadata = readMetadata(attestationModel, attestation);
+        result.value = firstString(attestationModel, attestation, RDF.VALUE);
         if (result.value == null) {
-            result.value = firstString(lexical, attestation,
-                    vf.createIRI(FRAC + "gloss"), attestationGraph);
+            result.value = firstString(attestationModel, attestation,
+                    vf.createIRI(FRAC + "gloss"));
         }
-        Value corpus = firstObject(lexical, attestation,
-                vf.createIRI(FRAC + "observedIn"), attestationGraph);
+        Value corpus = firstObject(attestationModel, attestation,
+                vf.createIRI(FRAC + "observedIn"));
         result.corpus = corpus == null ? null : corpus.stringValue();
-        Value locus = firstObject(lexical, attestation,
-                vf.createIRI(FRAC + "locus"), attestationGraph);
+        Value locus = firstObject(attestationModel, attestation,
+                vf.createIRI(FRAC + "locus"));
         result.locus = locus == null ? null : locus.stringValue();
         if (locus instanceof Resource) {
             Resource locusResource = (Resource) locus;
-            result.locusTypes = rdfTypes(text, locusResource, textGraph);
-            Literal anchor = firstLiteral(text, locusResource,
-                    vf.createIRI(NIF + "anchorOf"), textGraph);
+            result.locusTypes = rdfTypes(textModel, locusResource);
+            Literal anchor = firstLiteral(textModel, locusResource,
+                    vf.createIRI(NIF + "anchorOf"));
             if (anchor != null) {
                 result.value = anchor.getLabel();
                 result.language = anchor.getLanguage().orElse(null);
             }
-            result.start = firstInteger(text, locusResource,
-                    vf.createIRI(NIF + "beginIndex"), textGraph);
-            result.end = firstInteger(text, locusResource,
-                    vf.createIRI(NIF + "endIndex"), textGraph);
-            Value reference = firstObject(text, locusResource,
-                    vf.createIRI(NIF + "referenceContext"), textGraph);
+            result.start = firstInteger(textModel, locusResource,
+                    vf.createIRI(NIF + "beginIndex"));
+            result.end = firstInteger(textModel, locusResource,
+                    vf.createIRI(NIF + "endIndex"));
+            Value reference = firstObject(textModel, locusResource,
+                    vf.createIRI(NIF + "referenceContext"));
             result.referenceContext = reference == null ? null : reference.stringValue();
         }
         if (observable != null) {
             Value frequencyObservedIn = blank(result.referenceContext)
                     ? corpus : vf.createIRI(result.referenceContext);
             if (frequencyObservedIn instanceof IRI) {
-                result.frequency = frequencyValue(lexical, observable,
-                        (IRI) frequencyObservedIn, attestationGraph);
+                result.frequency = frequencyValue(attestationModel, observable,
+                        (IRI) frequencyObservedIn);
             }
         }
         return result;
@@ -1793,6 +2164,45 @@ public class AttestationManager implements Manager {
                 }
                 values.add(value);
             }
+        }
+        List<String> properties = new ArrayList<String>(unsorted.keySet());
+        Collections.sort(properties);
+        Map<String, List<AttestationMetadataValue>> result =
+                new LinkedHashMap<String, List<AttestationMetadataValue>>();
+        for (String property : properties) {
+            List<AttestationMetadataValue> values = unsorted.get(property);
+            Collections.sort(values, new Comparator<AttestationMetadataValue>() {
+                @Override
+                public int compare(AttestationMetadataValue left,
+                                   AttestationMetadataValue right) {
+                    return metadataSortKey(left).compareTo(metadataSortKey(right));
+                }
+            });
+            result.put(property, values);
+        }
+        return result;
+    }
+
+    private Map<String, List<AttestationMetadataValue>> readMetadata(
+            Model model, Resource attestation) {
+        Map<String, List<AttestationMetadataValue>> unsorted =
+                new HashMap<String, List<AttestationMetadataValue>>();
+        for (Statement statement : model.filter(attestation, null, null)) {
+            String property = statement.getPredicate().stringValue();
+            if (MetadataPolicy.isProtected(property)) {
+                continue;
+            }
+            AttestationMetadataValue value =
+                    outputMetadataValue(statement.getObject());
+            if (value == null) {
+                continue;
+            }
+            List<AttestationMetadataValue> values = unsorted.get(property);
+            if (values == null) {
+                values = new ArrayList<AttestationMetadataValue>();
+                unsorted.put(property, values);
+            }
+            values.add(value);
         }
         List<String> properties = new ArrayList<String>(unsorted.keySet());
         Collections.sort(properties);
@@ -1987,6 +2397,18 @@ public class AttestationManager implements Manager {
         return types;
     }
 
+    private List<String> rdfTypes(Model model, Resource subject) {
+        List<String> types = new ArrayList<String>();
+        for (Statement statement : model.filter(subject, RDF.TYPE, null)) {
+            Value type = statement.getObject();
+            if (type instanceof IRI && !types.contains(type.stringValue())) {
+                types.add(type.stringValue());
+            }
+        }
+        Collections.sort(types);
+        return types;
+    }
+
     private boolean hasStringValue(RepositoryConnection connection, Resource subject,
                                    IRI predicate, String expected, Resource graph) {
         try (RepositoryResult<Statement> statements = connection.getStatements(
@@ -2004,6 +2426,18 @@ public class AttestationManager implements Manager {
                                IRI predicate, Resource graph) {
         Value value = firstObject(connection, subject, predicate, graph);
         return value == null ? null : value.stringValue();
+    }
+
+    private String firstString(Model model, Resource subject, IRI predicate) {
+        Value value = firstObject(model, subject, predicate);
+        return value == null ? null : value.stringValue();
+    }
+
+    private Value firstObject(Model model, Resource subject, IRI predicate) {
+        for (Statement statement : model.filter(subject, predicate, null)) {
+            return statement.getObject();
+        }
+        return null;
     }
 
     private Value firstObject(RepositoryConnection connection, Resource subject,
@@ -2031,6 +2465,52 @@ public class AttestationManager implements Manager {
         try {
             return Integer.valueOf(((Literal) value).intValue());
         } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private Integer firstInteger(Model model, Resource subject, IRI predicate) {
+        Value value = firstObject(model, subject, predicate);
+        if (!(value instanceof Literal)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(((Literal) value).intValue());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private Literal firstLiteral(Model model, Resource subject, IRI predicate) {
+        Value value = firstObject(model, subject, predicate);
+        return value instanceof Literal ? (Literal) value : null;
+    }
+
+    private Integer frequencyValue(Model model, Resource observable,
+                                   IRI observedIn) {
+        IRI frequencyRelation = vf.createIRI(FRAC + "frequency");
+        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
+        List<Resource> matches = new ArrayList<Resource>();
+        for (Statement statement : model.filter(observable, frequencyRelation,
+                null)) {
+            Value candidate = statement.getObject();
+            if (candidate instanceof Resource
+                    && model.contains((Resource) candidate, observedInRelation,
+                            observedIn)) {
+                matches.add((Resource) candidate);
+            }
+        }
+        if (matches.size() != 1) {
+            return null;
+        }
+        Literal value = firstLiteral(model, matches.get(0), RDF.VALUE);
+        if (value == null) {
+            return null;
+        }
+        try {
+            int parsed = value.intValue();
+            return parsed < 0 ? null : Integer.valueOf(parsed);
+        } catch (RuntimeException e) {
             return null;
         }
     }
@@ -2770,6 +3250,42 @@ public class AttestationManager implements Manager {
             this.graph = graph;
             this.fileId = fileId;
             this.observableGraph = observableGraph;
+        }
+    }
+
+    private static final class PageCandidate {
+        final Resource attestation;
+        final Resource observable;
+
+        PageCandidate(Resource attestation, Resource observable) {
+            this.attestation = attestation;
+            this.observable = observable;
+        }
+    }
+
+    private static final class ResourceGroup {
+        final Resource graph;
+        final List<Resource> resources = new ArrayList<Resource>();
+
+        ResourceGroup(Resource graph) {
+            this.graph = graph;
+        }
+    }
+
+    private static final class PageModels {
+        final Map<String, Model> lexical = new HashMap<String, Model>();
+        final Map<String, Model> text = new HashMap<String, Model>();
+        final Map<String, ResourceGroup> locusGroups =
+                new LinkedHashMap<String, ResourceGroup>();
+
+        Model lexical(Resource graph) {
+            Model model = lexical.get(graph.stringValue());
+            return model == null ? new LinkedHashModel() : model;
+        }
+
+        Model text(Resource graph) {
+            Model model = text.get(graph.stringValue());
+            return model == null ? new LinkedHashModel() : model;
         }
     }
 

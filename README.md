@@ -688,6 +688,14 @@ so `totalHits`, `limit`, and `offset` refer only to that observable. As in the
 other common RDF payloads, each `rdfValues[].type` is ordinary
 data and accepts `literal` or `iri` under the Jersey/MOXy binding.
 
+For the common unfiltered request, including the optional exact `observable`
+constraint, GraphDB performs the distinct count, deterministic ordering,
+`LIMIT`, and `OFFSET` before any result enrichment. The selected page's FRAC
+properties, frequencies, and NIF loci are then fetched in batches per named
+graph instead of issuing one repository request for every field of every
+attestation. Requests with creator, observable-type, or JSON filter conditions
+retain the same semantics and also use batched page enrichment after filtering.
+
 `POST /service/attestations/by-observable?observable={iri}` returns the same
 paginated response across every configured per-text attestation graph. It uses
 the same optional filter body and the same `limit` and `offset` query parameters.

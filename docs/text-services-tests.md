@@ -275,6 +275,10 @@ paginata delle attestazioni di un observable attraverso più named graph e il
 filtro condiviso con la consultazione per testo. La consultazione per testo
 copre inoltre il filtro query opzionale per IRI esatta dell'observable, applicato
 prima di conteggio e paginazione e combinabile in `AND` con autore, tipo e body.
+I casi senza filtri complessi attraversano il percorso paginato SPARQL e i test
+verificano che conteggio, ordinamento, offset, attestazioni prive di observable,
+metadata, frequenze e dati NIF restino invariati dopo il caricamento batch dei
+soli elementi della pagina.
 La copertura comprende gruppi
 `AND`/`OR` annidati, più autori in alternativa, metadati del testo confrontati
 come valori RDF esatti, più tipi OntoLex in `OR` e sottoclassi transitive di

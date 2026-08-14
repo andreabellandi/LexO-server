@@ -1,11 +1,18 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 14 agosto 2026 dopo l'aggiunta del filtro query opzionale
-`observable` a `POST /attestations/{fileId}`. Il vincolo seleziona l'IRI esatta
-nel named graph documentale, si combina in `AND` con autore, tipo e filtro JSON
-ed è applicato prima del conteggio e della paginazione. Il test repository
-dedicato verifica selezione, composizione dei filtri e `totalHits`. La suite
-completa del 14 agosto 2026 ha eseguito 177 test senza errori o test saltati;
+Aggiornato al 14 agosto 2026 dopo l'ottimizzazione di
+`POST /attestations/{fileId}`. Le richieste comuni senza filtri complessi,
+incluso il vincolo query opzionale `observable`, eseguono ora conteggio,
+ordinamento, `LIMIT` e `OFFSET` direttamente in GraphDB. Le proprietà FRAC,
+le frequenze e i loci NIF dei soli risultati della pagina vengono caricati in
+batch per named graph, eliminando la scansione completa e le letture RDF per
+singolo campo. I filtri complessi conservano la semantica precedente e usano
+comunque l'arricchimento batch dopo la selezione. Il vincolo `observable`
+seleziona direttamente la relazione FRAC nel graph documentale anche quando è
+combinato in `AND` con autore, tipo e filtro JSON. I test repository verificano
+selezione, composizione, `totalHits`, paginazione server-side, metadata,
+frequenze, NIF e attestazioni orfane. La suite completa del 14 agosto 2026 ha
+eseguito 178 test senza errori o test saltati;
 restano soltanto i warning ambientali già noti sui tracking file Maven nel
 sandbox e sul binding SLF4J. Rimane valido il lavoro del 9 agosto 2026 dopo la
 revisione di
@@ -360,6 +367,10 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 ## Funzionalità ancora da completare o validare
 
+- Se necessario dopo misure su GraphDB reale, tradurre anche i filtri combinati
+  per creator, tipo observable e metadata testuali nel piano SPARQL paginato.
+  Attualmente questi casi preservano la selezione Java precedente, ma
+  beneficiano già del caricamento batch dei dettagli della sola pagina.
 - Implementare progressivamente i restanti CRUD per lexical concepts e concept
   sets nella classe `Lexicon.java`. Creazione, lettura completa e modifica del
   lexical concept sono completate; gli endpoint futuri continueranno a usare
