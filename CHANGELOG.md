@@ -178,7 +178,8 @@ starts from the ongoing `Unreleased` work.
 
 - Deleting a text now removes every lexical-repository statement whose subject
   or object is one of that text's attestations, including dangling cross-graph
-  references, while preserving attestations belonging to other texts.
+  references, and recalculates affected observable frequencies in other valid
+  per-document graphs while preserving their remaining attestations.
 - Lexical concept creation and modification now validate each linked sense in
   its declared ISO language graph while keeping `ontolex:lexicalizedSense` in
   the fixed lexical-concept graph; requests use language-aware `senses`

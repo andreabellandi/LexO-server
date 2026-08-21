@@ -16,7 +16,7 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
-| `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e di tutti i riferimenti entranti/uscenti alle attestazioni del testo, con isolamento degli altri testi |
+| `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
 | `TextServicesIT` | End-to-end | Upload singolo e bulk, risultato parziale, rifiuto CoNLL-U, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
@@ -336,7 +336,9 @@ endpoint `DELETE`.
   named graph appartenenti ad altri testi;
 - cancellazione con il testo dei due named graph associati e di ogni tripla che
   usa una sua attestazione come soggetto o oggetto, anche fuori dal graph del
-  documento, conservando invariati i dati e le attestazioni degli altri testi.
+  documento; ricalcolo delle frequency degli observable nei graph documentali
+  esterni coinvolti, inclusa la rimozione a conteggio zero, conservando
+  invariati gli altri dati e le attestazioni residue.
 
 ### Totali FRAC di testi e corpora
 

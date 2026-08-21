@@ -807,7 +807,7 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text deletion",
-            notes = "This method deletes the text NIF graph, detaches it from its corpus, removes every LexOLexica statement that refers to or originates from the text's attestations, clears its attestation and annotation graphs, and removes all persisted files")
+            notes = "This method deletes the text NIF graph, detaches it from its corpus, removes every LexOLexica statement that refers to or originates from the text's attestations, recalculates affected observable frequencies in other document graphs, clears its attestation and annotation graphs, and removes all persisted files")
     public Response delete(
             @HeaderParam("Authorization") String key,
             @ApiParam(

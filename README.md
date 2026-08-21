@@ -539,8 +539,11 @@ In `LexOLexica` it first identifies every attestation typed as
 `frac:Attestation` or linked through `frac:attestation` in that document's
 attestation graph. It then removes every statement in the repository that uses
 one of those resources as subject or object, including cross-graph references,
-before clearing the document's attestation and annotation graphs. Resources and
-graphs belonging to other texts are preserved.
+before clearing the document's attestation and annotation graphs. When a removed
+`frac:attestation` link occurred in another valid per-document graph, the
+observable's existing frequency is recalculated from its remaining typed
+attestations; the frequency resource is removed when the result is zero.
+Resources and graphs belonging to other texts are otherwise preserved.
 
 ## Attestations
 

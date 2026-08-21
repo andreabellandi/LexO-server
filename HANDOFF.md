@@ -7,11 +7,17 @@ e annotazioni. Prima di svuotare questi ultimi, ora identifica nel graph del
 testo sia le risorse `frac:Attestation` tipizzate sia gli oggetti dei link
 `frac:attestation`, quindi elimina atomicamente da `LexOLexica` ogni tripla che
 le usa come soggetto o oggetto, anche se collocata per errore in un altro named
-graph. Attestazioni e dati degli altri testi restano invariati. Il test mirato e
-la suite completa del 21 agosto 2026 sono passati: 178 test, nessun errore e
-nessun test saltato. Gli end-to-end REST non sono stati eseguiti perché
-richiedono un deployment GraphDB/Tomcat dedicato. Restano i warning ambientali
-noti sui tracking file Maven nel sandbox e sul binding SLF4J.
+graph. Per ogni link `frac:attestation` così rimosso da un altro graph
+documentale valido, la frequency esistente dell'observable viene ricalcolata
+sulle attestazioni tipizzate residue; quando il conteggio è zero vengono rimossi
+anche il link `frac:frequency` e la relativa risorsa. La sincronizzazione è ora
+centralizzata in `AttestationFrequencySupport` e condivisa con le normali
+mutazioni delle attestazioni. Attestazioni e dati residui degli altri testi
+restano invariati. I test mirati eseguono 49 casi senza errori; la suite completa
+del 21 agosto 2026 ha eseguito 178 test senza errori o test saltati. Gli
+end-to-end REST non sono stati eseguiti perché richiedono un deployment
+GraphDB/Tomcat dedicato. Restano i warning ambientali noti sui tracking file
+Maven nel sandbox e sul binding SLF4J.
 
 Rimane valido il lavoro del 14 agosto 2026 dopo l'ottimizzazione di
 `POST /attestations/{fileId}`. Le richieste comuni senza filtri complessi,
@@ -520,12 +526,16 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 Il lavoro corrente modifica `LexicalTextGraphManager` per raccogliere le
 attestazioni dal graph selezionato prima del cleanup e rimuovere tutte le loro
-triple entranti e uscenti in una sola transazione `LexOLexica`.
-`LexicalTextGraphManagerTest` copre riferimenti incrociati tra graph,
-attestazioni riconosciute dal tipo o dal link FRAC e isolamento degli altri
-testi. Sono stati aggiornati Swagger, README, bootstrap, documentazione dei test
-e changelog. Il test mirato e `mvn test` sono passati il 21 agosto 2026; gli
-end-to-end REST sono rimasti esclusi.
+triple entranti e uscenti in una sola transazione `LexOLexica`. Il follow-up
+centralizza creazione e sincronizzazione delle frequency in
+`AttestationFrequencySupport` e ricalcola quelle degli observable coinvolti in
+altri graph documentali. `LexicalTextGraphManagerTest` copre riferimenti
+incrociati tra graph, attestazioni riconosciute dal tipo o dal link FRAC,
+decremento della frequency, rimozione a zero e isolamento degli altri testi.
+Sono stati aggiornati Swagger, README, bootstrap, documentazione dei test e
+changelog. I 49 test mirati sono passati il 21 agosto 2026; la suite completa ha
+eseguito 178 test senza errori o test saltati e gli end-to-end REST restano
+esclusi.
 
 Il lavoro corrente aggiunge `GET /lexica/lexicalConcept` in `Lexicon.java`,
 `LexicalConceptDetailsManager` e i DTO di risposta sotto

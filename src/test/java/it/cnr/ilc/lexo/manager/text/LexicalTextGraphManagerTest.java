@@ -7,6 +7,7 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
@@ -35,6 +36,12 @@ class LexicalTextGraphManagerTest {
             IRI externalGraph = graph("https://example.org/graphs/external");
             IRI externalSubject = graph("https://example.org/resource/incoming");
             IRI externalObject = graph("https://example.org/resource/outgoing");
+            IRI observableB = graph("https://example.org/observable/b");
+            IRI observableWithoutRemainingAttestations =
+                    graph("https://example.org/observable/empty");
+            IRI frequencyB = graph("https://example.org/frequency/b");
+            IRI frequencyToDelete = graph("https://example.org/frequency/empty");
+            IRI contextB = graph("https://example.org/text/b#context");
             connection.add(attestation, RDF.TYPE,
                     graph(FRAC + "Attestation"),
                     fileAAttestations);
@@ -47,6 +54,16 @@ class LexicalTextGraphManagerTest {
             connection.add(other, RDF.TYPE,
                     graph(FRAC + "Attestation"),
                     fileBAttestations);
+            connection.add(observableB, graph(FRAC + "attestation"), other,
+                    fileBAttestations);
+            connection.add(observableB, graph(FRAC + "attestation"), attestation,
+                    fileBAttestations);
+            connection.add(observableWithoutRemainingAttestations,
+                    graph(FRAC + "attestation"), attestation, fileBAttestations);
+            addFrequency(connection, observableB, frequencyB, contextB, 2,
+                    fileBAttestations);
+            addFrequency(connection, observableWithoutRemainingAttestations,
+                    frequencyToDelete, contextB, 1, fileBAttestations);
             connection.add(externalSubject, graph("https://example.org/refersTo"),
                     attestation, externalGraph);
             connection.add(attestation, graph("https://example.org/refersTo"),
@@ -72,6 +89,17 @@ class LexicalTextGraphManagerTest {
                     .isFalse();
             assertThat(connection.hasStatement(externalSubject, null, other, false,
                     externalGraph)).isTrue();
+            assertThat(connection.hasStatement(observableB,
+                    graph(FRAC + "attestation"), other, false,
+                    fileBAttestations)).isTrue();
+            assertThat(connection.hasStatement(frequencyB, RDF.VALUE,
+                    vf.createLiteral("1", XSD.INT), false,
+                    fileBAttestations)).isTrue();
+            assertThat(connection.hasStatement(observableWithoutRemainingAttestations,
+                    graph(FRAC + "frequency"), null, false,
+                    fileBAttestations)).isFalse();
+            assertThat(connection.hasStatement(frequencyToDelete, null, null,
+                    false, fileBAttestations)).isFalse();
             assertThat(LexicalTextGraphManager.get()
                     .deleteDocumentGraphs(connection, "file-a")).isFalse();
         } finally {
@@ -81,5 +109,18 @@ class LexicalTextGraphManagerTest {
 
     private IRI graph(String value) {
         return vf.createIRI(value);
+    }
+
+    private void addFrequency(RepositoryConnection connection, IRI observable,
+                              IRI frequency, IRI observedIn, int value,
+                              IRI contextGraph) {
+        connection.add(observable, graph(FRAC + "frequency"), frequency,
+                contextGraph);
+        connection.add(frequency, RDF.TYPE, graph(FRAC + "Frequency"),
+                contextGraph);
+        connection.add(frequency, graph(FRAC + "observedIn"), observedIn,
+                contextGraph);
+        connection.add(frequency, RDF.VALUE,
+                vf.createLiteral(Integer.toString(value), XSD.INT), contextGraph);
     }
 }

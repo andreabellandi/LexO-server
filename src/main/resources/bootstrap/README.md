@@ -50,7 +50,9 @@ graph. Attestation and annotation writers must pass the text `fileId` to
 `RDFQueryUtil.updateAttestation` or `RDFQueryUtil.updateAnnotation`; omitting it
 is rejected. Deleting a text also removes every LexOLexica statement whose
 subject or object is one of that text's attestations, then clears both of its
-document graphs.
+document graphs. If the cleanup removes a cross-graph `frac:attestation` link
+from another valid document graph, the corresponding observable frequency in
+that graph is recalculated or removed when no typed attestations remain.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.

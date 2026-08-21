@@ -1063,123 +1063,15 @@ public class AttestationManager implements Manager {
     private int synchronizeFrequency(RepositoryConnection connection,
                                      IRI observable, IRI observedIn,
                                      Resource graph) {
-        int value = countObservableAttestations(connection, observable, graph);
-        List<Resource> frequencies = frequencyResources(connection, observable,
+        return AttestationFrequencySupport.synchronize(connection, observable,
                 observedIn, graph);
-        if (value == 0) {
-            removeFrequencyResources(connection, observable, frequencies, graph);
-            return 0;
-        }
-        writeFrequency(connection, observable, observedIn, graph, frequencies,
-                value);
-        return value;
     }
 
     private int incrementFrequency(RepositoryConnection connection,
                                    IRI observable, IRI observedIn,
                                    Resource graph, int increment) {
-        List<Resource> frequencies = frequencyResources(connection, observable,
-                observedIn, graph);
-        Integer current = frequencies.size() == 1
-                ? frequencyValue(connection, frequencies.get(0), graph) : null;
-        int value = current == null
-                ? countObservableAttestations(connection, observable, graph)
-                : current.intValue() + increment;
-        writeFrequency(connection, observable, observedIn, graph, frequencies,
-                value);
-        return value;
-    }
-
-    private void writeFrequency(RepositoryConnection connection, IRI observable,
-                                IRI observedIn, Resource graph,
-                                List<Resource> existing, int value) {
-        Resource frequency = existing.isEmpty() ? vf.createBNode() : existing.get(0);
-        if (existing.size() > 1) {
-            removeFrequencyResources(connection, observable,
-                    existing.subList(1, existing.size()), graph);
-        }
-        IRI relation = vf.createIRI(FRAC + "frequency");
-        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
-        connection.add(observable, relation, frequency, graph);
-        connection.add(frequency, RDF.TYPE, vf.createIRI(FRAC + "Frequency"), graph);
-        connection.remove(frequency, observedInRelation, null, graph);
-        connection.add(frequency, observedInRelation, observedIn, graph);
-        connection.remove(frequency, RDF.VALUE, null, graph);
-        connection.add(frequency, RDF.VALUE,
-                vf.createLiteral(Integer.toString(value), XSD.INT), graph);
-    }
-
-    private void removeFrequencyResources(RepositoryConnection connection,
-                                          IRI observable,
-                                          List<Resource> frequencies,
-                                          Resource graph) {
-        IRI relation = vf.createIRI(FRAC + "frequency");
-        for (Resource frequency : frequencies) {
-            connection.remove(observable, relation, frequency, graph);
-            connection.remove(frequency, null, null, graph);
-        }
-    }
-
-    private List<Resource> frequencyResources(RepositoryConnection connection,
-                                              Resource observable,
-                                              IRI observedIn, Resource graph) {
-        List<Resource> result = new ArrayList<Resource>();
-        IRI relation = vf.createIRI(FRAC + "frequency");
-        IRI observedInRelation = vf.createIRI(FRAC + "observedIn");
-        try (RepositoryResult<Statement> statements = connection.getStatements(
-                observable, relation, null, false, graph)) {
-            while (statements.hasNext()) {
-                Value candidate = statements.next().getObject();
-                if (candidate instanceof Resource
-                        && connection.hasStatement((Resource) candidate,
-                                observedInRelation, observedIn, false, graph)
-                        && !result.contains(candidate)) {
-                    result.add((Resource) candidate);
-                }
-            }
-        }
-        return result;
-    }
-
-    private Integer frequencyValue(RepositoryConnection connection,
-                                   Resource observable, IRI observedIn,
-                                   Resource graph) {
-        List<Resource> frequencies = frequencyResources(connection, observable,
-                observedIn, graph);
-        return frequencies.size() == 1
-                ? frequencyValue(connection, frequencies.get(0), graph) : null;
-    }
-
-    private Integer frequencyValue(RepositoryConnection connection,
-                                   Resource frequency, Resource graph) {
-        Literal value = firstLiteral(connection, frequency, RDF.VALUE, graph);
-        if (value == null) {
-            return null;
-        }
-        try {
-            int parsed = value.intValue();
-            return parsed < 0 ? null : Integer.valueOf(parsed);
-        } catch (RuntimeException e) {
-            return null;
-        }
-    }
-
-    private int countObservableAttestations(RepositoryConnection connection,
-                                            IRI observable, Resource graph) {
-        Set<String> attestations = new HashSet<String>();
-        try (RepositoryResult<Statement> statements = connection.getStatements(
-                observable, vf.createIRI(FRAC + "attestation"), null, false,
-                graph)) {
-            while (statements.hasNext()) {
-                Value candidate = statements.next().getObject();
-                if (candidate instanceof Resource
-                        && connection.hasStatement((Resource) candidate, RDF.TYPE,
-                                vf.createIRI(FRAC + "Attestation"), false, graph)) {
-                    attestations.add(candidate.stringValue());
-                }
-            }
-        }
-        return attestations.size();
+        return AttestationFrequencySupport.increment(connection, observable,
+                observedIn, graph, increment);
     }
 
     private String frequencyKey(IRI observable, IRI observedIn, Resource graph) {
