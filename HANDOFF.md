@@ -1,6 +1,19 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 14 agosto 2026 dopo l'ottimizzazione di
+Aggiornato al 21 agosto 2026 dopo il rafforzamento di
+`DELETE /texts/{fileId}`. La cancellazione continua a rimuovere record e graph
+NIF, appartenenza al corpus, file persistiti e graph documentali di attestazioni
+e annotazioni. Prima di svuotare questi ultimi, ora identifica nel graph del
+testo sia le risorse `frac:Attestation` tipizzate sia gli oggetti dei link
+`frac:attestation`, quindi elimina atomicamente da `LexOLexica` ogni tripla che
+le usa come soggetto o oggetto, anche se collocata per errore in un altro named
+graph. Attestazioni e dati degli altri testi restano invariati. Il test mirato e
+la suite completa del 21 agosto 2026 sono passati: 178 test, nessun errore e
+nessun test saltato. Gli end-to-end REST non sono stati eseguiti perché
+richiedono un deployment GraphDB/Tomcat dedicato. Restano i warning ambientali
+noti sui tracking file Maven nel sandbox e sul binding SLF4J.
+
+Rimane valido il lavoro del 14 agosto 2026 dopo l'ottimizzazione di
 `POST /attestations/{fileId}`. Le richieste comuni senza filtri complessi,
 incluso il vincolo query opzionale `observable`, eseguono ora conteggio,
 ordinamento, `LIMIT` e `OFFSET` direttamente in GraphDB. Le proprietà FRAC,
@@ -241,7 +254,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - Separazione parametrica dei repository in `GraphDbUtil`/`RDFQueryUtil`.
 - Scritture lessicali nel graph `lexica`, senza uso del default graph.
 - Graph separati per attestazioni e annotazioni di ciascun testo, con cleanup
-  coordinato alla cancellazione del testo.
+  coordinato alla cancellazione del testo; il cleanup elimina inoltre in tutto
+  `LexOLexica` ogni riferimento entrante e uscente alle attestazioni individuate
+  nel graph del documento.
 - Endpoint `administration/repositories` con statistiche per repository e per i
   graph lessicali, attestazioni, annotazioni e schema.
 - Import testuale di TXT semplice, CommonMark controllato ed eventuale CoNLL-U.
@@ -496,12 +511,21 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale è stato allineato in fast-forward. Il nuovo GET dei lexical
-  concept è presente nel worktree direttamente su `master` e non è ancora
-  committato.
+  branch locale era già allineato in fast-forward. La cascata di cancellazione
+  delle attestazioni del testo è presente nel worktree direttamente su `master`
+  e non è ancora committata.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+Il lavoro corrente modifica `LexicalTextGraphManager` per raccogliere le
+attestazioni dal graph selezionato prima del cleanup e rimuovere tutte le loro
+triple entranti e uscenti in una sola transazione `LexOLexica`.
+`LexicalTextGraphManagerTest` copre riferimenti incrociati tra graph,
+attestazioni riconosciute dal tipo o dal link FRAC e isolamento degli altri
+testi. Sono stati aggiornati Swagger, README, bootstrap, documentazione dei test
+e changelog. Il test mirato e `mvn test` sono passati il 21 agosto 2026; gli
+end-to-end REST sono rimasti esclusi.
 
 Il lavoro corrente aggiunge `GET /lexica/lexicalConcept` in `Lexicon.java`,
 `LexicalConceptDetailsManager` e i DTO di risposta sotto

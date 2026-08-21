@@ -531,6 +531,17 @@ attestation named graphs; concepts without attestations return `0`. The same
 field is included by `POST /service/data/filteredLexicalConcepts`, which uses the
 same lexical-concept item response model.
 
+## Text deletion
+
+`DELETE /service/texts/{fileId}` deletes the text record and NIF graph from
+`LexOTexts`, detaches the text from its corpus, and removes its persisted files.
+In `LexOLexica` it first identifies every attestation typed as
+`frac:Attestation` or linked through `frac:attestation` in that document's
+attestation graph. It then removes every statement in the repository that uses
+one of those resources as subject or object, including cross-graph references,
+before clearing the document's attestation and annotation graphs. Resources and
+graphs belonging to other texts are preserved.
+
 ## Attestations
 
 `POST /service/attestations` creates multiple FRAC attestations for one OntoLex

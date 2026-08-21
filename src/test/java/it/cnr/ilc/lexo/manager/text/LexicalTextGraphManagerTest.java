@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 /** Guards cascade cleanup of the two LexOLexica graph families. */
 class LexicalTextGraphManagerTest {
 
+    private static final String FRAC = "http://www.w3.org/ns/lemon/frac#";
+
     private final ValueFactory vf = SimpleValueFactory.getInstance();
 
     @Test
@@ -29,14 +31,30 @@ class LexicalTextGraphManagerTest {
             IRI attestation = graph("https://example.org/attestation/a");
             IRI annotation = graph("https://example.org/annotation/a");
             IRI other = graph("https://example.org/attestation/b");
+            IRI linkedOnly = graph("https://example.org/attestation/linked-only");
+            IRI externalGraph = graph("https://example.org/graphs/external");
+            IRI externalSubject = graph("https://example.org/resource/incoming");
+            IRI externalObject = graph("https://example.org/resource/outgoing");
             connection.add(attestation, RDF.TYPE,
-                    graph("http://www.w3.org/ns/lemon/frac#Attestation"),
+                    graph(FRAC + "Attestation"),
                     fileAAttestations);
+            connection.add(graph("https://example.org/observable/a"),
+                    graph(FRAC + "attestation"), attestation, fileAAttestations);
+            connection.add(graph("https://example.org/observable/linked-only"),
+                    graph(FRAC + "attestation"), linkedOnly, fileAAttestations);
             connection.add(annotation, RDF.TYPE,
                     graph("http://www.w3.org/ns/oa#Annotation"), fileAAnnotations);
             connection.add(other, RDF.TYPE,
-                    graph("http://www.w3.org/ns/lemon/frac#Attestation"),
+                    graph(FRAC + "Attestation"),
                     fileBAttestations);
+            connection.add(externalSubject, graph("https://example.org/refersTo"),
+                    attestation, externalGraph);
+            connection.add(attestation, graph("https://example.org/refersTo"),
+                    externalObject, externalGraph);
+            connection.add(linkedOnly, graph("https://example.org/refersTo"),
+                    externalObject, externalGraph);
+            connection.add(externalSubject, graph("https://example.org/refersTo"),
+                    other, externalGraph);
 
             assertThat(LexicalTextGraphManager.get()
                     .deleteDocumentGraphs(connection, "file-a")).isTrue();
@@ -46,6 +64,14 @@ class LexicalTextGraphManagerTest {
                     fileAAnnotations)).isFalse();
             assertThat(connection.hasStatement(other, RDF.TYPE, null, false,
                     fileBAttestations)).isTrue();
+            assertThat(connection.hasStatement(attestation, null, null, false))
+                    .isFalse();
+            assertThat(connection.hasStatement(null, null, attestation, false))
+                    .isFalse();
+            assertThat(connection.hasStatement(linkedOnly, null, null, false))
+                    .isFalse();
+            assertThat(connection.hasStatement(externalSubject, null, other, false,
+                    externalGraph)).isTrue();
             assertThat(LexicalTextGraphManager.get()
                     .deleteDocumentGraphs(connection, "file-a")).isFalse();
         } finally {

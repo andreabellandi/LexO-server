@@ -48,7 +48,9 @@ the legacy lexical graph. New CRUD and attestation services always select their
 category named graph and never read or write application data in the default
 graph. Attestation and annotation writers must pass the text `fileId` to
 `RDFQueryUtil.updateAttestation` or `RDFQueryUtil.updateAnnotation`; omitting it
-is rejected. Deleting a text also clears both of its LexOLexica graphs.
+is rejected. Deleting a text also removes every LexOLexica statement whose
+subject or object is one of that text's attestations, then clears both of its
+document graphs.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.
