@@ -557,8 +557,7 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
   branch locale era già allineato in fast-forward. La cancellazione multipla
-  asincrona è presente nel worktree direttamente su `master` e non è ancora
-  committata.
+  asincrona è stata committata come `88c71ef` e pubblicata su `origin/master`.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
