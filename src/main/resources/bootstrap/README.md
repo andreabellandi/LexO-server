@@ -69,3 +69,6 @@ triples and the `frac:attestation` link are stored in the matching per-text
 attestation graph. The same graph stores one `frac:Frequency` object per
 observable and resolved NIF text context, linked through `frac:frequency`, with
 an `xsd:int` `rdf:value` and `frac:observedIn` pointing to that context.
+Attestations supplied by the fixed-schema JSON variant of `POST /texts/bulk`
+follow exactly the same graph policy; their observable is resolved only in its
+ISO-language lexical graph or the fixed lexical-concept graph.

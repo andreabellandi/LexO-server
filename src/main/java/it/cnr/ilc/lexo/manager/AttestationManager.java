@@ -5,6 +5,8 @@ import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
+import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.service.data.attestation.AttestationMetadataValue;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusObservableInput;
@@ -334,6 +336,142 @@ public class AttestationManager implements Manager {
             connections.release(RepositoryTarget.TEXT, text);
             connections.release(RepositoryTarget.LEXICON, lexical);
         }
+    }
+
+    /**
+     * Creates one attestation supplied by the strict JSON text import. Unlike
+     * the interactive API, the declared observable type is mandatory and the
+     * lookup is restricted to the upload language graph (or the fixed lexical
+     * concept graph). Each invocation is an independent transaction so an
+     * invalid imported attestation does not prevent later items from being
+     * attempted.
+     */
+    public synchronized Attestation createImported(String expectedFileIdValue,
+                                                    String evidenceValue,
+                                                    String languageValue,
+                                                    JsonTextImport.AttestationInput input)
+            throws ManagerException {
+        String expectedFileId = required("fileId", expectedFileIdValue);
+        String evidence = required("evidence", evidenceValue);
+        String language = Iso639LanguageValidator.get().requireValid(languageValue);
+        if (input == null) {
+            throw new ManagerException(
+                    "INVALID_IMPORTED_ATTESTATION: attestation must be an object");
+        }
+        String observable = required("observable", input.observable);
+        String observableType = required("type", input.type);
+        String value = requiredValue("value", input.value);
+        String gloss = requiredValue("gloss", input.gloss);
+        if (input.start == null || input.end == null) {
+            throw new ManagerException(
+                    "MISSING_PARAMETER: start_char and end_char are required");
+        }
+        int start = input.start.intValue();
+        int end = input.end.intValue();
+        validateLocusOffsets(start, end);
+
+        IRI observableIri = iri("observable", observable);
+        IRI declaredType = iri("type", observableType);
+        IRI evidenceIri = iri("evidence", evidence);
+        String localType = importedObservableType(declaredType);
+        IRI expectedLexicalGraph = vf.createIRI("LexicalConcept".equals(localType)
+                ? LexiconCrudSupport.lexicalConceptGraphUri()
+                : LexiconCrudSupport.lexicalGraphUri(language));
+
+        RepositoryConnection lexical = null;
+        RepositoryConnection text = null;
+        try {
+            lexical = connections.acquire(RepositoryTarget.LEXICON);
+            text = connections.acquire(RepositoryTarget.TEXT);
+            if (!lexical.hasStatement(observableIri, null, null, false,
+                    expectedLexicalGraph)) {
+                throw new ManagerException("OBSERVABLE_NOT_FOUND: " + observable
+                        + " does not exist in " + expectedLexicalGraph.stringValue());
+            }
+            if (!lexical.hasStatement(observableIri, RDF.TYPE, declaredType, false,
+                    expectedLexicalGraph)) {
+                throw new ManagerException("OBSERVABLE_TYPE_MISMATCH: " + observable
+                        + " does not have rdf:type " + observableType + " in "
+                        + expectedLexicalGraph.stringValue());
+            }
+
+            TextLocation location = internalLocation(text, evidenceIri, value,
+                    start, end);
+            if (!expectedFileId.equals(location.fileId)) {
+                throw new ManagerException("TEXT_FILE_MISMATCH: the resolved locus belongs to "
+                        + location.fileId + " instead of " + expectedFileId);
+            }
+            if (blank(location.language)
+                    || !language.equalsIgnoreCase(location.language)) {
+                throw new ManagerException("TEXT_LANGUAGE_MISMATCH: the resolved text language "
+                        + location.language + " does not match " + language);
+            }
+
+            LinkedHashMap<IRI, List<Value>> metadata =
+                    new LinkedHashMap<IRI, List<Value>>();
+            if (input.metadata != null && !input.metadata.isEmpty()) {
+                metadata = metadataCodec.decodeProperties(input.metadata, false,
+                        "metadata");
+            }
+
+            IRI locus = vf.createIRI(location.locus);
+            IRI attestationGraph = vf.createIRI(
+                    LexicalNamedGraphs.attestationGraphUri(location.fileId));
+            Model phraseStatements = newStatements(text,
+                    phraseModel(locus, location.referenceContext, value, start, end,
+                            location.language), location.textGraph, locus);
+            AttestationIdentity identity = newAttestationIdentity(lexical,
+                    new Timestamp(currentTimeMillis.getAsLong()),
+                    new HashSet<String>());
+            String created = timestamp(identity.timestamp);
+            Model attestationStatements = attestationModel(identity.iri,
+                    observableIri, locus, evidenceIri, value, gloss,
+                    location.language, "imported", created);
+            addMetadata(attestationStatements, identity.iri, metadata);
+
+            List<String> observableTypes = rdfTypes(lexical, observableIri,
+                    expectedLexicalGraph);
+            String observableLabel = observableLabel(lexical, observableIri,
+                    expectedLexicalGraph);
+            List<String> locusTypes = resultLocusTypes(text, locus,
+                    location.textGraph);
+            Attestation result = attestationResult(identity.iri, observable,
+                    observableLabel, observableTypes, value, start, end, evidence,
+                    location, false, "imported", created, locusTypes);
+            result.metadata = outputMetadata(metadata);
+            List<PendingAttestation> pending =
+                    new ArrayList<PendingAttestation>();
+            pending.add(new PendingAttestation(attestationGraph,
+                    location.textGraph, attestationStatements,
+                    phraseStatements, result));
+            persistBatch(lexical, text, pending);
+            return result;
+        } catch (ManagerException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ManagerException("ATTESTATION_CREATE_FAILED: "
+                    + message(e), e);
+        } finally {
+            connections.release(RepositoryTarget.TEXT, text);
+            connections.release(RepositoryTarget.LEXICON, lexical);
+        }
+    }
+
+    private String importedObservableType(IRI declaredType)
+            throws ManagerException {
+        String value = declaredType.stringValue();
+        String[] supported = {"LexicalEntry", "Form", "LexicalSense",
+            "LexicalConcept"};
+        for (String local : supported) {
+            if ((ONTOLEX + local).equals(value)) {
+                return local;
+            }
+        }
+        throw new ManagerException("INVALID_OBSERVABLE_TYPE: type must be one of "
+                + "ontolex:LexicalEntry, ontolex:Form, ontolex:LexicalSense, "
+                + "or ontolex:LexicalConcept");
     }
 
     private Attestation attestationResult(IRI attestationIri, String observable,
@@ -2644,6 +2782,13 @@ public class AttestationManager implements Manager {
     private Model attestationModel(IRI attestation, IRI observable, IRI locus,
                                    IRI corpus, String value,
                                    String language, String author, String timestamp) {
+        return attestationModel(attestation, observable, locus, corpus, value,
+                value, language, author, timestamp);
+    }
+
+    private Model attestationModel(IRI attestation, IRI observable, IRI locus,
+                                   IRI corpus, String value, String gloss,
+                                   String language, String author, String timestamp) {
         Model model = new LinkedHashModel();
         model.add(attestation, RDF.TYPE, vf.createIRI(FRAC + "Attestation"));
         model.add(attestation, DCTERMS.CREATOR,
@@ -2652,7 +2797,9 @@ public class AttestationManager implements Manager {
         model.add(attestation, DCTERMS.MODIFIED, vf.createLiteral(timestamp));
         Literal attestedValue = blank(language)
                 ? vf.createLiteral(value) : vf.createLiteral(value, language);
-        model.add(attestation, vf.createIRI(FRAC + "gloss"), attestedValue);
+        Literal glossValue = blank(language)
+                ? vf.createLiteral(gloss) : vf.createLiteral(gloss, language);
+        model.add(attestation, vf.createIRI(FRAC + "gloss"), glossValue);
         model.add(attestation, RDF.VALUE, attestedValue);
         model.add(attestation, vf.createIRI(FRAC + "locus"), locus);
         model.add(attestation, vf.createIRI(FRAC + "observedIn"), corpus);

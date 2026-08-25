@@ -11,9 +11,15 @@ public class BulkTextJobItem implements Data {
 
     public String fileId;
     public String originalFileName;
+    public String inputType;
+    public String corpusId;
     public String state;
     public int progress;
     public String message;
     public String resultId;
     public List<ValidationIssue> issues;
+    public String attestationState;
+    public Integer attestationTotal;
+    public Integer savedAttestations;
+    public List<UnsavedAttestation> unsavedAttestations;
 }

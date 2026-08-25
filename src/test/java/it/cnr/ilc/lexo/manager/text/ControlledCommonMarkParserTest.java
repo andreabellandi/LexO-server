@@ -101,6 +101,18 @@ class ControlledCommonMarkParserTest {
     }
 
     @Test
+    @DisplayName("JSON text content never interprets an embedded front matter block")
+    void keepsFrontMatterMarkersAsJsonTextContent() throws Exception {
+        ParsedTextDocument document = parser.parseJsonTextStructure(
+                "---\ntitle: parte del testo\n---");
+
+        assertThat(document.frontMatterPresent).isFalse();
+        assertThat(document.metadataValues).isEmpty();
+        assertThat(document.cleanText)
+                .isEqualTo("--- title: parte del testo ---");
+    }
+
+    @Test
     @DisplayName("A corpus descriptor contains front matter only")
     void parsesMetadataOnlyCorpusDescriptor() throws Exception {
         ParsedTextDocument document = parser.parseMetadataOnly(

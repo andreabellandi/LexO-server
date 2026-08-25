@@ -11,7 +11,7 @@ public final class TextBulkImportValidator {
     public static void requireFileCount(int count, int maximum) {
         if (count <= 0) {
             throw new IllegalArgumentException(
-                    "BULK_MISSING_FILES: È richiesto almeno un file TXT o CommonMark");
+                    "BULK_MISSING_FILES: È richiesto almeno un file TXT, CommonMark o JSON");
         }
         if (count > maximum) {
             throw new IllegalArgumentException("BULK_TOO_MANY_FILES: Il bulk contiene "
@@ -34,9 +34,23 @@ public final class TextBulkImportValidator {
         if (TextJobManager.isConlluExtension(lower)) {
             throw conlluNotAllowed();
         }
-        if (!TextJobManager.isTextExtension(lower)) {
+        if (!TextJobManager.isTextExtension(lower)
+                && !TextJobManager.isJsonExtension(lower)) {
             throw new IllegalArgumentException(
-                    "BULK_UNSUPPORTED_FILE_TYPE: Il bulk accetta soltanto file .txt, .md o .markdown");
+                    "BULK_UNSUPPORTED_FILE_TYPE: Il bulk accetta soltanto file .txt, .md, .markdown o .json");
+        }
+    }
+
+    /**
+     * JSON-only requests must carry corpus membership inside each JSON file.
+     * Mixed requests retain the query parameter exclusively for text files.
+     */
+    public static void requireAllowedCorpusParameter(boolean hasJson,
+                                                     boolean hasText,
+                                                     String corpusId) {
+        if (hasJson && !hasText && corpusId != null && !corpusId.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "CORPUS_ID_NOT_ALLOWED_FOR_JSON: JSON imports must use metadata.corpus");
         }
     }
 

@@ -438,26 +438,91 @@ file front matter is ignored. Supported front-matter keys are `id`, `title`,
 
 ## Bulk text upload
 
-`POST /service/texts/bulk` accepts multiple `file` parts containing only `.txt`,
-`.md`, or `.markdown` documents and one shared required `language`. An optional
-`corpusId` query parameter adds every successfully converted document to the
-same existing corpus. CoNLL-U is supported only by the single-document upload:
-the bulk request is rejected atomically with `BULK_CONLLU_NOT_ALLOWED` when a
-`conllu` part or a CoNLL-U extension is present.
+`POST /service/texts/bulk` accepts multiple `file` parts containing `.txt`,
+`.md`, `.markdown`, or fixed-schema `.json` documents and one shared required
+`language`. File types may be mixed in the same request. The optional
+`corpusId` query parameter applies only to TXT/CommonMark: a JSON-only request
+that supplies it is rejected with `CORPUS_ID_NOT_ALLOWED_FOR_JSON`, while each
+JSON document may select its own existing corpus with `metadata.corpus`.
+CoNLL-U remains supported only by the single-document upload: the bulk request
+is rejected atomically with `BULK_CONLLU_NOT_ALLOWED` when a `conllu` part or a
+CoNLL-U extension is present.
 
 ```bash
 curl -X POST 'http://localhost:8080/LexO-server/service/texts/bulk' \
   -H 'Authorization: Bearer TOKEN_LEXO' \
   -F 'language=it' \
   -F 'file=@documento-1.txt;type=text/plain' \
-  -F 'file=@documento-2.md;type=text/markdown'
+  -F 'file=@documento-2.json;type=application/json'
 ```
+
+The JSON root accepts only `metadata`, `text`, and `attestations`. `metadata` is
+optional and accepts exactly the text-import keys `id`, `title`, `author`,
+`date`, `description`, `format`, and `corpus`; unlike TXT/CommonMark front
+matter, any unknown JSON metadata key rejects the complete bulk. Metadata
+values may be strings or arrays of strings, except `corpus`, which must be one
+non-blank corpus id. `text.type` must be exactly `txt` and `text.content` is
+converted as plain text, without interpreting front matter:
+
+```json
+{
+  "metadata": {
+    "id": "interview-45",
+    "title": "Interview 45",
+    "corpus": "interviews"
+  },
+  "text": {
+    "type": "txt",
+    "content": "A short text."
+  },
+  "attestations": [
+    {
+      "id": "source-row-12",
+      "observable": "https://lexo.ilc.cnr.it#LexO_example",
+      "type": "http://www.w3.org/ns/lemon/ontolex#LexicalSense",
+      "value": "short",
+      "gloss": "brief",
+      "start_char": 2,
+      "end_char": 7,
+      "metadata": [
+        {
+          "property": "http://www.lexinfo.net/ontology/3.0/lexinfo#confidence",
+          "values": [
+            {
+              "value": "0.9",
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every attestation must declare one exact OntoLex type: `LexicalEntry`, `Form`,
+or `LexicalSense` in the graph selected by the shared language, or
+`LexicalConcept` in the fixed lexical-concept graph. The observable must already
+exist there with that direct `rdf:type`. Offsets are Unicode code-point offsets
+on the canonical `nif:isString`, and `value` must equal the selected substring.
+The imported attestation uses `rdf:value` and `frac:gloss` language-tagged with
+the shared language and audit creator `imported`. Its FRAC triples, metadata,
+observable link, and frequency are stored in the document attestation graph;
+the locus is stored in the document NIF graph. The optional input `id` is only
+returned as a correlation value when that attestation cannot be saved.
 
 The service returns HTTP `202` with one `bulkId` and an independent `fileId`
 for every document. Poll `GET /service/texts/bulk/{bulkId}/status` for aggregate
 and per-document states. Admission errors clean up the complete staged request;
 after acceptance, conversion failures roll back only their own document and can
-produce the aggregate state `PARTIALLY_COMPLETED`.
+produce the aggregate state `PARTIALLY_COMPLETED`. Invalid individual JSON
+attestations do not roll back the converted text or other attestations. Each
+item reports `attestationState`, `attestationTotal`, `savedAttestations`, and
+`unsavedAttestations`; the last field is `[]` when all attestations were saved,
+otherwise it contains `id`, `observable`, `type`, a stable error `code`, and its
+`cause`. Repeated identical input items remain distinct attestations and receive
+distinct generated IRIs.
 
 The default admission limits are 100 files and 200 MiB for the complete bulk,
 in addition to the existing 50 MiB per-text limit. They can be overridden with

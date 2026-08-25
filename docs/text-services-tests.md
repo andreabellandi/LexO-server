@@ -1,8 +1,9 @@
 # Test dei servizi del testo
 
 Questa suite verifica il comportamento introdotto per TXT, CommonMark controllato,
-CoNLL-U, metadati NIF e corpus. È divisa in test unitari, sempre eseguibili, e test
-end-to-end contro un LexO-server realmente avviato con GraphDB Free.
+JSON con attestazioni, CoNLL-U, metadati NIF e corpus. È divisa in test unitari,
+sempre eseguibili, e test end-to-end contro un LexO-server realmente avviato con
+GraphDB Free.
 
 ## Struttura della suite
 
@@ -10,14 +11,15 @@ end-to-end contro un LexO-server realmente avviato con GraphDB Free.
 |---|---|---|
 | `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/CommonMark, struttura, codici di errore, front matter e corpus metadata-only |
 | `Iso639LanguageValidatorTest` | Unitario | Validazione del campo upload nelle prime quattro colonne ISO 639 e codici di errore stabili |
-| `NifModelWriterTest` | Unitario RDF | Mapping dcterms, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
+| `NifModelWriterTest` | Unitario RDF | Mapping dcterms, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
-| `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
+| `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto TXT, attestazioni e tipi JSON obbligatori |
+| `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark/JSON, regole del `corpusId`, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
-| `TextServicesIT` | End-to-end | Upload singolo e bulk, risultato parziale, rifiuto CoNLL-U, job asincrono, download, GraphDB, corpus, eliminazione e rollback |
+| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, eliminazione e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
@@ -42,12 +44,25 @@ valore non presente produce `INVALID_LANGUAGE`. Il codice validato viene scritto
 come `dcterms:language` nel NIF e usato come language tag del testo e dei suoi
 segmenti.
 
-Il bulk usa un solo campo `language` per tutti i file e accetta esclusivamente
-parti `file` con estensione `.txt`, `.md` o `.markdown`. La presenza di una parte
-`conllu` o di un'estensione CoNLL-U rifiuta l'intera richiesta prima della
-conversione. Dopo l'ammissione ciascun documento conserva invece job, `fileId`,
-persistenza e rollback indipendenti; lo stato aggregato può quindi essere
+Il bulk usa un solo campo `language` per tutti i file e accetta parti `file` con
+estensione `.txt`, `.md`, `.markdown` o `.json`, anche miste. Per un batch di soli
+JSON il query parameter `corpusId` è vietato; in un batch misto si applica solo
+ai TXT/CommonMark, mentre ogni JSON usa l'eventuale `metadata.corpus`. Lo schema
+JSON è chiuso e un errore strutturale, un corpus inesistente o la presenza di una
+parte `conllu` rifiuta l'intera richiesta prima della conversione. Dopo
+l'ammissione ciascun documento conserva invece job, `fileId`, persistenza e
+rollback indipendenti; lo stato aggregato può quindi essere
 `PARTIALLY_COMPLETED`.
+
+Le attestazioni JSON sono importate dopo la persistenza NIF. Il tipo deve essere
+esattamente `ontolex:LexicalEntry`, `ontolex:Form`, `ontolex:LexicalSense` o
+`ontolex:LexicalConcept`; l'observable deve avere quel tipo nel graph ISO della
+lingua o nel graph fisso dei concept. Gli offset sono code point Unicode e il
+`value` deve coincidere con il testo canonico. Ogni attestazione valida ha una
+transazione indipendente; gli elementi non validi sono omessi e compaiono in
+`unsavedAttestations`, senza cambiare lo stato `COMPLETED` della conversione del
+testo. Le triple FRAC e i metadata stanno nel graph attestazioni del documento,
+il locus nel graph NIF, e il default graph resta vuoto.
 
 I test RDF non confrontano Turtle come una stringa. Caricano il risultato in un
 `Model` RDF4J e verificano soggetto, predicato e tipo dell'oggetto. In questo modo
@@ -73,7 +88,7 @@ Per eseguire una sola classe:
 mvn -Dtest=ControlledCommonMarkParserTest test
 mvn -Dtest=NifModelWriterTest test
 mvn -Dtest=ConlluSegmenterTest test
-mvn -Dtest=TextBulkImportValidatorTest,TextBulkJobManagerTest test
+mvn -Dtest=TextJsonImportParserTest,TextBulkImportValidatorTest,TextBulkJobManagerTest test
 ```
 
 Per un singolo caso:
@@ -231,6 +246,10 @@ cleanup del test.
 - upload e conversione asincrona di TXT semplice;
 - upload bulk di TXT/CommonMark con una lingua comune, polling aggregato e
   rollback indipendente che conserva i documenti riusciti;
+- upload bulk JSON, conversione di `text.content`, conservazione dell'originale,
+  metadati NIF, stato separato delle attestazioni e dettaglio degli elementi non
+  salvati;
+- rifiuto del `corpusId` query per richieste contenenti solo JSON;
 - rifiuto atomico del bulk quando è presente una parte CoNLL-U;
 - rifiuto dell'upload senza lingua o con un codice assente dalla lista ISO 639;
 - polling fino a `COMPLETED`, `FAILED` o `CANCELLED` con timeout;

@@ -18,6 +18,7 @@ import it.cnr.ilc.lexo.service.data.attestation.output.AttestationLocusUpdateRes
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationObservableUpdateResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationPage;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
+import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataProperty;
 import it.cnr.ilc.lexo.service.data.metadata.RdfMetadataValue;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
@@ -153,6 +154,120 @@ class AttestationManagerTest {
                     iri("https://lexo.ilc.cnr.it#AttestationService"), false,
                     textGraph)).isTrue();
             assertDefaultGraphEmpty(connection);
+        }
+    }
+
+    @Test
+    void importsJsonAttestationWithDeclaredTypeSeparateGlossAndMetadata()
+            throws Exception {
+        JsonTextImport.AttestationInput input = importedAttestation(
+                observable.stringValue(), ONTOLEX + "LexicalEntry",
+                "😀B", "emoji gloss", 1, 3);
+        RdfMetadataProperty confidence = new RdfMetadataProperty();
+        confidence.property = "http://www.lexinfo.net/ontology/3.0/lexinfo#confidence";
+        confidence.values.add(new RdfMetadataValue("0.9", "literal", null,
+                XSD.DECIMAL.stringValue()));
+        input.metadata = Collections.singletonList(confidence);
+
+        Attestation result = manager.createImported("file-a",
+                context.stringValue(), "it", input);
+
+        IRI attestation = iri(result.attestation);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        IRI locus = iri("https://example.org/text/interview#char=1,3");
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(observable, iri(FRAC + "attestation"),
+                    attestation, false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, DCTERMS.CREATOR,
+                    vf.createLiteral("imported"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, RDF.VALUE,
+                    vf.createLiteral("😀B", "it"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "value"),
+                    null, false, graph)).isFalse();
+            assertThat(lexical.hasStatement(attestation, iri(FRAC + "gloss"),
+                    vf.createLiteral("emoji gloss", "it"), false, graph)).isTrue();
+            assertThat(lexical.hasStatement(attestation, iri(confidence.property),
+                    vf.createLiteral("0.9", XSD.DECIMAL), false, graph)).isTrue();
+            assertFrequency(lexical, observable, context, graph, 1);
+            assertThat(text.hasStatement(locus, iri(NIF + "anchorOf"),
+                    vf.createLiteral("😀B", "it"), false, textGraph)).isTrue();
+            assertDefaultGraphEmpty(lexical);
+            assertDefaultGraphEmpty(text);
+        }
+    }
+
+    @Test
+    void importedAttestationsRequireTheDeclaredTypeInTheUploadLanguageGraph() {
+        JsonTextImport.AttestationInput wrongType = importedAttestation(
+                observable.stringValue(), ONTOLEX + "Form", "A", "A", 0, 1);
+        JsonTextImport.AttestationInput wrongLanguage = importedAttestation(
+                observable.stringValue(), ONTOLEX + "LexicalEntry", "A", "A", 0, 1);
+
+        assertThatThrownBy(() -> manager.createImported("file-a",
+                context.stringValue(), "it", wrongType))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageStartingWith("OBSERVABLE_TYPE_MISMATCH:");
+        assertThatThrownBy(() -> manager.createImported("file-a",
+                context.stringValue(), "en", wrongLanguage))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageStartingWith("OBSERVABLE_NOT_FOUND:");
+
+        try (RepositoryConnection lexical = lexicalRepository.getConnection();
+             RepositoryConnection text = textRepository.getConnection()) {
+            assertThat(lexical.hasStatement(null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), false,
+                    iri(LexicalNamedGraphs.attestationGraphUri("file-a")))).isFalse();
+            assertThat(text.hasStatement(
+                    iri("https://example.org/text/interview#char=0,1"),
+                    null, null, false, textGraph)).isFalse();
+        }
+    }
+
+    @Test
+    void importedLexicalConceptsUseOnlyTheFixedConceptGraph() throws Exception {
+        IRI concept = iri("https://example.org/concept/one");
+        IRI misplacedConcept = iri("https://example.org/concept/misplaced");
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            lexical.add(concept, RDF.TYPE, iri(ONTOLEX + "LexicalConcept"),
+                    iri(LexiconCrudSupport.lexicalConceptGraphUri()));
+            lexical.add(misplacedConcept, RDF.TYPE,
+                    iri(ONTOLEX + "LexicalConcept"),
+                    iri(LexiconCrudSupport.lexicalGraphUri("it")));
+        }
+
+        Attestation created = manager.createImported("file-a",
+                context.stringValue(), "it", importedAttestation(
+                        concept.stringValue(), ONTOLEX + "LexicalConcept",
+                        "A", "concept gloss", 0, 1));
+        assertThat(created.observable).isEqualTo(concept.stringValue());
+        assertThatThrownBy(() -> manager.createImported("file-a",
+                context.stringValue(), "it", importedAttestation(
+                        misplacedConcept.stringValue(), ONTOLEX + "LexicalConcept",
+                        "A", "A", 0, 1)))
+                .isInstanceOf(ManagerException.class)
+                .hasMessageStartingWith("OBSERVABLE_NOT_FOUND:");
+    }
+
+    @Test
+    void identicalJsonAttestationsCreateDistinctTimestampResources()
+            throws Exception {
+        JsonTextImport.AttestationInput first = importedAttestation(
+                observable.stringValue(), ONTOLEX + "LexicalEntry", "A", "A", 0, 1);
+        JsonTextImport.AttestationInput second = importedAttestation(
+                observable.stringValue(), ONTOLEX + "LexicalEntry", "A", "A", 0, 1);
+
+        Attestation firstResult = manager.createImported("file-a",
+                context.stringValue(), "it", first);
+        Attestation secondResult = manager.createImported("file-a",
+                context.stringValue(), "it", second);
+
+        assertThat(firstResult.attestation).isNotEqualTo(secondResult.attestation);
+        IRI graph = iri(LexicalNamedGraphs.attestationGraphUri("file-a"));
+        try (RepositoryConnection lexical = lexicalRepository.getConnection()) {
+            assertThat(count(lexical, null, RDF.TYPE,
+                    iri(FRAC + "Attestation"), graph)).isEqualTo(2);
+            assertFrequency(lexical, observable, context, graph, 2);
         }
     }
 
@@ -1866,6 +1981,20 @@ class AttestationManagerTest {
         RdfMetadataProperty result = new RdfMetadataProperty();
         result.property = property;
         result.values = Arrays.asList(values);
+        return result;
+    }
+
+    private JsonTextImport.AttestationInput importedAttestation(
+            String observed, String type, String value, String gloss,
+            int start, int end) {
+        JsonTextImport.AttestationInput result =
+                new JsonTextImport.AttestationInput();
+        result.observable = observed;
+        result.type = type;
+        result.value = value;
+        result.gloss = gloss;
+        result.start = Integer.valueOf(start);
+        result.end = Integer.valueOf(end);
         return result;
     }
 

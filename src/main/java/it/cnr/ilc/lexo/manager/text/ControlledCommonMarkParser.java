@@ -91,6 +91,22 @@ public final class ControlledCommonMarkParser {
      */
     public ParsedTextDocument parsePlainTextStructure(String rawText)
             throws ControlledCommonMarkException {
+        return parsePlainTextStructure(rawText, true);
+    }
+
+    /**
+     * Parses plain text embedded in the JSON bulk format. The content is always
+     * canonical text: a leading {@code ---} block is not interpreted as front
+     * matter because JSON metadata is carried by the sibling metadata object.
+     */
+    public ParsedTextDocument parseJsonTextStructure(String rawText)
+            throws ControlledCommonMarkException {
+        return parsePlainTextStructure(rawText, false);
+    }
+
+    private ParsedTextDocument parsePlainTextStructure(String rawText,
+                                                        boolean parseFrontMatter)
+            throws ControlledCommonMarkException {
         List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
         if (rawText == null) {
             issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT", "Documento assente"));
@@ -105,7 +121,8 @@ public final class ControlledCommonMarkParser {
 
         String[] lines = source.split("\\n", -1);
         ParsedTextDocument doc = new ParsedTextDocument();
-        int contentStart = parseOptionalFrontMatter(lines, doc, issues);
+        int contentStart = parseFrontMatter
+                ? parseOptionalFrontMatter(lines, doc, issues) : 0;
         StringBuilder clean = new StringBuilder();
         List<String> paragraphLines = new ArrayList<String>();
         int paragraphOrdinal = 0;

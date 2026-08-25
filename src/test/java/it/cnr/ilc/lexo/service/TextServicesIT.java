@@ -186,6 +186,81 @@ class TextServicesIT {
     }
 
     @Test
+    @DisplayName("Bulk JSON converts text and reports an invalid attestation without rolling it back")
+    void convertsJsonAndReportsUnsavedAttestations() throws Exception {
+        assumeConfigured();
+        String fileId = null;
+        try {
+            Path input = write("bulk-json-" + UUID.randomUUID() + ".json", "{"
+                    + "\"metadata\":{\"title\":\"Intervista JSON\"},"
+                    + "\"text\":{\"type\":\"txt\",\"content\":\"Testo importato.\"},"
+                    + "\"attestations\":[{\"id\":\"missing-1\",\"observable\":\"\","
+                    + "\"type\":\"http://www.w3.org/ns/lemon/ontolex#LexicalSense\","
+                    + "\"value\":\"Testo\",\"gloss\":\"Testo\","
+                    + "\"start_char\":0,\"end_char\":5}]}" );
+            FormDataMultiPart multipart = new FormDataMultiPart();
+            multipart.field("language", "it");
+            multipart.bodyPart(new FileDataBodyPart("file", input.toFile()));
+            JsonNode accepted;
+            try {
+                Response response = request("texts/bulk")
+                        .post(Entity.entity(multipart, multipart.getMediaType()));
+                assertStatus(response, 202);
+                accepted = JSON.readTree(response.readEntity(String.class));
+            } finally {
+                multipart.close();
+            }
+
+            String bulkId = accepted.path("bulkId").asText();
+            fileId = accepted.path("items").get(0).path("fileId").asText();
+            JsonNode terminal = awaitTerminalBulk(bulkId, Duration.ofSeconds(30));
+            JsonNode item = terminal.path("items").get(0);
+            assertThat(terminal.path("state").asText()).isEqualTo("COMPLETED");
+            assertThat(item.path("state").asText()).isEqualTo("COMPLETED");
+            assertThat(item.path("inputType").asText()).isEqualTo("json");
+            assertThat(item.path("attestationState").asText()).isEqualTo("FAILED");
+            assertThat(item.path("attestationTotal").asInt()).isEqualTo(1);
+            assertThat(item.path("savedAttestations").asInt()).isZero();
+            assertThat(item.path("unsavedAttestations")).hasSize(1);
+            assertThat(item.path("unsavedAttestations").get(0).path("id").asText())
+                    .isEqualTo("missing-1");
+            assertThat(item.path("unsavedAttestations").get(0).path("code").asText())
+                    .isEqualTo("MISSING_PARAMETER");
+
+            assertThat(get("texts/" + fileId + "/canonical").readEntity(String.class))
+                    .isEqualTo("Testo importato.");
+            assertThat(get("texts/" + fileId + "/original")
+                    .getMediaType().toString()).startsWith("application/json");
+            Model nif = turtle(get("texts/" + fileId + "/nif"));
+            assertThat(nif.contains(null, iri(DCTERMS + "title"),
+                    SimpleValueFactory.getInstance().createLiteral(
+                            "Intervista JSON", "it"))).isTrue();
+        } finally {
+            deleteQuietly(fileId == null ? null : "texts/" + fileId);
+        }
+    }
+
+    @Test
+    @DisplayName("A JSON-only bulk rejects the corpusId query parameter")
+    void rejectsQueryCorpusForJsonOnlyBulk() throws Exception {
+        assumeConfigured();
+        Path input = write("bulk-json-corpus-" + UUID.randomUUID() + ".json",
+                "{\"text\":{\"type\":\"txt\",\"content\":\"Testo.\"}}");
+        FormDataMultiPart multipart = new FormDataMultiPart();
+        multipart.field("language", "it");
+        multipart.bodyPart(new FileDataBodyPart("file", input.toFile()));
+        try {
+            Response response = request("texts/bulk?corpusId=corpus-a")
+                    .post(Entity.entity(multipart, multipart.getMediaType()));
+            assertStatus(response, 400);
+            assertThat(JSON.readTree(response.readEntity(String.class)).path("code").asText())
+                    .isEqualTo("CORPUS_ID_NOT_ALLOWED_FOR_JSON");
+        } finally {
+            multipart.close();
+        }
+    }
+
+    @Test
     @DisplayName("A CoNLL-U part rejects the complete bulk before conversion")
     void rejectsConlluInBulk() throws Exception {
         assumeConfigured();

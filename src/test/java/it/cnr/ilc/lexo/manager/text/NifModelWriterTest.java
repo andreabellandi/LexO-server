@@ -128,6 +128,17 @@ class NifModelWriterTest {
     }
 
     @Test
+    @DisplayName("A preserved JSON original is described as application/json")
+    void mapsTheJsonSourceMediaType() throws Exception {
+        ParsedTextDocument document = parser.parseJsonTextStructure("Testo.");
+        Model model = writer.build("json-1", "document.json", document);
+
+        assertThat(model.contains(iri(BASE + "json-1/source"),
+                iri(DCTERMS + "format"),
+                values.createLiteral("application/json"))).isTrue();
+    }
+
+    @Test
     @DisplayName("Corpus NIF has metadata and members but no textual nif:isString")
     void buildsTextlessCorpusModel() throws Exception {
         ParsedTextDocument metadata = parser.parseMetadataOnly(

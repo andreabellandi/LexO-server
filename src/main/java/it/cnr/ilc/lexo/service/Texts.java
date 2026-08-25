@@ -12,11 +12,13 @@ import it.cnr.ilc.lexo.manager.text.TextBulkImportValidator;
 import it.cnr.ilc.lexo.manager.text.TextBulkJobManager;
 import it.cnr.ilc.lexo.manager.text.TextBulkJobManager.BulkUpload;
 import it.cnr.ilc.lexo.manager.text.TextCatalogManager;
+import it.cnr.ilc.lexo.manager.text.TextJsonImportParser;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
 import it.cnr.ilc.lexo.manager.text.TextTotalManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.UploadKind;
+import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.service.data.lexicon.input.converter.CancelRequest;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import it.cnr.ilc.lexo.service.data.text.output.BulkTextJob;
@@ -231,7 +233,7 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Bulk text upload and NIF conversion",
-            notes = "This method validates and uploads multiple TXT/CommonMark files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. CoNLL-U is not allowed in bulk requests")
+            notes = "This method validates and uploads multiple TXT, CommonMark, or fixed-schema JSON files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. JSON files may include per-document corpus membership and FRAC attestations; CoNLL-U is not allowed in bulk requests")
     @ApiImplicitParam(
             name = "language",
             value = "single required ISO 639 language code applied to every text in the bulk",
@@ -243,12 +245,12 @@ public class Texts extends Service {
             @HeaderParam("Authorization") String key,
             @ApiParam(
                     name = "file",
-                    value = "multipart request containing one or more .txt, .md or .markdown file fields",
+                    value = "multipart request containing one or more .txt, .md, .markdown or fixed-schema .json file fields",
                     required = true)
             FormDataMultiPart multiPart,
             @ApiParam(
                     name = "corpusId",
-                    value = "optional id of the corpus to which every successfully converted text is added",
+                    value = "optional corpus id applied only to TXT/CommonMark files; JSON files use metadata.corpus and JSON-only requests must omit this parameter",
                     example = "7d444840-9dc0-11d1-b245-5ffdce74fad2",
                     required = false)
             @QueryParam("corpusId") String corpusId) {
@@ -268,11 +270,19 @@ public class Texts extends Service {
             int fileCount = fileParts == null ? 0 : fileParts.size();
             TextBulkImportValidator.requireFileCount(fileCount, MAX_BULK_FILES);
 
+            boolean hasJson = false;
+            boolean hasText = false;
             for (FormDataBodyPart part : fileParts) {
                 FormDataContentDisposition metadata = part == null
                         ? null : part.getFormDataContentDisposition();
-                TextBulkImportValidator.requireSupportedFileName(
-                        metadata == null ? null : metadata.getFileName());
+                String fileName = metadata == null ? null : metadata.getFileName();
+                TextBulkImportValidator.requireSupportedFileName(fileName);
+                String lower = fileName.toLowerCase(Locale.ROOT);
+                if (TextJobManager.isJsonExtension(lower)) {
+                    hasJson = true;
+                } else {
+                    hasText = true;
+                }
             }
 
             List<FormDataBodyPart> languageParts = multiPart.getFields("language");
@@ -287,7 +297,9 @@ public class Texts extends Service {
 
             String selectedCorpusId = corpusId == null || corpusId.trim().isEmpty()
                     ? null : corpusId.trim();
-            if (selectedCorpusId != null) {
+            TextBulkImportValidator.requireAllowedCorpusParameter(
+                    hasJson, hasText, selectedCorpusId);
+            if (selectedCorpusId != null && hasText) {
                 try {
                     CorpusManager.get().requireCorpusUri(selectedCorpusId);
                 } catch (IllegalArgumentException e) {
@@ -323,7 +335,24 @@ public class Texts extends Service {
                     throw new BulkSizeException(code, e.getMessage(), e);
                 }
                 totalBytes += Files.size(stored);
-                uploads.add(new BulkUpload(fileId, stored.getFileName().toString()));
+                boolean jsonInput = TextJobManager.isJsonExtension(
+                        originalName.toLowerCase(Locale.ROOT));
+                String itemCorpusId = jsonInput ? null : selectedCorpusId;
+                if (jsonInput) {
+                    JsonTextImport jsonImport =
+                            new TextJsonImportParser().parse(stored);
+                    itemCorpusId = jsonImport.corpusId;
+                    if (itemCorpusId != null) {
+                        try {
+                            CorpusManager.get().requireCorpusUri(itemCorpusId);
+                        } catch (IllegalArgumentException e) {
+                            throw new IllegalArgumentException(
+                                    "INVALID_CORPUS: " + e.getMessage(), e);
+                        }
+                    }
+                }
+                uploads.add(new BulkUpload(fileId,
+                        stored.getFileName().toString(), itemCorpusId, jsonInput));
             }
 
             String bulkId = UUID.randomUUID().toString();
@@ -968,6 +997,9 @@ public class Texts extends Service {
 
     private static String originalMediaType(String fileName) {
         String lower = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".json")) {
+            return "application/json; charset=UTF-8";
+        }
         return lower.endsWith(".md") || lower.endsWith(".markdown")
                 ? "text/markdown; charset=UTF-8" : "text/plain; charset=UTF-8";
     }

@@ -1,9 +1,14 @@
 package it.cnr.ilc.lexo.manager.text;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import it.cnr.ilc.lexo.manager.AttestationManager;
+import it.cnr.ilc.lexo.manager.ManagerException;
+import it.cnr.ilc.lexo.manager.ManagerFactory;
+import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
+import it.cnr.ilc.lexo.service.data.text.output.UnsavedAttestation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,11 +40,13 @@ import java.util.concurrent.Future;
 import org.eclipse.rdf4j.model.Model;
 
 /**
- * Asynchronous manager dedicated to TXT/CommonMark + optional CoNLL-U -> NIF jobs.
+ * Asynchronous manager dedicated to TXT/CommonMark/JSON + optional CoNLL-U -> NIF jobs.
  * It deliberately mirrors LexO-server's existing JobManager without changing it.
  */
 public final class TextJobManager {
 
+    private static final AttestationManager IMPORTED_ATTESTATION_MANAGER =
+            ManagerFactory.getManager(AttestationManager.class);
     private static final TextJobManager INSTANCE = new TextJobManager();
     private static final String LANGUAGE_FILE = ".language";
 
@@ -68,6 +75,10 @@ public final class TextJobManager {
         public volatile String message;
         public String resultId;
         public List<ValidationIssue> issues;
+        public volatile String attestationState;
+        public volatile Integer attestationTotal;
+        public volatile Integer savedAttestations;
+        public volatile List<UnsavedAttestation> unsavedAttestations;
 
         public TextJobInfo() {
         }
@@ -190,7 +201,7 @@ public final class TextJobManager {
                 ? null : CorpusManager.get().requireCorpusUri(selectedCorpusId);
         UploadSet upload = findUploadSet(fileId);
         if (upload == null || upload.text == null || !Files.exists(upload.text)) {
-            throw new IllegalStateException("No uploaded TXT/Markdown file for " + fileId);
+            throw new IllegalStateException("No uploaded text or JSON file for " + fileId);
         }
         if (upload.language == null) {
             throw new IllegalStateException("Missing language for uploaded text " + fileId);
@@ -232,17 +243,29 @@ public final class TextJobManager {
             job.progress = 2;
             checkCancelled();
 
-            String rawText = readUtf8Strict(upload.text);
+            String rawInput = readUtf8Strict(upload.text);
             String rawConllu = upload.conllu == null ? null : readUtf8Strict(upload.conllu);
             job.progress = 15;
             job.message = "Input read and UTF-8 validated";
             checkCancelled();
 
             ControlledCommonMarkParser parser = new ControlledCommonMarkParser();
-            boolean plainText = !parser.hasControlledCommonMarkHeading(rawText);
-            ParsedTextDocument doc = plainText
-                    ? parser.parsePlainTextStructure(rawText)
-                    : parser.parseStructure(rawText);
+            JsonTextImport jsonImport = null;
+            ParsedTextDocument doc;
+            if (isJsonExtension(upload.textFileName.toLowerCase(Locale.ROOT))) {
+                jsonImport = new TextJsonImportParser().parse(rawInput);
+                if (!sameNullable(corpusId, jsonImport.corpusId)) {
+                    throw new IllegalStateException(
+                            "BULK_JSON_CORPUS_CHANGED: metadata.corpus changed after admission");
+                }
+                doc = parser.parseJsonTextStructure(jsonImport.content);
+                applyJsonMetadata(doc, jsonImport);
+            } else {
+                boolean plainText = !parser.hasControlledCommonMarkHeading(rawInput);
+                doc = plainText
+                        ? parser.parsePlainTextStructure(rawInput)
+                        : parser.parseStructure(rawInput);
+            }
             applyUploadLanguage(doc, upload.language);
             if (rawConllu == null) {
                 parser.segmentWithBreakIterator(doc);
@@ -279,6 +302,12 @@ public final class TextJobManager {
                     record.documentUri + "#context", corpusId, corpusUri, record);
             graphCommitted = true;
             committed = true;
+            if (jsonImport != null) {
+                String evidence = corpusUri == null
+                        ? record.documentUri + "#context" : corpusUri;
+                importAttestations(fileId, evidence, upload.language,
+                        jsonImport.attestations, job);
+            }
             uploads.remove(fileId);
             deleteRecursively(uploadRoot.resolve(fileId));
             deleteRecursively(workDir);
@@ -355,6 +384,85 @@ public final class TextJobManager {
         List<String> values = new ArrayList<String>(1);
         values.add(language);
         doc.metadataValues.put("language", values);
+    }
+
+    private static void applyJsonMetadata(ParsedTextDocument doc,
+                                          JsonTextImport jsonImport) {
+        doc.frontMatterPresent = jsonImport.metadataPresent;
+        for (Map.Entry<String, List<String>> entry : jsonImport.metadata.entrySet()) {
+            List<String> values = new ArrayList<String>(entry.getValue());
+            doc.metadataValues.put(entry.getKey(), values);
+            if (!values.isEmpty()) {
+                doc.metadata.put(entry.getKey(), values.get(0));
+            }
+        }
+    }
+
+    private static void importAttestations(
+            String fileId, String evidence, String language,
+            List<JsonTextImport.AttestationInput> attestations,
+            TextJobInfo job) {
+        List<UnsavedAttestation> unsaved = new ArrayList<UnsavedAttestation>();
+        int total = attestations == null ? 0 : attestations.size();
+        int saved = 0;
+        job.attestationState = "RUNNING";
+        job.attestationTotal = Integer.valueOf(total);
+        job.savedAttestations = Integer.valueOf(0);
+        job.unsavedAttestations = Collections.emptyList();
+        if (attestations != null) {
+            for (int index = 0; index < attestations.size(); index++) {
+                JsonTextImport.AttestationInput input = attestations.get(index);
+                try {
+                    IMPORTED_ATTESTATION_MANAGER.createImported(
+                            fileId, evidence, language, input);
+                    saved++;
+                    job.savedAttestations = Integer.valueOf(saved);
+                } catch (ManagerException | IllegalArgumentException e) {
+                    unsaved.add(unsaved(input, e));
+                } catch (RuntimeException e) {
+                    unsaved.add(unsaved(input, e));
+                }
+                job.progress = 88 + (int) Math.floor(
+                        11.0d * (index + 1) / Math.max(1, total));
+            }
+        }
+        job.savedAttestations = Integer.valueOf(saved);
+        job.unsavedAttestations = unsaved;
+        if (unsaved.isEmpty()) {
+            job.attestationState = "COMPLETED";
+        } else if (saved == 0) {
+            job.attestationState = "FAILED";
+        } else {
+            job.attestationState = "PARTIALLY_COMPLETED";
+        }
+    }
+
+    private static UnsavedAttestation unsaved(
+            JsonTextImport.AttestationInput input, Throwable error) {
+        UnsavedAttestation result = new UnsavedAttestation();
+        if (input != null) {
+            result.id = input.id;
+            result.observable = input.observable;
+            result.type = input.type;
+        }
+        String message = error.getMessage() == null
+                ? error.getClass().getSimpleName() : error.getMessage();
+        int separator = message.indexOf(':');
+        String candidate = separator <= 0 ? "ATTESTATION_IMPORT_FAILED"
+                : message.substring(0, separator);
+        result.code = candidate.matches("[A-Z][A-Z0-9_]*")
+                ? candidate : "ATTESTATION_IMPORT_FAILED";
+        result.cause = separator <= 0 ? message : message.substring(separator + 1).trim();
+        return result;
+    }
+
+    private static boolean sameNullable(String left, String right) {
+        String normalizedLeft = left == null || left.trim().isEmpty()
+                ? null : left.trim();
+        String normalizedRight = right == null || right.trim().isEmpty()
+                ? null : right.trim();
+        return normalizedLeft == null ? normalizedRight == null
+                : normalizedLeft.equals(normalizedRight);
     }
 
     public Collection<TextJobInfo> getAllJobsFor(String fileId) {
@@ -518,7 +626,7 @@ public final class TextJobManager {
                 }
                 String name = path.getFileName().toString();
                 String lower = name.toLowerCase(Locale.ROOT);
-                if (isTextExtension(lower)) {
+                if (isTextExtension(lower) || isJsonExtension(lower)) {
                     discovered.text = path;
                     discovered.textFileName = name;
                 } else if (isConlluExtension(lower)) {
@@ -604,6 +712,10 @@ public final class TextJobManager {
     public static boolean isMarkdownExtension(String lowerName) {
         return lowerName != null && (lowerName.endsWith(".md")
                 || lowerName.endsWith(".markdown"));
+    }
+
+    public static boolean isJsonExtension(String lowerName) {
+        return lowerName != null && lowerName.endsWith(".json");
     }
 
     public static boolean isConlluExtension(String lowerName) {

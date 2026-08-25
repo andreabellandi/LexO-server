@@ -20,10 +20,19 @@ public final class TextBulkJobManager {
     public static final class BulkUpload {
         public final String fileId;
         public final String originalFileName;
+        public final String corpusId;
+        public final boolean json;
 
         public BulkUpload(String fileId, String originalFileName) {
+            this(fileId, originalFileName, null, false);
+        }
+
+        public BulkUpload(String fileId, String originalFileName,
+                          String corpusId, boolean json) {
             this.fileId = fileId;
             this.originalFileName = originalFileName;
+            this.corpusId = corpusId;
+            this.json = json;
         }
     }
 
@@ -50,7 +59,8 @@ public final class TextBulkJobManager {
 
         List<BulkItemRecord> itemRecords = new ArrayList<BulkItemRecord>(uploads.size());
         for (BulkUpload upload : uploads) {
-            itemRecords.add(new BulkItemRecord(upload.fileId, upload.originalFileName));
+            itemRecords.add(new BulkItemRecord(upload.fileId,
+                    upload.originalFileName, upload.corpusId, upload.json));
         }
         BulkRecord record = new BulkRecord(bulkId, language, blankToNull(corpusId),
                 Collections.unmodifiableList(itemRecords));
@@ -61,7 +71,7 @@ public final class TextBulkJobManager {
         for (BulkItemRecord item : itemRecords) {
             try {
                 item.job = TextJobManager.get().startConversion(
-                        item.fileId, record.corpusId);
+                        item.fileId, item.corpusId);
             } catch (Throwable e) {
                 item.startupError = e.getMessage() == null
                         ? e.getClass().getSimpleName() : e.getMessage();
@@ -91,6 +101,8 @@ public final class TextBulkJobManager {
             BulkTextJobItem item = new BulkTextJobItem();
             item.fileId = itemRecord.fileId;
             item.originalFileName = itemRecord.originalFileName;
+            item.corpusId = itemRecord.corpusId;
+            item.inputType = itemRecord.json ? "json" : "text";
             TextJobInfo job = itemRecord.job;
             TextJobState state;
             if (itemRecord.startupError != null) {
@@ -105,6 +117,10 @@ public final class TextBulkJobManager {
                 item.message = job.message;
                 item.resultId = job.resultId;
                 item.issues = job.issues;
+                item.attestationState = job.attestationState;
+                item.attestationTotal = job.attestationTotal;
+                item.savedAttestations = job.savedAttestations;
+                item.unsavedAttestations = job.unsavedAttestations;
             }
             item.state = state.name();
             states.add(state);
@@ -180,12 +196,17 @@ public final class TextBulkJobManager {
     private static final class BulkItemRecord {
         final String fileId;
         final String originalFileName;
+        final String corpusId;
+        final boolean json;
         volatile TextJobInfo job;
         volatile String startupError;
 
-        BulkItemRecord(String fileId, String originalFileName) {
+        BulkItemRecord(String fileId, String originalFileName,
+                       String corpusId, boolean json) {
             this.fileId = fileId;
             this.originalFileName = originalFileName;
+            this.corpusId = blankToNull(corpusId);
+            this.json = json;
         }
     }
 }

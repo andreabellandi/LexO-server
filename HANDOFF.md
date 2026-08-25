@@ -1,5 +1,22 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 25 agosto 2026 dopo l'estensione di `POST /texts/bulk` ai file
+JSON con schema chiuso. Un batch può ora contenere TXT, CommonMark e JSON con
+una sola lingua ISO: il `corpusId` query continua ad applicarsi ai soli file
+testuali ed è vietato nei batch esclusivamente JSON, mentre ogni JSON può usare
+il proprio `metadata.corpus`. Il contenuto `text.content` viene convertito come
+TXT senza front matter e l'originale JSON viene conservato. Le attestazioni
+valide sono importate con creator `imported`, `rdf:value`, `frac:gloss`, metadata
+comuni e frequency nel graph attestazioni del documento; il locus resta nel
+graph NIF. Gli observable sono risolti con tipo esatto nel graph ISO della
+lingua o nel graph fisso dei lexical concept. Ogni attestazione ha una
+transazione indipendente: gli elementi non validi sono riportati dal polling in
+`unsavedAttestations` e non annullano testo o attestazioni valide. Lo schema o un
+corpus non valido rifiutano invece atomicamente il batch in ammissione. La
+compilazione degli end-to-end, 81 test mirati e la suite Maven completa di 192
+test sono passati senza errori o test saltati. Gli end-to-end REST aggiunti non
+sono stati eseguiti perché richiedono un deployment GraphDB/Tomcat isolato.
+
 Aggiornato al 21 agosto 2026 dopo il rafforzamento di
 `DELETE /texts/{fileId}`. La cancellazione continua a rimuovere record e graph
 NIF, appartenenza al corpus, file persistiti e graph documentali di attestazioni
@@ -275,10 +292,12 @@ appartenenza ai corpora sono persistiti in GraphDB.
   la chiave `language` nel front matter viene ignorata.
 - Conversione asincrona in NIF, polling, cancellazione, download di NIF,
   originale, testo canonico e CoNLL-U.
-- Endpoint `POST /texts/bulk` per caricare e convertire più TXT/CommonMark con
-  una sola lingua e un eventuale corpus comune. L'ammissione è atomica e vieta
-  ogni CoNLL-U; dopo l'accettazione i job e i rollback sono indipendenti e
-  `GET /texts/bulk/{bulkId}/status` espone anche risultati parziali.
+- Endpoint `POST /texts/bulk` per caricare e convertire più TXT/CommonMark/JSON
+  con una sola lingua. I JSON hanno schema chiuso, testo TXT, corpus proprio e
+  attestazioni FRAC; il polling espone stato e scarti delle attestazioni senza
+  confonderli con la conversione. Il corpus query resta compatibile con i soli
+  TXT/CommonMark. L'ammissione è atomica e vieta ogni CoNLL-U; dopo
+  l'accettazione i job e i rollback dei documenti sono indipendenti.
 - Creazione, consultazione, download ed eliminazione di corpora NIF senza testo;
   collegamenti bidirezionali `dcterms:hasPart`/`dcterms:isPartOf`.
 - Endpoint `PUT /texts/{fileId}/total` e
@@ -434,10 +453,12 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - I file originali e CoNLL-U sono persistiti sul filesystem; il testo canonico
   non va duplicato in `canonical.txt` e i record non vanno duplicati in
   `metadata.json`.
-- Il bulk testuale usa una lingua comune, accetta soltanto TXT/CommonMark e non
-  introduce associazioni implicite basate sui nomi dei file. Gli errori generali
-  eliminano tutto lo staging; gli errori di conversione eliminano soltanto il
-  documento interessato.
+- Il bulk testuale usa una lingua comune e accetta TXT/CommonMark/JSON senza
+  associazioni implicite basate sui nomi dei file. Il `corpusId` query non si
+  applica ai JSON, che usano soltanto `metadata.corpus`. Gli errori di schema e
+  ammissione eliminano tutto lo staging; gli errori di conversione eliminano
+  soltanto il documento interessato e le attestazioni non valide sono omesse e
+  rendicontate singolarmente.
 - I metadati multipli devono restare multipli nel modello RDF e nelle risposte.
 - Le asserzioni RDF devono confrontare il modello semantico, non il testo Turtle.
 - Il bootstrap è checksum-based e deve restare idempotente.
@@ -733,8 +754,9 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
 4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
 5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
-   completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi di
-   lingua upload mancante/non valida e il relativo `dcterms:language` nel NIF.
+   completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi JSON
+   con attestazioni, corpus per documento, lingua upload mancante/non valida e
+   il relativo `dcterms:language` nel NIF.
 6. Allineare README e POM sul requisito Java ufficiale.
 7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.

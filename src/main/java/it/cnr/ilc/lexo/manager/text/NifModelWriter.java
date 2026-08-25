@@ -454,6 +454,9 @@ public final class NifModelWriter {
             return "text/plain";
         }
         String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".json")) {
+            return "application/json";
+        }
         return lower.endsWith(".md") || lower.endsWith(".markdown")
                 ? "text/markdown" : "text/plain";
     }

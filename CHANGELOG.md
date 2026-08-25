@@ -9,6 +9,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `POST /texts/bulk` now accepts fixed-schema JSON documents containing plain
+  text, the existing text metadata fields, an optional per-document corpus, and
+  FRAC attestations whose observables are validated in their category named
+  graphs. Status polling reports saved and unsaved attestations independently
+  from text conversion.
 - `GET /lexica/lexicalConcept` now returns one validated lexical concept with
   every multilingual label and definition, linked entries and senses resolved
   across ISO-language lexical graphs with ordered label fallbacks, concept-set
@@ -88,6 +93,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Bulk text import now accepts mixed TXT/CommonMark/JSON requests under one
+  required language. The query `corpusId` applies only to TXT/CommonMark and is
+  rejected for JSON-only requests; duplicate JSON attestations remain distinct.
 - `POST /attestations/{fileId}` now accepts an optional exact `observable` IRI
   filter, combined with the existing query and JSON filters before counting and
   pagination.

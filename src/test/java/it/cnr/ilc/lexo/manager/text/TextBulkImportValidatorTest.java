@@ -9,13 +9,15 @@ import org.junit.jupiter.api.Test;
 class TextBulkImportValidatorTest {
 
     @Test
-    @DisplayName("Bulk admission accepts only TXT and CommonMark file names")
-    void acceptsTextAndCommonMarkFiles() {
+    @DisplayName("Bulk admission accepts TXT, CommonMark and fixed-schema JSON file names")
+    void acceptsTextCommonMarkAndJsonFiles() {
         assertThatCode(() -> TextBulkImportValidator.requireSupportedFileName("one.txt"))
                 .doesNotThrowAnyException();
         assertThatCode(() -> TextBulkImportValidator.requireSupportedFileName("two.MD"))
                 .doesNotThrowAnyException();
         assertThatCode(() -> TextBulkImportValidator.requireSupportedFileName("three.markdown"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> TextBulkImportValidator.requireSupportedFileName("four.JSON"))
                 .doesNotThrowAnyException();
     }
 
@@ -41,5 +43,19 @@ class TextBulkImportValidatorTest {
         assertThatThrownBy(() ->
                 TextBulkImportValidator.requireSupportedFileName("document.pdf"))
                 .hasMessageStartingWith("BULK_UNSUPPORTED_FILE_TYPE:");
+    }
+
+    @Test
+    @DisplayName("corpusId is forbidden for JSON-only bulks and remains available to text items")
+    void restrictsTheQueryCorpusForJsonOnlyBulks() {
+        assertThatThrownBy(() -> TextBulkImportValidator.requireAllowedCorpusParameter(
+                true, false, "corpus-a"))
+                .hasMessageStartingWith("CORPUS_ID_NOT_ALLOWED_FOR_JSON:");
+        assertThatCode(() -> TextBulkImportValidator.requireAllowedCorpusParameter(
+                true, true, "corpus-a"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> TextBulkImportValidator.requireAllowedCorpusParameter(
+                true, false, null))
+                .doesNotThrowAnyException();
     }
 }
