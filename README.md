@@ -610,6 +610,29 @@ observable's existing frequency is recalculated from its remaining typed
 attestations; the frequency resource is removed when the result is zero.
 Resources and graphs belonging to other texts are otherwise preserved.
 
+`DELETE /service/texts/bulk` starts the same deletion policy for multiple texts
+in a background job. The JSON body contains a non-empty `fileIds` list of unique
+identifiers:
+
+```json
+{"fileIds": ["text-a", "text-b", "text-c"]}
+```
+
+The service validates the complete request and returns HTTP `202` with a
+`bulkId`. Poll `GET /service/texts/deletions/{bulkId}/status` to obtain the
+aggregate counters and the ordered, independent outcome of every text. Item
+states are `PENDING`, `RUNNING`, `DELETED`, `NOT_FOUND`, or `FAILED`; aggregate
+states are `PENDING`, `RUNNING`, `COMPLETED`, `PARTIALLY_COMPLETED`, or `FAILED`.
+A failure for one text does not prevent later texts from being processed.
+`NOT_FOUND` is an idempotent successful outcome and does not make the aggregate
+job fail.
+
+Deletion is sequential inside the asynchronous job so that every item can run
+the complete single-text cleanup without concurrent destructive operations.
+The default limit is 100 identifiers and can be changed with the JVM system
+property `lexo.text.maxBulkDeleteFiles`. Job status is held in memory and is no
+longer available after an application restart.
+
 ## Attestations
 
 `POST /service/attestations` creates multiple FRAC attestations for one OntoLex

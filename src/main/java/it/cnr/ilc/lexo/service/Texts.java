@@ -9,6 +9,7 @@ import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.manager.text.TextBulkImportValidator;
+import it.cnr.ilc.lexo.manager.text.TextBulkDeletionManager;
 import it.cnr.ilc.lexo.manager.text.TextBulkJobManager;
 import it.cnr.ilc.lexo.manager.text.TextBulkJobManager.BulkUpload;
 import it.cnr.ilc.lexo.manager.text.TextCatalogManager;
@@ -22,7 +23,9 @@ import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.service.data.lexicon.input.converter.CancelRequest;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import it.cnr.ilc.lexo.service.data.text.output.BulkTextJob;
+import it.cnr.ilc.lexo.service.data.text.input.TextBulkDeletionInput;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
+import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionJob;
 import it.cnr.ilc.lexo.service.data.text.input.TextTotalInput;
 import it.cnr.ilc.lexo.service.data.text.output.TextTotalResult;
 import java.io.IOException;
@@ -415,6 +418,67 @@ public class Texts extends Service {
             return json(bulk);
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/bulk/{bulkId}/status");
+        }
+    }
+
+    @DELETE
+    @javax.ws.rs.Path("/bulk")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Asynchronous bulk text deletion",
+            notes = "This method validates a unique fileId list and starts one background job that applies the complete single-text deletion policy independently to every text")
+    public Response deleteBulk(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "non-empty unique fileId list to delete independently",
+                    required = true)
+            TextBulkDeletionInput request) {
+        try {
+            checkKey(key);
+            TextBulkDeletionJob job = TextBulkDeletionManager.get().start(request);
+            return json(Response.Status.ACCEPTED, job);
+        } catch (IllegalArgumentException e) {
+            return bulkError(Response.Status.BAD_REQUEST,
+                    errorCode(e.getMessage(), "INVALID_BULK_DELETE"),
+                    e.getMessage());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("DELETE /texts/bulk");
+        } catch (RuntimeException e) {
+            log(Level.ERROR, "/texts/bulk deletion: " + e.getMessage(), e);
+            return bulkError(Response.Status.INTERNAL_SERVER_ERROR,
+                    "BULK_DELETE_START_FAILED",
+                    e.getMessage() == null ? e.getClass().getSimpleName()
+                            : e.getMessage());
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/deletions/{bulkId}/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Bulk text deletion status",
+            notes = "This method returns aggregate and per-text outcomes for one asynchronous bulk deletion job")
+    public Response deletionStatus(
+            @ApiParam(name = "Authorization",
+                    value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "bulkId",
+                    value = "id returned by the asynchronous bulk text deletion service",
+                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    required = true)
+            @PathParam("bulkId") String bulkId) {
+        try {
+            checkKey(key);
+            TextBulkDeletionJob job = TextBulkDeletionManager.get().get(bulkId);
+            return job == null
+                    ? plain(Response.Status.NOT_FOUND,
+                            "Bulk text deletion job not found")
+                    : json(job);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("GET /texts/deletions/{bulkId}/status");
         }
     }
 

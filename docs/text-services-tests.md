@@ -16,10 +16,12 @@ GraphDB Free.
 | `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto TXT, attestazioni e tipi JSON obbligatori |
 | `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark/JSON, regole del `corpusId`, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
+| `TextBulkDeletionManagerTest` | Unitario | Avvio asincrono, validazione preventiva, ordine ed esiti indipendenti `DELETED`, `NOT_FOUND` e `FAILED` |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
-| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, eliminazione e rollback |
+| `TextsTest` | Unitario API | Routing e documentazione Swagger degli endpoint di cancellazione multipla asincrona |
+| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, cancellazione singola e multipla e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
@@ -88,7 +90,7 @@ Per eseguire una sola classe:
 mvn -Dtest=ControlledCommonMarkParserTest test
 mvn -Dtest=NifModelWriterTest test
 mvn -Dtest=ConlluSegmenterTest test
-mvn -Dtest=TextJsonImportParserTest,TextBulkImportValidatorTest,TextBulkJobManagerTest test
+mvn -Dtest=TextJsonImportParserTest,TextBulkImportValidatorTest,TextBulkJobManagerTest,TextBulkDeletionManagerTest,TextsTest test
 ```
 
 Per un singolo caso:
@@ -260,6 +262,9 @@ cleanup del test.
   completo in caso di osservabile o metadato non valido;
 - verifica RDF in entrambi i NIF;
 - aggiornamento del corpus dopo la cancellazione del documento;
+- avvio asincrono della cancellazione multipla, polling fino allo stato
+  terminale ed esiti indipendenti per due testi eliminati e un identificatore
+  inesistente;
 - cancellazione del corpus;
 - assenza di record e NIF dopo una conversione fallita.
 
@@ -358,6 +363,15 @@ endpoint `DELETE`.
   documento; ricalcolo delle frequency degli observable nei graph documentali
   esterni coinvolti, inclusa la rimozione a conteggio zero, conservando
   invariati gli altri dati e le attestazioni residue.
+
+`TextBulkDeletionManagerTest` verifica inoltre che la richiesta multipla sia
+validata interamente prima della schedulazione, che il lavoro inizi in stato
+`PENDING`, che un errore tecnico produca `PARTIALLY_COMPLETED` senza interrompere
+gli elementi successivi e che identificatori inesistenti producano
+`NOT_FOUND` senza far fallire il job. Ogni elemento richiama la stessa
+cancellazione usata da `DELETE /texts/{fileId}`; il relativo scenario E2E in
+`TextServicesIT` verifica il contratto HTTP `202`, il polling e il cleanup dei
+record e del filesystem.
 
 ### Totali FRAC di testi e corpora
 

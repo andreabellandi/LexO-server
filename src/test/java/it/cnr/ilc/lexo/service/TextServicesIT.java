@@ -186,6 +186,60 @@ class TextServicesIT {
     }
 
     @Test
+    @DisplayName("Asynchronous bulk deletion applies independent text outcomes")
+    void deletesMultipleTextsAsynchronously() throws Exception {
+        assumeConfigured();
+        java.util.List<String> fileIds = new java.util.ArrayList<String>();
+        try {
+            for (int index = 0; index < 2; index++) {
+                Path input = write("bulk-delete-" + index + "-"
+                        + UUID.randomUUID() + ".txt", "Testo " + index + ".");
+                String fileId = upload(input);
+                fileIds.add(fileId);
+                assertStatus(post("texts/" + fileId + "/convert"), 200);
+                assertThat(awaitTerminalJob(fileId, Duration.ofSeconds(30))
+                        .path("state").asText()).isEqualTo("COMPLETED");
+            }
+            String missing = "missing-" + UUID.randomUUID();
+            com.fasterxml.jackson.databind.node.ObjectNode deleteRequest =
+                    JSON.createObjectNode();
+            deleteRequest.putArray("fileIds").add(fileIds.get(0)).add(missing)
+                    .add(fileIds.get(1));
+            Response acceptedResponse = request("texts/bulk").method("DELETE",
+                    Entity.json(deleteRequest.toString()));
+            assertStatus(acceptedResponse, 202);
+            JsonNode accepted = JSON.readTree(
+                    acceptedResponse.readEntity(String.class));
+            String bulkId = accepted.path("bulkId").asText();
+            assertThat(bulkId).isNotBlank();
+
+            JsonNode terminal = awaitTerminalDeletion(bulkId,
+                    Duration.ofSeconds(30));
+            assertThat(terminal.path("state").asText()).isEqualTo("COMPLETED");
+            assertThat(terminal.path("deleted").asInt()).isEqualTo(2);
+            assertThat(terminal.path("notFound").asInt()).isEqualTo(1);
+            assertThat(terminal.path("failed").asInt()).isZero();
+            assertThat(terminal.path("items")).hasSize(3);
+            assertThat(terminal.path("items").get(0).path("state").asText())
+                    .isEqualTo("DELETED");
+            assertThat(terminal.path("items").get(1).path("state").asText())
+                    .isEqualTo("NOT_FOUND");
+            assertThat(terminal.path("items").get(2).path("state").asText())
+                    .isEqualTo("DELETED");
+
+            for (String fileId : fileIds) {
+                assertStatus(get("texts/" + fileId), 404);
+                assertNoServerFilesystemArtifacts(fileId);
+            }
+            fileIds.clear();
+        } finally {
+            for (String fileId : fileIds) {
+                deleteQuietly("texts/" + fileId);
+            }
+        }
+    }
+
+    @Test
     @DisplayName("Bulk JSON converts text and reports an invalid attestation without rolling it back")
     void convertsJsonAndReportsUnsavedAttestations() throws Exception {
         assumeConfigured();
@@ -467,6 +521,24 @@ class TextServicesIT {
             Thread.sleep(200L);
         }
         throw new AssertionError("Bulk job did not terminate within " + timeout + "; last=" + last);
+    }
+
+    private JsonNode awaitTerminalDeletion(String bulkId, Duration timeout)
+            throws Exception {
+        Instant deadline = Instant.now().plus(timeout);
+        JsonNode last = null;
+        while (Instant.now().isBefore(deadline)) {
+            last = json(get("texts/deletions/" + bulkId + "/status"));
+            String state = last.path("state").asText();
+            if ("COMPLETED".equals(state)
+                    || "PARTIALLY_COMPLETED".equals(state)
+                    || "FAILED".equals(state)) {
+                return last;
+            }
+            Thread.sleep(200L);
+        }
+        throw new AssertionError("Bulk deletion did not terminate within "
+                + timeout + "; last=" + last);
     }
 
     private Path write(String fileName, String content) throws Exception {

@@ -9,6 +9,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `DELETE /texts/bulk` and `GET /texts/deletions/{bulkId}/status` now provide
+  asynchronous multi-text deletion with ordered, independent per-text outcomes;
+  every item applies the complete single-text cleanup policy, including corpus,
+  attestation, annotation, frequency, and filesystem updates.
 - `POST /texts/bulk` now accepts fixed-schema JSON documents containing plain
   text, the existing text metadata fields, an optional per-document corpus, and
   FRAC attestations whose observables are validated in their category named

@@ -1,5 +1,20 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 25 agosto 2026 dopo l'introduzione della cancellazione multipla
+asincrona dei testi. `DELETE /texts/bulk` valida una lista non vuota e senza
+duplicati, restituisce HTTP 202 con un `bulkId` e processa sequenzialmente ogni
+testo in background tramite la stessa implementazione di
+`DELETE /texts/{fileId}`. `GET /texts/deletions/{bulkId}/status` espone stato,
+contatori ed esito ordinato di ogni elemento. Gli errori sono indipendenti: un
+fallimento tecnico non interrompe gli elementi successivi, mentre `NOT_FOUND` è
+considerato un esito idempotente completato. Il limite predefinito è 100 ed è
+configurabile con `lexo.text.maxBulkDeleteFiles`; i job sono mantenuti in
+memoria e non sopravvivono al riavvio. Sono presenti test unitari del manager e
+del contratto REST e uno scenario end-to-end opzionale contro un deployment
+isolato. La suite Maven completa ha eseguito 197 test senza errori o test
+saltati; lo scenario end-to-end REST non è stato eseguito perché richiede
+GraphDB e Tomcat dedicati.
+
 Aggiornato al 25 agosto 2026 dopo l'estensione di `POST /texts/bulk` ai file
 JSON con schema chiuso. Un batch può ora contenere TXT, CommonMark e JSON con
 una sola lingua ISO: il `corpusId` query continua ad applicarsi ai soli file
@@ -484,6 +499,9 @@ appartenenza ai corpora sono persistiti in GraphDB.
 - I record aggregati dei bulk sono mantenuti in memoria: i documenti e i job già
   avviati restano gestiti individualmente, ma dopo un riavvio non è più
   disponibile il polling tramite il precedente `bulkId`.
+- Anche i job di cancellazione multipla sono mantenuti soltanto in memoria e
+  vengono eseguiti da un singolo worker; più job vengono quindi accodati e il
+  polling di un `bulkId` precedente non è disponibile dopo un riavvio.
 - `POST /attestations` richiede una lista JSON al livello principale. Con un
   oggetto JSON, Jersey/MOXy fallisce prima dell'ingresso nel metodo con
   `IllegalArgumentException: argument type mismatch` e restituisce HTTP 500
@@ -538,12 +556,23 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale era già allineato in fast-forward. La cascata di cancellazione
-  delle attestazioni del testo è presente nel worktree direttamente su `master`
-  e non è ancora committata.
+  branch locale era già allineato in fast-forward. La cancellazione multipla
+  asincrona è presente nel worktree direttamente su `master` e non è ancora
+  committata.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+Il lavoro corrente aggiunge `TextBulkDeletionManager`, i DTO di input e stato,
+gli endpoint `DELETE /texts/bulk` e
+`GET /texts/deletions/{bulkId}/status`, i test unitari del manager e del routing
+e uno scenario opzionale in `TextServicesIT`. README, documentazione dei test e
+changelog descrivono il contratto asincrono e gli esiti indipendenti. La
+cancellazione di ciascun elemento delega a `TextJobManager.delete`, quindi
+mantiene tutte le politiche già verificate per record NIF, corpus, graph di
+attestazioni e annotazioni, riferimenti cross-graph, frequency e filesystem.
+La suite completa del 25 agosto 2026 ha eseguito 197 test senza errori o test
+saltati; l'end-to-end aggiunto resta da eseguire in un deployment isolato.
 
 Il lavoro corrente modifica `LexicalTextGraphManager` per raccogliere le
 attestazioni dal graph selezionato prima del cleanup e rimuovere tutte le loro
@@ -757,6 +786,8 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
    completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi JSON
    con attestazioni, corpus per documento, lingua upload mancante/non valida e
    il relativo `dcterms:language` nel NIF.
-6. Allineare README e POM sul requisito Java ufficiale.
-7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
+6. Eseguire anche lo scenario end-to-end della cancellazione multipla e
+   verificare gli esiti indipendenti contro GraphDB e filesystem dedicati.
+7. Allineare README e POM sul requisito Java ufficiale.
+8. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.
