@@ -9,6 +9,7 @@ import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
 import it.cnr.ilc.lexo.service.data.text.output.UnsavedAttestation;
+import it.cnr.ilc.lexo.util.LoggingContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,12 +39,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.eclipse.rdf4j.model.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Asynchronous manager dedicated to TXT/CommonMark/JSON + optional CoNLL-U -> NIF jobs.
  * It deliberately mirrors LexO-server's existing JobManager without changing it.
  */
 public final class TextJobManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TextJobManager.class);
 
     private static final AttestationManager IMPORTED_ATTESTATION_MANAGER =
             ManagerFactory.getManager(AttestationManager.class);
@@ -219,8 +224,9 @@ public final class TextJobManager {
         TextJobInfo job = new TextJobInfo(fileId, TextJobType.CONVERT);
         jobs.put(fileId, job);
         try {
-            Future<?> future = ioPool.submit(() -> executeConversion(
-                    upload, job, selectedCorpusId, selectedCorpusUri));
+            Future<?> future = ioPool.submit(LoggingContext.wrap(
+                    () -> executeConversion(upload, job, selectedCorpusId,
+                            selectedCorpusUri), "fileId", fileId));
             futures.put(fileId, future);
             return job;
         } catch (RuntimeException e) {
@@ -238,6 +244,7 @@ public final class TextJobManager {
         boolean committed = false;
         boolean graphCommitted = false;
         TextJobState terminalState = null;
+        LOGGER.info("Text NIF conversion job started corpusId={}", corpusId);
         try {
             job.state = TextJobState.RUNNING;
             job.progress = 2;
@@ -319,17 +326,23 @@ public final class TextJobManager {
                     + ", paragraphs=" + doc.paragraphs.size()
                     + ", sentences=" + doc.sentences.size()
                     + ", tokens=" + doc.tokens.size();
+            LOGGER.info("Text NIF conversion job completed corpusId={} tokens={}",
+                    corpusId, doc.tokens.size());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             job.message = "Text conversion cancelled";
             terminalState = TextJobState.CANCELLED;
+            LOGGER.info("Text NIF conversion job cancelled corpusId={}", corpusId);
         } catch (TextValidationException e) {
             job.message = e.getMessage();
             job.issues = new ArrayList<ValidationIssue>(e.getIssues());
             terminalState = TextJobState.FAILED;
+            LOGGER.warn("Text NIF conversion validation failed corpusId={} issues={}",
+                    corpusId, e.getIssues().size());
         } catch (Throwable e) {
             job.message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             terminalState = TextJobState.FAILED;
+            LOGGER.error("Text NIF conversion job failed corpusId={}", corpusId, e);
         } finally {
             if (!committed) {
                 if (graphCommitted) {
@@ -337,6 +350,8 @@ public final class TextJobManager {
                         TextNifRepository.get().deleteDocument(fileId,
                                 writerDocumentUri(fileId) + "#context", corpusId, corpusUri);
                     } catch (Throwable ignored) {
+                        LOGGER.error("Unable to roll back text NIF graph corpusId={}",
+                                corpusId, ignored);
                     }
                 }
                 cleanupFailedConversion(fileId, workDir);

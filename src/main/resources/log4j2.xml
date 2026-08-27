@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" shutdownHook="disable">
+    <Properties>
+        <Property name="LOG_DIR">${sys:lexo.log.dir:-logs}</Property>
+        <Property name="MAX_FILE_SIZE">${sys:lexo.log.maxFileSize:-100MB}</Property>
+        <Property name="RETENTION">${sys:lexo.log.retention:-30d}</Property>
+        <Property name="TOTAL_SIZE_CAP">${sys:lexo.log.totalSizeCap:-1GB}</Property>
+        <Property name="ROOT_LEVEL">${sys:lexo.log.level:-INFO}</Property>
+    </Properties>
+
+    <Appenders>
+        <RollingRandomAccessFile name="APPLICATION_JSON"
+                                 fileName="${LOG_DIR}/LexO-server.json"
+                                 filePattern="${LOG_DIR}/archive/LexO-server-%d{yyyy-MM-dd}-%i.json.gz"
+                                 immediateFlush="false">
+            <JsonTemplateLayout>
+                <EventTemplateAdditionalField key="service" value="LexO-server"/>
+            </JsonTemplateLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="${MAX_FILE_SIZE}"/>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${LOG_DIR}/archive" maxDepth="1">
+                    <IfFileName glob="LexO-server-*.json.gz">
+                        <IfAny>
+                            <IfLastModified age="${RETENTION}"/>
+                            <IfAccumulatedFileSize exceeds="${TOTAL_SIZE_CAP}"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+
+        <Console name="CONSOLE" target="SYSTEM_ERR">
+            <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="%d{ISO8601} %-5level [%t] %logger{36} %X - %msg%n%throwable"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="io.swagger" level="INFO"/>
+        <Root level="${ROOT_LEVEL}">
+            <AppenderRef ref="APPLICATION_JSON"/>
+            <AppenderRef ref="CONSOLE"/>
+        </Root>
+    </Loggers>
+</Configuration>

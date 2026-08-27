@@ -1,5 +1,24 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 27 agosto 2026 dopo la ristrutturazione del logging. Il WAR usa
+ora SLF4J 2 con un solo backend Log4j 2, output JSON, rotazione giornaliera e a
+100 MB, retention di 30 giorni e cap archivio di 1 GB configurabili. Il filtro
+HTTP gestisce `X-Request-ID`, stato, durata, versione e attore in MDC; il
+lifecycle applicativo e il bootstrap GraphDB sono separati dal filtro. I job
+asincroni di Testo/NIF e Conversion conservano il contesto e aggiungono
+`fileId`/`bulkId`. Metadata, Testo/NIF, Attestations, Lexica e Conversion usano
+direttamente SLF4J; gli altri servizi, destinati alla riscrittura, passano
+temporaneamente per `log4j-1.2-api` senza richiedere modifiche usa-e-getta. Gli
+86 log storici sono stati rimossi dall'indice Git ma lasciati sul filesystem;
+`logs/`, `data/` e gli artefatti IDE sono ignorati. Gli 8 test mirati del
+logging e la suite Maven completa di 205 test sono passati senza errori o test
+saltati; gli end-to-end REST non sono stati eseguiti perché richiedono GraphDB
+e Tomcat dedicati. Il packaging pulito del WAR è passato e contiene un solo
+provider, la sola configurazione `log4j2.xml` e il bridge legacy previsto. Il
+prossimo passo raccomandato è rimuovere il bridge Log4j 1 quando scomparirà
+l'ultimo servizio legacy; non migrare isolatamente i servizi già pianificati
+per la sostituzione.
+
 Aggiornato al 25 agosto 2026 dopo l'introduzione della cancellazione multipla
 asincrona dei testi. `DELETE /texts/bulk` valida una lista non vuota e senza
 duplicati, restituisce HTTP 202 con un `bulkId` e processa sequenzialmente ogni

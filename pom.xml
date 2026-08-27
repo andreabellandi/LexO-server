@@ -9,6 +9,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <slf4j.version>2.0.18</slf4j.version>
+        <log4j2.version>2.25.5</log4j2.version>
     </properties>
 
     <repositories>
@@ -35,15 +37,28 @@
             <version>4.0.1</version>
             <scope>compile</scope>
         </dependency>
-        <!--        <dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.30</version>
-        </dependency>-->
+            <version>${slf4j.version}</version>
+        </dependency>
+        <!-- Route Commons Logging users such as Apache POI through the same
+             SLF4J API version selected by the application. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
             <version>5.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
         <dependency>
@@ -52,20 +67,34 @@
             <version>3.12.0</version>
         </dependency>
 
+        <!-- One logging backend for the WAR. Application code uses SLF4J;
+             Log4j Core provides the Java 8-compatible runtime and structured
+             JSON layout. The Log4j 1 API adapter is temporary and exists only
+             for legacy services that will be replaced incrementally. -->
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
-            <version>1.4.11</version>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j2.version}</version>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.4.11</version>
-        </dependency>      
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j2.version}</version>
+        </dependency>
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-layout-template-json</artifactId>
+            <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-1.2-api</artifactId>
+            <version>${log4j2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
@@ -107,6 +136,19 @@
             <artifactId>OntoApi</artifactId>
             <version>1.0</version>
             <type>jar</type>
+            <exclusions>
+                <!-- OWLAPI 5 declares an obsolete SLF4J 1.x range. The API is
+                     binary-compatible for the calls it uses; force the WAR's
+                     single SLF4J 2 API and backend instead. -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -257,6 +299,14 @@
                                         <exclude>com.mchange:*</exclude>
                                         <exclude>org.springframework:*</exclude>
                                         <exclude>com.ontotext.graphdb:graphdb-free-runtime</exclude>
+                                        <exclude>log4j:log4j</exclude>
+                                        <exclude>commons-logging:commons-logging</exclude>
+                                        <exclude>ch.qos.logback:*</exclude>
+                                        <exclude>org.slf4j:slf4j-log4j12</exclude>
+                                        <exclude>org.slf4j:slf4j-simple</exclude>
+                                        <exclude>org.slf4j:slf4j-jdk14</exclude>
+                                        <exclude>org.slf4j:slf4j-reload4j</exclude>
+                                        <exclude>org.apache.logging.log4j:log4j-to-slf4j</exclude>
                                     </excludes>
                                     <message>LexO-server uses GraphDB through RDF4J and must not package the removed MySQL/Hibernate/Spring or embedded GraphDB runtimes.</message>
                                 </bannedDependencies>

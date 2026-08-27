@@ -39,17 +39,22 @@ import java.util.*;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import it.cnr.ilc.lexo.util.ConverterRegistry;
+import it.cnr.ilc.lexo.util.LoggingContext;
 import it.cnr.ilc.lexo.util.RepositoryRegistry;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author andreabellandi
  */
 public class JobManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JobManager.class);
 
     private static final JobManager INSTANCE = new JobManager();
 
@@ -213,7 +218,8 @@ public class JobManager {
         }
         JobInfo ji = new JobInfo(fileId, JobType.PARSE);
         jobs.put(key(fileId, JobType.PARSE), ji);
-        Future<?> f = ioPool.submit(() -> {
+        Future<?> f = ioPool.submit(LoggingContext.wrap(() -> {
+            LOGGER.info("Conversion parse job started");
             try {
                 ji.state = JobState.RUNNING;
                 ji.progress = 1;
@@ -248,14 +254,18 @@ public class JobManager {
                 ji.progress = 100;
                 ji.state = JobState.COMPLETED;
                 ji.message = "Parsed " + files.size() + " file(s) at " + java.time.Instant.now();
+                LOGGER.info("Conversion parse job completed files={}", files.size());
             } catch (InterruptedException ie) {
                 ji.state = JobState.CANCELLED;
                 ji.message = "Parse cancelled";
+                Thread.currentThread().interrupt();
+                LOGGER.info("Conversion parse job cancelled");
             } catch (Throwable t) {
                 ji.state = JobState.FAILED;
                 ji.message = t.getMessage();
+                LOGGER.error("Conversion parse job failed", t);
             }
-        });
+        }, "fileId", fileId));
         futures.put(key(fileId, JobType.PARSE), f);
         return ji;
     }
@@ -312,8 +322,9 @@ public class JobManager {
         JobInfo ji = new JobInfo(fileId, JobType.CONVERT);
         jobs.put(key(fileId, JobType.CONVERT), ji);
 
-        Future<?> f = ioPool.submit(() -> {
+        Future<?> f = ioPool.submit(LoggingContext.wrap(() -> {
             Path out = null;
+            LOGGER.info("Conversion job started from={} to={}", from, to);
             try {
                 ji.state = JobState.RUNNING;
                 ji.progress = 1;
@@ -344,17 +355,21 @@ public class JobManager {
                 ji.resultId = out.toString();
                 ji.progress = 100;
                 ji.state = JobState.COMPLETED;
+                LOGGER.info("Conversion job completed from={} to={}", from, to);
 
             } catch (InterruptedException ie) {
                 ji.state = JobState.CANCELLED;
                 ji.message = "Conversion cancelled";
                 safeDelete(out);
+                Thread.currentThread().interrupt();
+                LOGGER.info("Conversion job cancelled from={} to={}", from, to);
             } catch (Throwable t) {
                 ji.state = JobState.FAILED;
                 ji.message = t.getMessage();
                 safeDelete(out);
+                LOGGER.error("Conversion job failed from={} to={}", from, to, t);
             }
-        });
+        }, "fileId", fileId));
 
         futures.put(key(fileId, JobType.CONVERT), f);
         return ji;
@@ -367,10 +382,11 @@ public class JobManager {
         String queryId = UUID.randomUUID().toString();
         ji.resultId = queryId;
         jobs.put(key(fileId, JobType.QUERY), ji);
-        Future<?> f = cpuPool.submit(() -> {
+        Future<?> f = cpuPool.submit(LoggingContext.wrap(() -> {
             long start = System.currentTimeMillis();
             Path baseDir = Paths.get("data/query", fileId, queryId);
             boolean truncated = false;
+            LOGGER.info("Conversion query job started queryId={} format={}", queryId, fmt);
             try {
                 ji.state = JobState.RUNNING;
                 ji.progress = 1;
@@ -480,20 +496,26 @@ public class JobManager {
                 ji.progress = 100;
                 ji.state = JobState.COMPLETED;
                 ji.resultId = queryId;
+                LOGGER.info("Conversion query job completed queryId={} truncated={}",
+                        queryId, truncated);
             } catch (org.eclipse.rdf4j.query.QueryInterruptedException tie) {
                 ji.state = JobState.FAILED;
                 ji.message = "Timeout or interrupted";
                 safeDeleteDir(baseDir);
+                LOGGER.warn("Conversion query job timed out queryId={}", queryId);
             } catch (InterruptedException ie) {
                 ji.state = JobState.CANCELLED;
                 ji.message = "Query cancelled";
                 safeDeleteDir(baseDir);
+                Thread.currentThread().interrupt();
+                LOGGER.info("Conversion query job cancelled queryId={}", queryId);
             } catch (Throwable t) {
                 ji.state = JobState.FAILED;
                 ji.message = t.getMessage();
                 safeDeleteDir(baseDir);
+                LOGGER.error("Conversion query job failed queryId={}", queryId, t);
             }
-        });
+        }, "fileId", fileId));
         futures.put(key(fileId, JobType.QUERY), f);
         return ji;
     }

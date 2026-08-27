@@ -1,14 +1,6 @@
 package it.cnr.ilc.lexo;
 
-import it.cnr.ilc.lexo.manager.converter.adapter.OntoLexToTBXConverterAdapter;
-import it.cnr.ilc.lexo.bootstrap.GraphDbBootstrap;
-import it.cnr.ilc.lexo.sparql.SparqlSelectData;
-import it.cnr.ilc.lexo.sparql.SparqlVariable;
-import it.cnr.ilc.lexo.util.ConverterRegistry;
-import it.cnr.ilc.lexo.util.RDFQueryUtil;
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -17,13 +9,13 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
-import org.apache.log4j.DailyRollingFileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.eclipse.rdf4j.query.BindingSet;
-import org.eclipse.rdf4j.query.QueryEvaluationException;
-import org.eclipse.rdf4j.query.TupleQueryResult;
+import javax.servlet.http.HttpServletResponse;
+import java.util.UUID;
+import java.util.Map;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  *
@@ -32,7 +24,10 @@ import org.eclipse.rdf4j.query.TupleQueryResult;
 @WebFilter(urlPatterns = {"/faces/*", "/service/*", "/servlet/*"})
 public class LexOFilter implements Filter {
 
-    static final Logger logger = Logger.getLogger(LexOFilter.class.getName());
+    static final String REQUEST_ID_HEADER = "X-Request-ID";
+    private static final Pattern REQUEST_ID_PATTERN =
+            Pattern.compile("[A-Za-z0-9._-]{1,128}");
+    private static final Logger LOGGER = LoggerFactory.getLogger(LexOFilter.class);
     public static String CONTEXT;
     public static String VERSION;
 
@@ -40,62 +35,73 @@ public class LexOFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        fileSystemPath = filterConfig.getServletContext().getRealPath("/");
-        CONTEXT = filterConfig.getServletContext().getContextPath().substring(1);
-        VERSION = LexOProperties.getProperty("application.version");
-        File logFile = new File(filterConfig.getServletContext().getRealPath("/"));
-        logFile = new File(logFile.getParentFile().getParentFile(), "logs/" + CONTEXT + ".log");
-        PatternLayout layout = new PatternLayout();
-        String conversionPattern = "%d %p %m\n";
-        layout.setConversionPattern(conversionPattern);
-        DailyRollingFileAppender rollingAppender = new DailyRollingFileAppender();
-        rollingAppender.setFile(logFile.getAbsolutePath());
-        rollingAppender.setDatePattern("'.'yyyy-MM-dd");
-        rollingAppender.setLayout(layout);
-        rollingAppender.activateOptions();
-        ConverterRegistry.get().register(new OntoLexToTBXConverterAdapter());
-        Logger logger = Logger.getLogger(CONTEXT);
-        logger.setLevel(Level.INFO);
-        logger.addAppender(rollingAppender);
-        logger.info(CONTEXT + " start");
-        try {
-            GraphDbBootstrap.initialize();
-            setResourceModel();
-        } catch (RuntimeException ex) {
-            logger.error("GraphDB bootstrap failed", ex);
-            throw new ServletException("Unable to initialize GraphDB repositories", ex);
-        }
-    }
-
-    private void setResourceModel() {
-        ArrayList<String> model = new ArrayList();
-        try ( TupleQueryResult result = RDFQueryUtil.evaluateTQuery(SparqlSelectData.GET_RESOURCE_MODEL)) {
-            while (result.hasNext()) {
-                BindingSet bs = result.next();
-                model.add(bs.getBinding(SparqlVariable.VALUE).getValue().stringValue());
-            }
-            if (model.size() == 1) {
-                LexOProperties.setProperty("resourceModel", model.get(0));
-            }
-            LexOProperties.load();
-        } catch (QueryEvaluationException qee) {
-        }
+        // Application lifecycle and GraphDB bootstrap are owned by
+        // LexOApplicationLifecycle. This filter is request-scoped only.
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 
+        if (!(request instanceof HttpServletRequest)
+                || !(response instanceof HttpServletResponse)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-        logger.debug("doFilter() Request URL: " + httpRequest.getRequestURL().toString());
-        chain.doFilter(request, response);
-        logger.debug("End of doFilter()");
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        String requestId = requestId(httpRequest.getHeader(REQUEST_ID_HEADER));
+        long startNanos = System.nanoTime();
+        Throwable failure = null;
+        Map<String, String> previousContext = MDC.getCopyOfContextMap();
+        MDC.clear();
+        MDC.put("requestId", requestId);
+        MDC.put("method", safe(httpRequest.getMethod()));
+        MDC.put("path", safe(httpRequest.getRequestURI()));
+        if (VERSION != null && !VERSION.trim().isEmpty()) {
+            MDC.put("serviceVersion", VERSION.trim());
+        }
+        httpResponse.setHeader(REQUEST_ID_HEADER, requestId);
+        try {
+            chain.doFilter(request, response);
+        } catch (IOException | ServletException | RuntimeException e) {
+            failure = e;
+            LOGGER.error("Unhandled HTTP request failure", e);
+            throw e;
+        } finally {
+            long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+            int status = failure == null || httpResponse.getStatus() >= 500
+                    ? httpResponse.getStatus() : 500;
+            MDC.put("status", Integer.toString(status));
+            MDC.put("durationMs", Long.toString(durationMs));
+            if (status >= 500) {
+                LOGGER.error("HTTP request completed");
+            } else if (status >= 400) {
+                LOGGER.warn("HTTP request completed");
+            } else {
+                LOGGER.info("HTTP request completed");
+            }
+            MDC.clear();
+            if (previousContext != null && !previousContext.isEmpty()) {
+                MDC.setContextMap(previousContext);
+            }
+        }
     }
 
     @Override
     public void destroy() {
-        // Logger.getLogger(CONTEXT).info(CONTEXT + " stop");
-        logger.info("destroy() " + CONTEXT + " stop");
-        GraphDbUtil.shutDown();
+        // Shutdown is handled once by LexOApplicationLifecycle.
+    }
+
+    static String requestId(String candidate) {
+        if (candidate != null && REQUEST_ID_PATTERN.matcher(candidate).matches()) {
+            return candidate;
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value.replace('\r', '_').replace('\n', '_');
     }
 
 }

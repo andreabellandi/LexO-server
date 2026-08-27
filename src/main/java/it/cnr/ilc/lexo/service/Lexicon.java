@@ -37,7 +37,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.log4j.Level;
+import org.slf4j.event.Level;
 
 /**
  * Entry point for the new lexical CRUD services.

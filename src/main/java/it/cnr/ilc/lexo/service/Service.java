@@ -8,8 +8,11 @@ import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
 import it.cnr.ilc.lexo.manager.UserManager;
 import it.cnr.ilc.lexo.service.data.AuthenticationData;
+import it.cnr.ilc.lexo.util.LogSanitizer;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  *
@@ -46,6 +49,8 @@ abstract class Service {
                 // LexO-server server was configured with Keycloack
                 if (null != key) {
                     authenticationData = userManager.authorize(key.substring(7));
+                    setActorContext(authenticationData == null
+                            ? null : authenticationData.getUsername());
                 } else {
                     throw new ServiceException("authorization key is null");
                 }
@@ -56,15 +61,18 @@ abstract class Service {
     }
 
     protected String getUser(String author) {
+        String user;
         if (authenticationData != null) {
-            return authenticationData.getUsername();
+            user = authenticationData.getUsername();
         } else {
             if (author != null) {
-                return author;
+                user = author;
             } else {
-                return "anonymous";
+                user = "anonymous";
             }
         }
+        setActorContext(user);
+        return user;
     }
     
     protected void log(Level level, String message) {
@@ -76,6 +84,27 @@ abstract class Service {
     protected void log(Level level, String message, Throwable t) {
         String user = authenticationData == null ? ANONYMOUS_USER : authenticationData.getUsername();
         Logger.getLogger(LexOFilter.CONTEXT).log(level, "[" + user + "] " + message, t);
+    }
+
+    /** Logging entry point for retained services migrated to SLF4J 2. */
+    protected void log(org.slf4j.event.Level level, String message) {
+        LoggerFactory.getLogger(getClass()).atLevel(level)
+                .log(LogSanitizer.singleLine(message));
+    }
+
+    /** Logging entry point for unexpected retained-service failures. */
+    protected void log(org.slf4j.event.Level level, String message, Throwable t) {
+        LoggerFactory.getLogger(getClass()).atLevel(level)
+                .setCause(t)
+                .log(LogSanitizer.singleLine(message));
+    }
+
+    private void setActorContext(String actor) {
+        if (actor == null || actor.trim().isEmpty()) {
+            MDC.remove("actor");
+        } else {
+            MDC.put("actor", LogSanitizer.singleLine(actor.trim()));
+        }
     }
 
 }

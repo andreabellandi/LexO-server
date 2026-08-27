@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager.text;
 import it.cnr.ilc.lexo.service.data.text.input.TextBulkDeletionInput;
 import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionItem;
 import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionJob;
+import it.cnr.ilc.lexo.util.LoggingContext;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,9 +15,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Runs independent text deletions as one asynchronous aggregate job. */
 public final class TextBulkDeletionManager {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(TextBulkDeletionManager.class);
 
     public static final int DEFAULT_MAX_FILES = 100;
 
@@ -67,7 +73,8 @@ public final class TextBulkDeletionManager {
                 Collections.unmodifiableList(items));
         jobs.put(bulkId, record);
         try {
-            executor.execute(() -> execute(record));
+            executor.execute(LoggingContext.wrap(() -> execute(record),
+                    "bulkId", bulkId));
         } catch (RuntimeException e) {
             jobs.remove(bulkId);
             throw e;
@@ -116,6 +123,7 @@ public final class TextBulkDeletionManager {
     }
 
     private void execute(JobRecord record) {
+        LOGGER.info("Text bulk deletion started items={}", record.items.size());
         record.state = JobState.RUNNING;
         for (ItemRecord item : record.items) {
             item.state = ItemState.RUNNING;
@@ -125,6 +133,8 @@ public final class TextBulkDeletionManager {
             } catch (Exception e) {
                 item.message = message(e);
                 item.state = ItemState.FAILED;
+                LOGGER.error("Text bulk deletion item failed fileId={}",
+                        item.fileId, e);
             }
         }
         int failures = 0;
@@ -140,6 +150,8 @@ public final class TextBulkDeletionManager {
         } else {
             record.state = JobState.PARTIALLY_COMPLETED;
         }
+        LOGGER.info("Text bulk deletion completed state={} failures={}",
+                record.state, failures);
     }
 
     private TextBulkDeletionJob snapshot(JobRecord record) {

@@ -23,7 +23,7 @@ LexO-server uses the [Swagger](https://swagger.io/) open source tool. It helps o
 
 LexO-server uses the following technology to work properly:
 
-- Java 15 or later
+- Java 8 or later
 - Apache Tomcat 9 or later
 - [GraphDB Free](https://graphdb.ontotext.com/) - Semantic Graph Database, compliant with W3C Standards.
 
@@ -52,6 +52,19 @@ GraphDb.repository=LexOLexica
 TextGraphDb.url=http://localhost:7200
 TextGraphDb.repository=LexOTexts
 ```
+
+## Logging
+
+The WAR uses one logging stack: SLF4J 2 with Log4j 2 Core. Production events
+are written as newline-delimited JSON to `logs/LexO-server.json`, with daily and
+100 MB rotation, 30-day retention, and a 1 GB archive cap by default. Every HTTP
+response returns `X-Request-ID` and its completion event includes status and
+duration; Testo/NIF and Conversion jobs preserve the same diagnostic context.
+
+The directory, level, rollover, and retention limits are configurable with JVM
+system properties. Deployment settings, the event contract, migration boundary,
+and operational guidance are documented in
+[docs/logging.md](docs/logging.md).
 
 ## Tests
 

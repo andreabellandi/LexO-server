@@ -25,7 +25,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.log4j.Level;
+import org.slf4j.event.Level;
 
 /** REST services for FRAC attestation management. */
 @javax.ws.rs.Path("attestations")

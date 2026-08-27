@@ -27,7 +27,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.log4j.Level;
+import org.slf4j.event.Level;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;

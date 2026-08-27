@@ -97,6 +97,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Logging now uses a single SLF4J 2 and Log4j 2 backend with structured JSON,
+  request correlation, HTTP status and duration, bounded rotation and
+  retention, and context propagation into Metadata, Testo/NIF, Attestations,
+  Lexica, and Conversion background work. Legacy services temporarily route
+  through the Log4j 1 API adapter until they are replaced.
 - Bulk text import now accepts mixed TXT/CommonMark/JSON requests under one
   required language. The query `corpusId` applies only to TXT/CommonMark and is
   rejected for JSON-only requests; duplicate JSON attestations remain distinct.
@@ -223,6 +228,8 @@ starts from the ongoing `Unreleased` work.
 
 ### Removed
 
+- Runtime log files are no longer versioned, and the programmatic Log4j 1 file
+  appender plus the competing Logback configuration have been removed.
 - The duplicate `PATCH /attestations/{fileId}/metadata` endpoint and its
   attestation-specific batch DTOs were removed; attestation metadata CRUD now
   uses the common `/metadata` service exclusively.

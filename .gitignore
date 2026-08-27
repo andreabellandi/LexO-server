@@ -1,1 +1,5 @@
 /target/
+/logs/
+/data/
+.DS_Store
+nb-configuration.xml
