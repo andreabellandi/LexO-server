@@ -22,6 +22,7 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
+import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -57,7 +58,11 @@ class TextServicesIT {
         authorization = System.getProperty("lexo.test.authorization", "").trim();
         serverStorageDir = System.getProperty("lexo.test.storageDir", "").trim();
         if (!baseUrl.isEmpty() && !authorization.isEmpty()) {
-            client = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
+            client = ClientBuilder.newBuilder()
+                    .property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION,
+                            true)
+                    .register(MultiPartFeature.class)
+                    .build();
         }
     }
 
