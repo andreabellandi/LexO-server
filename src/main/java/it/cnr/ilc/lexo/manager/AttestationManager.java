@@ -116,7 +116,7 @@ public class AttestationManager implements Manager {
                                LongSupplier currentTimeMillis) {
         this.connections = connections;
         this.currentTimeMillis = currentTimeMillis;
-        this.structureNamespace = namespace(System.getProperty(
+        this.structureNamespace = namespace(LexOProperties.getProperty(
                 "lexo.text.structureNamespace", DEFAULT_STRUCTURE_NAMESPACE));
         this.textGraphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));

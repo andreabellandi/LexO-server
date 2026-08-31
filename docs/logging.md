@@ -18,12 +18,17 @@ system properties:
 | `lexo.log.maxFileSize` | `100MB` | Size rollover threshold |
 | `lexo.log.retention` | `30d` | Maximum archive age |
 | `lexo.log.totalSizeCap` | `1GB` | Maximum accumulated archive size |
+| `lexo.log.console.level` | `WARN` | Minimum level also written to standard error |
 
 For Tomcat, put overrides in `CATALINA_OPTS`, for example:
 
 ```sh
 CATALINA_OPTS="$CATALINA_OPTS -Dlexo.log.dir=/var/log/lexo -Dlexo.log.level=INFO"
 ```
+
+The Docker image sets `lexo.log.console.level=INFO` so normal lifecycle events
+are visible through `docker compose logs`, while the structured JSON files
+remain available in the `lexo-logs` volume.
 
 The Tomcat account must be able to create the configured directory. Log files,
 runtime data, and IDE files are ignored by Git.

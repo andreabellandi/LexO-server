@@ -5,6 +5,7 @@
  */
 package it.cnr.ilc.lexo.manager;
 
+import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.manager.converter.adapter.Converter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.io.BufferedWriter;
@@ -117,13 +118,24 @@ public class JobManager {
         Path csv;
     }
     private final Map<String, Map<String, QueryPaths>> queryResults = new ConcurrentHashMap<>();
+    private final Path storageRoot;
+    private final Path uploadRoot;
+    private final Path convertedRoot;
+    private final Path queryRoot;
 
     private JobManager() {
+        storageRoot = Paths.get(LexOProperties.getProperty(
+                "lexo.legacy.storage.dir", "data"));
+        uploadRoot = storageRoot.resolve("uploads");
+        convertedRoot = storageRoot.resolve("converted");
+        queryRoot = storageRoot.resolve("query");
         try {
-            Files.createDirectories(Paths.get("data/uploads"));
-            Files.createDirectories(Paths.get("data/converted"));
-            Files.createDirectories(Paths.get("data/query"));
+            Files.createDirectories(uploadRoot);
+            Files.createDirectories(convertedRoot);
+            Files.createDirectories(queryRoot);
         } catch (IOException e) {
+            throw new IllegalStateException("Cannot initialize legacy job storage at "
+                    + storageRoot, e);
         }
     }
 
@@ -152,7 +164,8 @@ public class JobManager {
     public Path saveUploadEnforcingLimit(String fileId, InputStream in, String origName, long maxBytes) throws IOException {
         // nome fisico: fileId-UUID.estensione
         String ext = getExt(origName);
-        Path out = Paths.get("data/uploads/" + fileId + "-" + java.util.UUID.randomUUID().toString() + ext);
+        Path out = uploadRoot.resolve(fileId + "-"
+                + java.util.UUID.randomUUID().toString() + ext);
         long written = 0L;
         byte[] buf = new byte[8192];
         int r;
@@ -329,7 +342,7 @@ public class JobManager {
                 ji.state = JobState.RUNNING;
                 ji.progress = 1;
 
-                Path outDir = Paths.get("data/converted");
+                Path outDir = convertedRoot;
                 Files.createDirectories(outDir);
 
                 // basename + estensione suggerita dal converter
@@ -384,7 +397,7 @@ public class JobManager {
         jobs.put(key(fileId, JobType.QUERY), ji);
         Future<?> f = cpuPool.submit(LoggingContext.wrap(() -> {
             long start = System.currentTimeMillis();
-            Path baseDir = Paths.get("data/query", fileId, queryId);
+            Path baseDir = queryRoot.resolve(fileId).resolve(queryId);
             boolean truncated = false;
             LOGGER.info("Conversion query job started queryId={} format={}", queryId, fmt);
             try {
@@ -565,7 +578,7 @@ public class JobManager {
 
     public void cleanupQueryResult(String fileId, String queryId) {
         Map<String, QueryPaths> byQ = queryResults.get(fileId);
-        Path dir = Paths.get("data/query", fileId, queryId);
+        Path dir = queryRoot.resolve(fileId).resolve(queryId);
 
         if (byQ != null) {
             QueryPaths qp = byQ.remove(queryId);
@@ -590,11 +603,11 @@ public class JobManager {
         futures.remove(key(fileId, JobType.QUERY));
 
         // prova a eliminare anche la dir del fileId se è rimasta vuota
-        Path fileDir = Paths.get("data/query", fileId);
+        Path fileDir = queryRoot.resolve(fileId);
         deleteIfEmpty(fileDir);
 
         // opzionale: prova a eliminare anche "data/query" se è vuota
-        Path baseDir = Paths.get("data/query");
+        Path baseDir = queryRoot;
         deleteIfEmpty(baseDir);
     }
 
@@ -732,7 +745,7 @@ public class JobManager {
             for (Map.Entry<String, QueryPaths> e : byQ.entrySet()) {
                 safeDelete(e.getValue().json);
                 safeDelete(e.getValue().csv);
-                safeDeleteDir(Paths.get("data/query", fileId, e.getKey()));
+                safeDeleteDir(queryRoot.resolve(fileId).resolve(e.getKey()));
             }
         }
         RepositoryRegistry.remove(fileId);

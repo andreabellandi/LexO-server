@@ -2,9 +2,17 @@
 
 LexO-server reads these classpath resources before its first GraphDB query.
 
-The runtime configuration is deliberately fixed in `lexo-server.properties`:
-GraphDB runs at `http://localhost:7200`, the lexical repository is `LexOLexica`
-and the text repository is `LexOTexts`. No Maven environment profile is used.
+The packaged defaults in `lexo-server.properties` use
+`http://localhost:7200`, `LexOLexica`, and `LexOTexts`. Runtime values can be
+overridden by an external configuration file, `LEXO_*` environment variables,
+or JVM system properties without introducing Maven environment profiles. The
+Docker topology uses the internal endpoint `http://graphdb:7200` while
+preserving both repository identifiers.
+
+`Bootstrap.startup.maxAttempts` and `Bootstrap.startup.retryDelayMs` configure
+bounded startup retries. Traditional deployments default to one attempt;
+Compose supplies a longer retry window while the GraphDB container becomes
+ready.
 
 - `repositories/`: GraphDB 10 Turtle templates using the
   `http://www.ontotext.com/config/graphdb#` vocabulary. Placeholders are replaced

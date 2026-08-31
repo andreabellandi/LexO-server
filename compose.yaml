@@ -1,0 +1,53 @@
+services:
+  graphdb:
+    image: ${GRAPHDB_IMAGE:-ontotext/graphdb:10.8.14}
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${GRAPHDB_BIND_ADDRESS:-127.0.0.1}:${GRAPHDB_PORT:-7200}:7200"
+    volumes:
+      - graphdb-home:/opt/graphdb/home
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7200'"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+    stop_grace_period: 2m
+    security_opt:
+      - no-new-privileges:true
+
+  lexo:
+    image: "${LEXO_IMAGE:-lexo-server}:${LEXO_VERSION:-local}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      graphdb:
+        condition: service_healthy
+    environment:
+      LEXO_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_TEXT_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_TEXT_STORAGE_DIR: /var/lib/lexo/texts
+      LEXO_LEGACY_STORAGE_DIR: /var/lib/lexo/legacy
+      LEXO_BOOTSTRAP_STARTUP_MAX_ATTEMPTS: "60"
+      LEXO_BOOTSTRAP_STARTUP_RETRY_DELAY_MS: "2000"
+      JAVA_OPTS: "${LEXO_JAVA_OPTS:--Xms512m -Xmx2g -Dfile.encoding=UTF-8}"
+    ports:
+      - "${LEXO_BIND_ADDRESS:-127.0.0.1}:${LEXO_PORT:-8080}:8080"
+    volumes:
+      - lexo-data:/var/lib/lexo
+      - lexo-logs:/var/log/lexo
+    stop_grace_period: 1m
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  graphdb-home:
+    name: lexo-graphdb-home
+  lexo-data:
+    name: lexo-data
+  lexo-logs:
+    name: lexo-logs

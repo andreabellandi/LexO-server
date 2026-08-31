@@ -1,5 +1,6 @@
 package it.cnr.ilc.lexo.manager.text;
 
+import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.service.data.text.input.TextBulkDeletionInput;
 import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionItem;
 import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionJob;
@@ -182,7 +183,7 @@ public final class TextBulkDeletionManager {
     }
 
     private static int positiveIntProperty(String name, int fallback) {
-        String value = System.getProperty(name);
+        String value = LexOProperties.getProperty(name);
         if (value == null || value.trim().isEmpty()) {
             return fallback;
         }

@@ -24,7 +24,8 @@ LexO-server uses the [Swagger](https://swagger.io/) open source tool. It helps o
 LexO-server uses the following technology to work properly:
 
 - Java 8 or later
-- Apache Tomcat 9 or later
+- Apache Tomcat 9 (the current `javax.*` application is not compatible with
+  Tomcat 10/Jakarta)
 - [GraphDB Free](https://graphdb.ontotext.com/) - Semantic Graph Database, compliant with W3C Standards.
 
 LexO-server persists lexical and textual data in GraphDB. It does not require
@@ -32,19 +33,37 @@ MySQL or another relational database.
 
 ## Installation
 
+The recommended local installation uses Docker Compose:
+
+```sh
+cp .env.example .env
+docker compose up -d --build
+```
+
+It starts GraphDB and LexO-server/Tomcat as separate services, waits for
+GraphDB readiness, creates the two repositories, imports the schema, creates
+the lexical indexes, and persists database and filesystem data in named
+volumes. Open http://localhost:8080/LexO-server/ for Swagger. Backup, restore,
+configuration, production hardening, and the versioned procedure for installing
+a new WAR are documented in [docs/docker.md](docs/docker.md). Essential
+quickstarts are available in
+[English](docs/docker-quickstart.md) and
+[Italian](docs/docker-quickstart-it.md).
+
+For a traditional installation:
+
 1. [Install](https://graphdb.ontotext.com/documentation/free/quick-start-guide.html)
    and start GraphDB Free at `http://localhost:7200`.
 2. Download the project and run `mvn clean package` without a Maven profile.
-3. Deploy `target/LexO-server.war` to Tomcat.
-4. At webapp startup LexO-server creates, when missing, `LexOLexica` and
-   `LexOTexts`, imports the schema resources and creates the lexical indexes.
-5. Open http://localhost:8080/LexO-server/ to access Swagger.
+3. Deploy `target/LexO-server.war` to Tomcat 9.
+4. Open http://localhost:8080/LexO-server/ to access Swagger after bootstrap.
 
 The non-public `klab.ilc.cnr.it:OntoApi:1.0` dependency is versioned under
 `vendor/maven` and resolved automatically by Maven; a separate installation in
 the developer's local Maven repository is not required.
 
-The two GraphDB repositories are fixed in `src/main/resources/lexo-server.properties`:
+The packaged GraphDB defaults are defined in
+`src/main/resources/lexo-server.properties`:
 
 ```properties
 GraphDb.url=http://localhost:7200
@@ -52,6 +71,11 @@ GraphDb.repository=LexOLexica
 TextGraphDb.url=http://localhost:7200
 TextGraphDb.repository=LexOTexts
 ```
+
+They can be overridden without rebuilding the WAR through an external
+properties file, JVM properties, or the corresponding `LEXO_*` environment
+variables. Repository IDs remain `LexOLexica` and `LexOTexts` in the supplied
+Compose environment.
 
 ## Logging
 

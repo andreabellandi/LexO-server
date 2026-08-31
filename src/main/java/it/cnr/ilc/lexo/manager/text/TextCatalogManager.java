@@ -52,7 +52,7 @@ public final class TextCatalogManager {
     private TextCatalogManager() {
         graphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
-        structureNamespace = namespace(System.getProperty(
+        structureNamespace = namespace(LexOProperties.getProperty(
                 "lexo.text.structureNamespace",
                 "https://lexo.ilc.cnr.it/vocabulary/nif-structure#"));
     }

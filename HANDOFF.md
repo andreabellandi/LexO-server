@@ -1,5 +1,50 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 31 agosto 2026 dopo il primo avvio completo dello stack Compose.
+È stato corretto `LexOProperties.load()`, che calcolava le sostituzioni da
+variabili `LEXO_*` e proprietà JVM ma non assegnava il risultato alla
+configurazione effettiva; per questo il container tentava erroneamente
+`localhost:7200` invece di `http://graphdb:7200`. Un nuovo test copre il
+caricamento reale delle proprietà JVM. La build Docker ha superato 212 test e
+lo stack locale è ora sano: GraphDB e LexO risultano `healthy`, il bootstrap ha
+creato `LexOLexica` e `LexOTexts`, importato 13 risorse di schema e creato 9
+indici. `/service/health/ready` restituisce HTTP 200/`UP`, Swagger restituisce
+HTTP 200 e l'API GraphDB elenca entrambi i repository in stato `RUNNING`. I
+volumi GraphDB e LexO sono stati preservati durante la sostituzione del solo
+container applicativo.
+
+Aggiornato al 28 agosto 2026 dopo il collaudo della build sul Docker Desktop
+locale, con Docker Engine 20.10.7. La build multi-stage ha installato
+esplicitamente l'artefatto vendorizzato `OntoApi` nel repository Maven del
+builder, superando la limitazione di `dependency:go-offline`; il test del
+timestamp accetta ora sia l'offset numerico sia la forma UTC `Z`, così la suite
+non dipende più dal fuso orario della macchina. L'immagine
+`lexo-server:docker-test` è stata creata correttamente dopo 211 test senza
+errori o test saltati. Il runtime Compose è stato poi collaudato il 31 agosto;
+restano da verificare end-to-end gli script backup/restore/update.
+
+Aggiornato al 27 agosto 2026 dopo l'introduzione della distribuzione Docker.
+`compose.yaml` avvia Tomcat 9/LexO-server e GraphDB 10.8 come servizi separati,
+con health check, bootstrap ritentabile, utenti non root e volumi persistenti
+per repository, file applicativi e log. La configurazione impacchettata può ora
+essere sovrascritta con un file esterno, variabili `LEXO_*` o proprietà JVM;
+gli storage testuali e legacy non sono più vincolati alla directory di lavoro.
+Sono disponibili backup/restore coordinati e installazione di un nuovo WAR
+tramite immagine versionata e sostituzione del solo container LexO. La suite
+Maven completa ha superato 211 test senza errori o test saltati; la sintassi
+degli script, `git diff --check` e la risoluzione Compose sono state verificate.
+
+Aggiornato al 27 agosto 2026 dopo la correzione del client end-to-end per la
+cancellazione multipla dei testi. Il client Jersey dei test abilita ora
+esplicitamente le richieste HTTP con entity, consentendo allo scenario
+`DELETE /texts/bulk` di inviare il payload JSON e verificare realmente il job
+asincrono, i due esiti `DELETED` e l'esito idempotente `NOT_FOUND`. La verifica
+completa contro Tomcat e GraphDB locali ha superato 205 test unitari/repository
+e tutti i 13 end-to-end senza errori o test saltati. Il cleanup ha preservato i
+quattro testi preesistenti, riportato `LexOTexts` a 24.211 triple e non ha
+lasciato artefatti temporanei nel filesystem. Non restano interventi relativi
+a questo difetto del test.
+
 Aggiornato al 27 agosto 2026 dopo la ristrutturazione del logging. Il WAR usa
 ora SLF4J 2 con un solo backend Log4j 2, output JSON, rotazione giornaliera e a
 100 MB, retention di 30 giorni e cap archivio di 1 GB configurabili. Il filtro
@@ -501,20 +546,20 @@ appartenenza ai corpora sono persistiti in GraphDB.
 
 ## Problemi noti
 
-- `README.md` dichiara “Java 15 o successivo”, mentre il POM compila con
-  `source/target 1.8`; va chiarito il requisito JDK ufficiale.
-- Il `.gitignore` del repository contiene soltanto `/target/`: non esclude
-  `logs/`, `data/`, `.DS_Store` o `nb-configuration.xml`. `.DS_Store` è ignorato
-  solo dalla configurazione Git globale della macchina corrente e nel repository
-  esistono anche vecchi log già tracciati. I nuovi file runtime non devono essere
-  committati.
+- I vecchi log già tracciati restano nella storia Git; `.gitignore` esclude ora
+  log, dati runtime, backup locali e artefatti IDE dalle nuove modifiche.
 - Alcune classi legacy contengono stub `UnsupportedOperationException` e TODO.
 - L'autenticazione Keycloak è disattivata nella configurazione predefinita.
 - Il bootstrap è configurato con `Bootstrap.required=true`: se GraphDB non è
   raggiungibile o il bootstrap fallisce, l'applicazione non deve considerarsi
   correttamente avviata.
-- La configurazione predefinita è volutamente legata a `localhost:7200`; un
-  deployment remoto richiede modifica esplicita delle proprietà.
+- I default tradizionali puntano a `localhost:7200`; Compose applica invece gli
+  URL interni del servizio GraphDB tramite variabili d'ambiente. Un deployment
+  esterno deve fornire esplicitamente gli URL effettivi.
+- Docker Desktop/Engine 20.10.7 costruisce ed esegue correttamente lo stack, ma
+  è una versione del 2021 non più adeguata come riferimento di sicurezza. Per
+  uso ordinario è raccomandato l'aggiornamento a una release supportata; gli
+  script backup/restore/update richiedono ancora un collaudo end-to-end.
 - I record aggregati dei bulk sono mantenuti in memoria: i documenti e i job già
   avviati restano gestiti individualmente, ma dopo un riavvio non è più
   disponibile il polling tramite il precedente `bulkId`.
@@ -529,6 +574,23 @@ appartenenza ai corpora sono persistiti in GraphDB.
   NetBeans 12.2. Il sandbox può mostrare warning se non può scrivere in `~/.m2`.
 
 ## Installazione, build, avvio e test
+
+Il percorso consigliato per un'installazione locale completa è Docker:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+Per installare un WAR nuovo senza sostituire i volumi persistenti:
+
+```bash
+./docker/build-war-image.sh /percorso/LexO-server.war VERSIONE
+./docker/update.sh VERSIONE
+```
+
+La procedura dettagliata, inclusi backup e restore, è in `docs/docker.md`.
 
 Prerequisiti: JDK compatibile, Maven 3.8+, GraphDB Free e Tomcat 9.
 
@@ -575,8 +637,8 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 - Branch locale corrente: `master`.
 - I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale era già allineato in fast-forward. La cancellazione multipla
-  asincrona è stata committata come `88c71ef` e pubblicata su `origin/master`.
+  branch locale era già allineato in fast-forward al commit `04d190ac`. Le
+  modifiche Docker sono presenti nel working tree e non sono state committate.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
@@ -789,23 +851,23 @@ al momento non esistono tag Git, quindi tutte le voci restano nella sezione
 
 ## Prossimo lavoro consigliato
 
-1. Aggiungere end-to-end REST dedicati a `POST` e `PATCH`
+1. Su un Docker Engine/Compose aggiornato e con volumi isolati, verificare
+   persistenza, backup/restore e aggiornamento fra due tag WAR.
+2. Aggiungere end-to-end REST dedicati a `POST` e `PATCH`
    `/lexica/lexicalConcept`, `POST` e `PATCH /lexica/entry` e
    `PATCH /lexica/entries/status` contro un repository `LexOLexica` isolato,
    inclusi validazione dei link, sostituzioni presence-aware, controllo
    `expectedModified`, riuso del lessico, transizioni batch e rollback.
-2. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
+3. Aggiungere test end-to-end dei nuovi endpoint di totali FRAC, creazione,
    cancellazione delle attestazioni e della
    creazione dei lexical concept con label contro repository GraphDB dedicati.
-3. Gestire esplicitamente i body non-array di `POST /attestations` con una
+4. Gestire esplicitamente i body non-array di `POST /attestations` con una
    risposta HTTP 400 leggibile, evitando l'errore riflessivo Jersey/MOXy.
-4. Correggere `.gitignore` per escludere in modo esplicito artefatti runtime e IDE.
 5. Preparare un ambiente E2E isolato e lanciare entrambi i workflow testuali
    completi, verificando REST, GraphDB e filesystem, inclusi i nuovi casi JSON
    con attestazioni, corpus per documento, lingua upload mancante/non valida e
    il relativo `dcterms:language` nel NIF.
 6. Eseguire anche lo scenario end-to-end della cancellazione multipla e
    verificare gli esiti indipendenti contro GraphDB e filesystem dedicati.
-7. Allineare README e POM sul requisito Java ufficiale.
-8. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
+7. Inventariare gli `UnsupportedOperationException` raggiungibili dagli endpoint
    e trasformare l'inventario in test o attività di rimozione/implementazione.

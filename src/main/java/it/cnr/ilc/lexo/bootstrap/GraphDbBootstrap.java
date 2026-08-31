@@ -55,40 +55,70 @@ public final class GraphDbBootstrap {
             if (initialized) {
                 return;
             }
-            try {
-                String lexiconUrl = LexOProperties.getProperty("GraphDb.url", "http://localhost:7200");
-                String textUrl = LexOProperties.getProperty("TextGraphDb.url", lexiconUrl);
-                String lexiconRepository = requiredProperty("GraphDb.repository");
-                String textRepository = requiredProperty("TextGraphDb.repository");
-
-                ensureRepository(lexiconUrl, lexiconRepository,
-                        LexOProperties.getProperty("Bootstrap.lexicon.label", "LexO lexicon"),
-                        LexOProperties.getProperty("repository.lexicon.namespace", "http://lexica/mylexicon#"),
-                        LexOProperties.getProperty("Bootstrap.lexicon.repositoryConfig", "bootstrap/repositories/lexicon-repository.ttl"));
-                ensureRepository(textUrl, textRepository,
-                        LexOProperties.getProperty("Bootstrap.text.label", "LexO texts"),
-                        LexOProperties.getProperty("TextGraphDb.namedGraphBase", "https://lexo.ilc.cnr.it/graphs/nif/"),
-                        LexOProperties.getProperty("Bootstrap.text.repositoryConfig", "bootstrap/repositories/text-repository.ttl"));
-
-                RemoteRepositoryManager manager = openManager(lexiconUrl);
+            RuntimeException failure = null;
+            int attempts = positiveIntegerProperty(
+                    "Bootstrap.startup.maxAttempts", 1);
+            long retryDelayMs = positiveLongProperty(
+                    "Bootstrap.startup.retryDelayMs", 2000L);
+            for (int attempt = 1; attempt <= attempts && !initialized; attempt++) {
                 try {
-                    Repository repository = manager.getRepository(lexiconRepository);
-                    if (repository == null) {
-                        throw new IllegalStateException("GraphDB repository unavailable after creation: " + lexiconRepository);
+                    initializeOnce();
+                    initialized = true;
+                    LOGGER.info("GraphDB bootstrap completed attempt={}",
+                            Integer.valueOf(attempt));
+                } catch (RuntimeException ex) {
+                    failure = ex;
+                    if (attempt < attempts) {
+                        LOGGER.warn("GraphDB bootstrap attempt {}/{} failed; retrying in {} ms",
+                                Integer.valueOf(attempt), Integer.valueOf(attempts),
+                                Long.valueOf(retryDelayMs), ex);
+                        sleepBeforeRetry(retryDelayMs);
                     }
-                    importSchema(repository);
-                    applyIndexes(repository, false);
-                } finally {
-                    manager.shutDown();
                 }
-                initialized = true;
-                LOGGER.info("GraphDB bootstrap completed");
-            } catch (RuntimeException ex) {
-                if (Boolean.parseBoolean(LexOProperties.getProperty("Bootstrap.required", "true"))) {
-                    throw ex;
-                }
-                LOGGER.error("GraphDB bootstrap failed; startup continues because Bootstrap.required=false", ex);
             }
+            if (!initialized && failure != null) {
+                if (Boolean.parseBoolean(LexOProperties.getProperty(
+                        "Bootstrap.required", "true"))) {
+                    throw failure;
+                }
+                LOGGER.error("GraphDB bootstrap failed; startup continues because Bootstrap.required=false",
+                        failure);
+            }
+        }
+    }
+
+    public static boolean isInitialized() {
+        return initialized;
+    }
+
+    private static void initializeOnce() {
+        String lexiconUrl = LexOProperties.getProperty(
+                "GraphDb.url", "http://localhost:7200");
+        String textUrl = LexOProperties.getProperty("TextGraphDb.url", lexiconUrl);
+        String lexiconRepository = requiredProperty("GraphDb.repository");
+        String textRepository = requiredProperty("TextGraphDb.repository");
+
+        ensureRepository(lexiconUrl, lexiconRepository,
+                LexOProperties.getProperty("Bootstrap.lexicon.label", "LexO lexicon"),
+                LexOProperties.getProperty("repository.lexicon.namespace", "http://lexica/mylexicon#"),
+                LexOProperties.getProperty("Bootstrap.lexicon.repositoryConfig", "bootstrap/repositories/lexicon-repository.ttl"));
+        ensureRepository(textUrl, textRepository,
+                LexOProperties.getProperty("Bootstrap.text.label", "LexO texts"),
+                LexOProperties.getProperty("TextGraphDb.namedGraphBase", "https://lexo.ilc.cnr.it/graphs/nif/"),
+                LexOProperties.getProperty("Bootstrap.text.repositoryConfig", "bootstrap/repositories/text-repository.ttl"));
+
+        RemoteRepositoryManager manager = openManager(lexiconUrl);
+        try {
+            Repository repository = manager.getRepository(lexiconRepository);
+            if (repository == null) {
+                throw new IllegalStateException(
+                        "GraphDB repository unavailable after creation: "
+                        + lexiconRepository);
+            }
+            importSchema(repository);
+            applyIndexes(repository, false);
+        } finally {
+            manager.shutDown();
         }
     }
 
@@ -426,6 +456,42 @@ public final class GraphDbBootstrap {
             throw new IllegalStateException("Missing required property: " + name);
         }
         return value.trim();
+    }
+
+    private static int positiveIntegerProperty(String name, int fallback) {
+        String value = LexOProperties.getProperty(name);
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : fallback;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private static long positiveLongProperty(String name, long fallback) {
+        String value = LexOProperties.getProperty(name);
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        try {
+            long parsed = Long.parseLong(value.trim());
+            return parsed > 0L ? parsed : fallback;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private static void sleepBeforeRetry(long retryDelayMs) {
+        try {
+            Thread.sleep(retryDelayMs);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(
+                    "Interrupted while waiting to retry GraphDB bootstrap", ex);
+        }
     }
 
     private static String escapeTurtle(String value) {

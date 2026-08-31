@@ -6,6 +6,7 @@
         <Property name="RETENTION">${sys:lexo.log.retention:-30d}</Property>
         <Property name="TOTAL_SIZE_CAP">${sys:lexo.log.totalSizeCap:-1GB}</Property>
         <Property name="ROOT_LEVEL">${sys:lexo.log.level:-INFO}</Property>
+        <Property name="CONSOLE_LEVEL">${sys:lexo.log.console.level:-WARN}</Property>
     </Properties>
 
     <Appenders>
@@ -33,7 +34,7 @@
         </RollingRandomAccessFile>
 
         <Console name="CONSOLE" target="SYSTEM_ERR">
-            <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
+            <ThresholdFilter level="${CONSOLE_LEVEL}" onMatch="ACCEPT" onMismatch="DENY"/>
             <PatternLayout pattern="%d{ISO8601} %-5level [%t] %logger{36} %X - %msg%n%throwable"/>
         </Console>
     </Appenders>

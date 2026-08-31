@@ -1,5 +1,6 @@
 package it.cnr.ilc.lexo.service;
 
+import it.cnr.ilc.lexo.LexOProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
@@ -1077,7 +1078,7 @@ public class Texts extends Service {
     }
 
     private static long longProperty(String name, long fallback) {
-        String value = System.getProperty(name);
+        String value = LexOProperties.getProperty(name);
         if (value == null || value.trim().isEmpty()) {
             return fallback;
         }
@@ -1090,7 +1091,7 @@ public class Texts extends Service {
     }
 
     private static int intProperty(String name, int fallback) {
-        String value = System.getProperty(name);
+        String value = LexOProperties.getProperty(name);
         if (value == null || value.trim().isEmpty()) {
             return fallback;
         }

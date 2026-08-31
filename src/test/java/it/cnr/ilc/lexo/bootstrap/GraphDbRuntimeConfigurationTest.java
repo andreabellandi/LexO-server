@@ -12,13 +12,14 @@ import org.junit.jupiter.api.Test;
  * Guards the single GraphDB topology required by LexO-server.
  *
  * <p>The repository identifiers are runtime contracts, not build-profile
- * choices: every normal build must target the same local GraphDB instance and
- * let the startup bootstrap create the two repositories when necessary.</p>
+ * choices: every normal build ships deterministic local defaults and lets the
+ * startup bootstrap create the two repositories when necessary. Deployments
+ * may override connection values without Maven profiles.</p>
  */
 class GraphDbRuntimeConfigurationTest {
 
     @Test
-    @DisplayName("Runtime always uses local GraphDB with LexOLexica and LexOTexts")
+    @DisplayName("Packaged defaults use local GraphDB with LexOLexica and LexOTexts")
     void usesFixedLocalRepositories() throws Exception {
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader()
@@ -46,6 +47,10 @@ class GraphDbRuntimeConfigurationTest {
         assertThat(properties.getProperty("TextGraphDb.size")).isEqualTo("5");
         assertThat(properties.getProperty("Bootstrap.enabled")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.required")).isEqualTo("true");
+        assertThat(properties.getProperty("Bootstrap.startup.maxAttempts"))
+                .isEqualTo("1");
+        assertThat(properties.getProperty("lexo.text.storage.dir"))
+                .isEqualTo("data/texts");
         assertThat(URI.create(properties.getProperty("Bootstrap.schema.baseIri")).isAbsolute())
                 .as("RDF4J requires an absolute base IRI for schema imports")
                 .isTrue();

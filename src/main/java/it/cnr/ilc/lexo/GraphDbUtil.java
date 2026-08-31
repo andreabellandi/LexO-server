@@ -13,6 +13,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
+import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
 import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
@@ -97,6 +98,42 @@ public final class GraphDbUtil {
                 }
             }
             CONTEXTS.clear();
+        }
+    }
+
+    /** Lightweight readiness probe that does not borrow from the application pool. */
+    public static boolean isAvailable(RepositoryTarget target) {
+        String lexicalUrl = property("GraphDb.url", "http://localhost:7200");
+        String url = target == RepositoryTarget.TEXT
+                ? property("TextGraphDb.url", lexicalUrl) : lexicalUrl;
+        String repositoryId = target == RepositoryTarget.TEXT
+                ? property("TextGraphDb.repository", "LexOTexts")
+                : property("GraphDb.repository", "LexOLexica");
+        RemoteRepositoryManager manager = null;
+        try {
+            manager = new RemoteRepositoryManager(url);
+            manager.init();
+            Repository repository = manager.getRepository(repositoryId);
+            if (repository == null) {
+                return false;
+            }
+            try (RepositoryConnection connection = repository.getConnection()) {
+                connection.prepareBooleanQuery(QueryLanguage.SPARQL,
+                        "ASK WHERE {}").evaluate();
+                return true;
+            }
+        } catch (RuntimeException ex) {
+            LOGGER.debug("GraphDB readiness probe failed for repository {} at {}",
+                    repositoryId, url, ex);
+            return false;
+        } finally {
+            if (manager != null) {
+                try {
+                    manager.shutDown();
+                } catch (RuntimeException ex) {
+                    LOGGER.debug("Unable to close GraphDB readiness manager", ex);
+                }
+            }
         }
     }
 

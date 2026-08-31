@@ -9,6 +9,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- A Docker Compose starter distribution now runs versioned LexO-server/Tomcat
+  and GraphDB containers with persistent data and log volumes, dependency-aware
+  health checks, idempotent startup, coordinated backup/restore scripts, and a
+  safe image-building and update workflow for newly supplied WAR files.
 - `DELETE /texts/bulk` and `GET /texts/deletions/{bulkId}/status` now provide
   asynchronous multi-text deletion with ordered, independent per-text outcomes;
   every item applies the complete single-text cleanup policy, including corpus,
@@ -97,6 +101,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Runtime configuration can now be supplied through an external properties
+  file, `LEXO_*` environment variables, or JVM system properties without
+  rebuilding the WAR; filesystem paths and bounded GraphDB startup retries use
+  the same configuration mechanism.
 - Logging now uses a single SLF4J 2 and Log4j 2 backend with structured JSON,
   request correlation, HTTP status and duration, bounded rotation and
   retention, and context propagation into Metadata, Testo/NIF, Attestations,
@@ -193,6 +201,12 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
+- Container configuration overrides are now applied to the effective runtime
+  properties, so Compose connects LexO to the internal `graphdb` service and
+  honors storage, retry, and other `LEXO_*` values instead of packaged defaults.
+- Docker source builds now install the vendored `OntoApi` artifact before the
+  offline dependency-resolution layer, and the timestamp test accepts both UTC
+  `Z` and numeric offsets so clean builds work in container time zones.
 - Deleting a text now removes every lexical-repository statement whose subject
   or object is one of that text's attestations, including dangling cross-graph
   references, and recalculates affected observable frequencies in other valid

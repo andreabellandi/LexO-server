@@ -1,6 +1,7 @@
 package it.cnr.ilc.lexo.manager.text;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.manager.AttestationManager;
 import it.cnr.ilc.lexo.manager.ManagerException;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
@@ -112,13 +113,14 @@ public final class TextJobManager {
     private final String structureNamespace;
 
     private TextJobManager() {
-        root = Paths.get(System.getProperty("lexo.text.storage.dir", "data/texts"));
+        root = Paths.get(LexOProperties.getProperty(
+                "lexo.text.storage.dir", "data/texts"));
         uploadRoot = root.resolve("uploads");
         workRoot = root.resolve("work");
         documentRoot = root.resolve("documents");
-        publicBaseUri = System.getProperty("lexo.text.publicBaseUri",
+        publicBaseUri = LexOProperties.getProperty("lexo.text.publicBaseUri",
                 "https://lexo.ilc.cnr.it/resources/texts/");
-        structureNamespace = System.getProperty("lexo.text.structureNamespace",
+        structureNamespace = LexOProperties.getProperty("lexo.text.structureNamespace",
                 "https://lexo.ilc.cnr.it/vocabulary/nif-structure#");
         try {
             Files.createDirectories(uploadRoot);

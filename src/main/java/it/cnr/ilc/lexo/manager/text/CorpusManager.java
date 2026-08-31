@@ -1,5 +1,6 @@
 package it.cnr.ilc.lexo.manager.text;
 
+import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.service.data.text.output.CorpusRecord;
 import java.io.IOException;
@@ -40,13 +41,14 @@ public final class CorpusManager {
     private final NifModelWriter writer;
 
     private CorpusManager() {
-        Path root = Paths.get(System.getProperty("lexo.text.storage.dir", "data/texts"));
+        Path root = Paths.get(LexOProperties.getProperty(
+                "lexo.text.storage.dir", "data/texts"));
         workRoot = root.resolve("work");
         corpusRoot = root.resolve("corpora");
         writer = new NifModelWriter(
-                System.getProperty("lexo.text.publicBaseUri",
+                LexOProperties.getProperty("lexo.text.publicBaseUri",
                         "https://lexo.ilc.cnr.it/resources/texts/"),
-                System.getProperty("lexo.text.structureNamespace",
+                LexOProperties.getProperty("lexo.text.structureNamespace",
                         "https://lexo.ilc.cnr.it/vocabulary/nif-structure#"));
         try {
             Files.createDirectories(workRoot);

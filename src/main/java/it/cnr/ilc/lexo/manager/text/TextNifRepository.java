@@ -66,7 +66,7 @@ public final class TextNifRepository {
         graphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
         recordsGraph = iri(graphBase + "records");
-        structureNamespace = namespace(System.getProperty(
+        structureNamespace = namespace(LexOProperties.getProperty(
                 "lexo.text.structureNamespace",
                 "https://lexo.ilc.cnr.it/vocabulary/nif-structure#"));
         if (providedRepository != null) {
