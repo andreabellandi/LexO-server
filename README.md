@@ -473,6 +473,20 @@ conversion and is used as the NIF literal language tag. A `language` key in the
 file front matter is ignored. Supported front-matter keys are `id`, `title`,
 `author`, `date`, `description`, `format`, and `corpus`.
 
+## Canonical text and offsets
+
+Plain TXT and JSON `text.content` preserve every line break in the canonical
+text. CRLF and CR are normalized to LF; within each line, leading and trailing
+whitespace is removed and every remaining whitespace run is normalized to one
+space. Blank lines, repeated blank lines, and trailing LF characters are
+preserved. Controlled CommonMark retains its existing rendering semantics, so
+a single soft line break inside a Markdown paragraph becomes one space.
+
+Every NIF, attestation, CoNLL-U, and annotation offset is a Unicode code-point
+offset on the resulting canonical `nif:isString`. It does not necessarily refer
+to a position in the physical uploaded file, whose line endings and other
+whitespace may differ.
+
 ## Bulk text upload
 
 `POST /service/texts/bulk` accepts multiple `file` parts containing `.txt`,

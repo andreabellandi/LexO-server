@@ -166,6 +166,27 @@ class NifModelWriterTest {
         assertThat(((Literal) endIndex).intValue()).isEqualTo(3);
     }
 
+    @Test
+    @DisplayName("Preserved plain-text line breaks are stored in NIF and counted as code points")
+    void preservesPlainLineBreaksInNifOffsets() throws Exception {
+        ParsedTextDocument document = parser.parseJsonTextStructure("A😀\n  B");
+        setUploadLanguage(document, "it");
+        Model model = writer.build("newlines", "newlines.json", document);
+        IRI context = iri(BASE + "newlines#context");
+        IRI paragraph = iri(BASE + "newlines#paragraph=1");
+
+        assertThat(model.contains(context, iri(NIF + "isString"),
+                values.createLiteral("A😀\nB", "it"))).isTrue();
+        assertThat(model.contains(paragraph, iri(NIF + "anchorOf"),
+                values.createLiteral("A😀\nB", "it"))).isTrue();
+        Value contextEnd = model.filter(context, iri(NIF + "endIndex"), null)
+                .objects().iterator().next();
+        Value paragraphEnd = model.filter(paragraph, iri(NIF + "endIndex"), null)
+                .objects().iterator().next();
+        assertThat(((Literal) contextEnd).intValue()).isEqualTo(4);
+        assertThat(((Literal) paragraphEnd).intValue()).isEqualTo(4);
+    }
+
     private void assertLiteral(Model model, IRI subject, String predicate, String lexicalValue) {
         assertThat(model.filter(subject, iri(DCTERMS + predicate), null).objects())
                 .anySatisfy(value -> {

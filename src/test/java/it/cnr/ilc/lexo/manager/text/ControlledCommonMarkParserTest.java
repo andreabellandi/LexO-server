@@ -28,8 +28,10 @@ class ControlledCommonMarkParserTest {
                 "Prima riga del testo.\nSeconda riga dello stesso paragrafo.\n\nSecondo paragrafo.");
 
         assertThat(document.cleanText)
-                .isEqualTo("Prima riga del testo. Seconda riga dello stesso paragrafo.\n\nSecondo paragrafo.");
+                .isEqualTo("Prima riga del testo.\nSeconda riga dello stesso paragrafo.\n\nSecondo paragrafo.");
         assertThat(document.paragraphs).hasSize(2);
+        assertThat(document.paragraphs.get(0).text)
+                .isEqualTo("Prima riga del testo.\nSeconda riga dello stesso paragrafo.");
         assertThat(document.sentences).isNotEmpty();
         assertThat(document.tokens).isNotEmpty();
         assertThat(document.segmentationMethod).isEqualTo("break-iterator");
@@ -47,12 +49,14 @@ class ControlledCommonMarkParserTest {
     @DisplayName("Controlled CommonMark accepts text inside a chapter")
     void parsesValidControlledCommonMark() throws Exception {
         ParsedTextDocument document = parser.parse(
-                "# [id=chapter-1; n=1] Capitolo primo\nTesto del capitolo.\n\n"
+                "# [id=chapter-1; n=1] Capitolo primo\nPrima riga.\nSeconda riga.\n\n"
                         + "## [id=section-1; n=1.1] Sezione\nAltro testo.");
 
         assertThat(document.allHeadings).hasSize(2);
         assertThat(document.rootHeadings).hasSize(1);
         assertThat(document.paragraphs).hasSize(2);
+        assertThat(document.paragraphs.get(0).text)
+                .isEqualTo("Prima riga. Seconda riga.");
         assertThat(document.allHeadings.get(1).parent).isSameAs(document.allHeadings.get(0));
     }
 
@@ -109,7 +113,27 @@ class ControlledCommonMarkParserTest {
         assertThat(document.frontMatterPresent).isFalse();
         assertThat(document.metadataValues).isEmpty();
         assertThat(document.cleanText)
-                .isEqualTo("--- title: parte del testo ---");
+                .isEqualTo("---\ntitle: parte del testo\n---");
+    }
+
+    @Test
+    @DisplayName("Plain TXT and JSON preserve LF positions while normalizing other whitespace")
+    void preservesPlainLineBreaksAndNormalizesOtherWhitespace() throws Exception {
+        String source = "  prima\t  riga  \r\n seconda\f riga \r\n\r\n\r\n terza  \n";
+
+        ParsedTextDocument txt = parser.parsePlainTextStructure(source);
+        ParsedTextDocument json = parser.parseJsonTextStructure(source);
+
+        assertThat(txt.cleanText).isEqualTo("prima riga\nseconda riga\n\n\nterza\n");
+        assertThat(json.cleanText).isEqualTo(txt.cleanText);
+        assertThat(txt.paragraphs).hasSize(2);
+        assertThat(txt.paragraphs.get(0).text)
+                .isEqualTo("prima riga\nseconda riga");
+        assertThat(txt.paragraphs.get(0).beginChar).isZero();
+        assertThat(txt.paragraphs.get(0).endChar).isEqualTo(23);
+        assertThat(txt.paragraphs.get(1).text).isEqualTo("terza");
+        assertThat(txt.paragraphs.get(1).beginChar).isEqualTo(26);
+        assertThat(txt.paragraphs.get(1).endChar).isEqualTo(31);
     }
 
     @Test

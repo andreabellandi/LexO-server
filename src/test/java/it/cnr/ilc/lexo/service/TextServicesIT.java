@@ -97,7 +97,9 @@ class TextServicesIT {
                     SimpleValueFactory.getInstance().createLiteral("it"))).isTrue();
 
             assertStatus(get("texts/" + fileId + "/original"), 200);
-            assertStatus(get("texts/" + fileId + "/canonical"), 200);
+            assertThat(get("texts/" + fileId + "/canonical")
+                    .readEntity(String.class))
+                    .isEqualTo("Prima riga senza heading.\nSeconda riga.");
 
             JsonNode catalog = json(get("texts"));
             JsonNode catalogItem = findText(catalog, fileId);
@@ -115,6 +117,27 @@ class TextServicesIT {
             assertStatus(get("texts/" + fileId + "/nif"), 404);
             assertNoServerFilesystemArtifacts(fileId);
             fileId = null;
+        } finally {
+            deleteQuietly(fileId == null ? null : "texts/" + fileId);
+        }
+    }
+
+    @Test
+    @DisplayName("Controlled CommonMark keeps converting an internal soft break to a space")
+    void keepsCommonMarkSoftBreakBehavior() throws Exception {
+        assumeConfigured();
+        String fileId = null;
+        try {
+            Path input = write("commonmark-" + UUID.randomUUID() + ".md",
+                    "# [id=chapter-1] Capitolo\nPrima riga.\nSeconda riga.");
+            fileId = upload(input);
+
+            assertStatus(post("texts/" + fileId + "/convert"), 200);
+            JsonNode terminal = awaitTerminalJob(fileId, Duration.ofSeconds(30));
+            assertThat(terminal.path("state").asText()).isEqualTo("COMPLETED");
+            assertThat(get("texts/" + fileId + "/canonical")
+                    .readEntity(String.class))
+                    .isEqualTo("Capitolo\n\nPrima riga. Seconda riga.");
         } finally {
             deleteQuietly(fileId == null ? null : "texts/" + fileId);
         }
@@ -252,7 +275,8 @@ class TextServicesIT {
         try {
             Path input = write("bulk-json-" + UUID.randomUUID() + ".json", "{"
                     + "\"metadata\":{\"title\":\"Intervista JSON\"},"
-                    + "\"text\":{\"type\":\"txt\",\"content\":\"Testo importato.\"},"
+                    + "\"text\":{\"type\":\"txt\","
+                    + "\"content\":\"Testo importato.\\nSeconda riga.\"},"
                     + "\"attestations\":[{\"id\":\"missing-1\",\"observable\":\"\","
                     + "\"type\":\"http://www.w3.org/ns/lemon/ontolex#LexicalSense\","
                     + "\"value\":\"Testo\",\"gloss\":\"Testo\","
@@ -287,7 +311,7 @@ class TextServicesIT {
                     .isEqualTo("MISSING_PARAMETER");
 
             assertThat(get("texts/" + fileId + "/canonical").readEntity(String.class))
-                    .isEqualTo("Testo importato.");
+                    .isEqualTo("Testo importato.\nSeconda riga.");
             assertThat(get("texts/" + fileId + "/original")
                     .getMediaType().toString()).startsWith("application/json");
             Model nif = turtle(get("texts/" + fileId + "/nif"));

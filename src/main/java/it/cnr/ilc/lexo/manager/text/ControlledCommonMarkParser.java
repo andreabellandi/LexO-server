@@ -87,7 +87,9 @@ public final class ControlledCommonMarkParser {
 
     /**
      * Parses only the paragraph structure of an unstructured text file.
-     * Linguistic segmentation can then be supplied by an optional CoNLL-U file.
+     * LF boundaries are retained in the canonical text while other whitespace
+     * is normalized per line. Linguistic segmentation can then be supplied by
+     * an optional CoNLL-U file.
      */
     public ParsedTextDocument parsePlainTextStructure(String rawText)
             throws ControlledCommonMarkException {
@@ -98,6 +100,7 @@ public final class ControlledCommonMarkParser {
      * Parses plain text embedded in the JSON bulk format. The content is always
      * canonical text: a leading {@code ---} block is not interpreted as front
      * matter because JSON metadata is carried by the sibling metadata object.
+     * It follows the same LF-preserving whitespace rules as a plain TXT.
      */
     public ParsedTextDocument parseJsonTextStructure(String rawText)
             throws ControlledCommonMarkException {
@@ -124,19 +127,35 @@ public final class ControlledCommonMarkParser {
         int contentStart = parseFrontMatter
                 ? parseOptionalFrontMatter(lines, doc, issues) : 0;
         StringBuilder clean = new StringBuilder();
-        List<String> paragraphLines = new ArrayList<String>();
         int paragraphOrdinal = 0;
+        int paragraphBegin = -1;
+        int paragraphEnd = -1;
 
         for (int i = contentStart; i < lines.length; i++) {
-            String line = lines[i];
-            if (line.trim().isEmpty()) {
-                paragraphOrdinal = flushPlainParagraph(paragraphLines, clean, doc,
-                        paragraphOrdinal);
+            if (i > contentStart) {
+                clean.append('\n');
+            }
+            String line = normalizeNonLineWhitespace(lines[i]);
+            int lineBegin = clean.length();
+            clean.append(line);
+            if (line.isEmpty()) {
+                if (paragraphBegin >= 0) {
+                    paragraphOrdinal = addPlainParagraph(clean, doc,
+                            paragraphOrdinal, paragraphBegin, paragraphEnd);
+                    paragraphBegin = -1;
+                    paragraphEnd = -1;
+                }
             } else {
-                paragraphLines.add(line);
+                if (paragraphBegin < 0) {
+                    paragraphBegin = lineBegin;
+                }
+                paragraphEnd = clean.length();
             }
         }
-        flushPlainParagraph(paragraphLines, clean, doc, paragraphOrdinal);
+        if (paragraphBegin >= 0) {
+            addPlainParagraph(clean, doc, paragraphOrdinal,
+                    paragraphBegin, paragraphEnd);
+        }
 
         if (doc.paragraphs.isEmpty()) {
             issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT",
@@ -518,26 +537,13 @@ public final class ControlledCommonMarkParser {
         return ordinal;
     }
 
-    private static int flushPlainParagraph(List<String> lines, StringBuilder clean,
-                                           ParsedTextDocument doc, int ordinal) {
-        if (lines.isEmpty()) {
-            return ordinal;
-        }
-        String text = joinAndNormalizeParagraph(lines);
-        lines.clear();
-        if (text.isEmpty()) {
-            return ordinal;
-        }
-
-        appendBlockSeparator(clean);
-        int begin = clean.length();
-        clean.append(text);
-        int end = clean.length();
-
+    private static int addPlainParagraph(StringBuilder clean,
+                                         ParsedTextDocument doc, int ordinal,
+                                         int begin, int end) {
         Paragraph paragraph = new Paragraph();
         paragraph.ordinal = ++ordinal;
         paragraph.id = "paragraph-" + ordinal;
-        paragraph.text = text;
+        paragraph.text = clean.substring(begin, end);
         paragraph.beginChar = begin;
         paragraph.endChar = end;
         paragraph.heading = null;
@@ -575,7 +581,7 @@ public final class ControlledCommonMarkParser {
     private static String joinAndNormalizeParagraph(List<String> lines) {
         StringBuilder out = new StringBuilder();
         for (String line : lines) {
-            String normalized = line.trim().replaceAll("\\s+", " ");
+            String normalized = normalizeNonLineWhitespace(line);
             if (normalized.isEmpty()) {
                 continue;
             }
@@ -585,6 +591,10 @@ public final class ControlledCommonMarkParser {
             out.append(normalized);
         }
         return out.toString();
+    }
+
+    private static String normalizeNonLineWhitespace(String line) {
+        return line.trim().replaceAll("\\s+", " ");
     }
 
     private static boolean isUnsupportedBlock(String line) {

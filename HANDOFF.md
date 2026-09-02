@@ -1,5 +1,18 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 2 settembre 2026 dopo la separazione della normalizzazione plain
+text da quella CommonMark. TXT e `text.content` dei JSON conservano ora tutti i
+ritorni a capo, dopo la conversione CRLF/CR in LF, mentre il whitespace restante
+continua a essere normalizzato per riga. Il CommonMark mantiene la semantica
+precedente: i soft break interni al paragrafo diventano spazi. Paragrafi,
+segmentazione e NIF sono costruiti direttamente sulla nuova stringa canonica;
+gli offset restano code point Unicode di `nif:isString`, non posizioni nel file
+fisico originale. I test mirati del parser, del writer NIF, del parser JSON e di
+CoNLL-U e la suite Maven completa di 214 test sono passati senza errori o test
+saltati. Il collaudo contro Tomcat e GraphDB locali ha inoltre superato tutti i
+14 end-to-end (10 scenari REST e 4 workflow REST/SPARQL/filesystem), compresi i
+controlli espliciti sul canonico TXT/JSON con LF e sul soft break CommonMark.
+
 Aggiornato al 31 agosto 2026 dopo il primo avvio completo dello stack Compose.
 È stato corretto `LexOProperties.load()`, che calcolava le sostituzioni da
 variabili `LEXO_*` e proprietà JVM ma non assegnava il risultato alla
