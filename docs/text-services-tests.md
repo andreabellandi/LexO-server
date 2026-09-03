@@ -9,7 +9,7 @@ GraphDB Free.
 
 | Classe | Livello | Cosa verifica |
 |---|---|---|
-| `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/JSON/CommonMark, conservazione degli LF nel plain text, normalizzazione del restante whitespace, soft break Markdown, struttura, codici di errore e front matter |
+| `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/JSON/CommonMark, conservazione esatta di corpo TXT e `text.content`, soft break Markdown, struttura, codici di errore e front matter |
 | `Iso639LanguageValidatorTest` | Unitario | Validazione del campo upload nelle prime quattro colonne ISO 639 e codici di errore stabili |
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
@@ -21,7 +21,7 @@ GraphDB Free.
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
 | `TextsTest` | Unitario API | Routing e documentazione Swagger degli endpoint di cancellazione multipla asincrona |
-| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, LF canonici di TXT/JSON, soft break CommonMark, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, cancellazione singola e multipla e rollback |
+| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, whitespace e line ending TXT/JSON invariati, soft break CommonMark, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, cancellazione singola e multipla e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
@@ -46,13 +46,15 @@ valore non presente produce `INVALID_LANGUAGE`. Il codice validato viene scritto
 come `dcterms:language` nel NIF e usato come language tag del testo e dei suoi
 segmenti.
 
-Il testo canonico di TXT e JSON conserva i ritorni a capo, inclusi LF ripetuti e
-finali, dopo la normalizzazione di CRLF e CR in LF. Il whitespace restante viene
-normalizzato per singola riga: whitespace iniziale e finale rimosso e sequenze
-interne ridotte a uno spazio. Il percorso CommonMark rimane separato e continua
-a rendere come spazio il soft break interno a un paragrafo. Tutti gli offset
-sono code point Unicode sul `nif:isString` canonico così ottenuto e non sono
-definiti rispetto ai byte o ai caratteri del file fisico originale.
+Tolto l'eventuale blocco di front matter, il testo canonico di un TXT coincide
+esattamente con il corpo UTF-8 decodificato: spazi, tab, righe vuote, CRLF, CR,
+LF, BOM e forma di normalizzazione Unicode non vengono modificati. La stessa
+conservazione esatta vale per `text.content` dei JSON; un eventuale blocco
+iniziale `---` al suo interno resta testo ordinario perché i metadati JSON sono
+nell'oggetto fratello `metadata`. CommonMark continua a rendere come spazio il
+soft break interno a un paragrafo. Tutti gli offset sono code point Unicode sul
+`nif:isString` canonico; non sono offset in byte e, nel solo TXT con front
+matter, ripartono dall'inizio del corpo.
 
 Il bulk usa un solo campo `language` per tutti i file e accetta parti `file` con
 estensione `.txt`, `.md`, `.markdown` o `.json`, anche miste. Per un batch di soli
@@ -253,15 +255,15 @@ cleanup del test.
 
 ### Ciclo REST e rollback
 
-- upload e conversione asincrona di TXT semplice, con verifica dei ritorni a
-  capo nel testo canonico;
+- upload e conversione asincrona di TXT semplice, verificando che spazi
+  multipli, tab e CRLF restino identici nel testo canonico;
 - conversione CommonMark controllata, con verifica che il soft break interno al
   paragrafo continui a diventare uno spazio;
 - upload bulk di TXT/CommonMark con una lingua comune, polling aggregato e
   rollback indipendente che conserva i documenti riusciti;
 - upload bulk JSON, conversione di `text.content`, conservazione dell'originale,
-  metadati NIF, ritorni a capo nel canonicale, stato separato delle attestazioni
-  e dettaglio degli elementi non salvati;
+  metadati NIF, whitespace e line ending invariati nel canonicale, stato
+  separato delle attestazioni e dettaglio degli elementi non salvati;
 - rifiuto del `corpusId` query per richieste contenenti solo JSON;
 - rifiuto atomico del bulk quando è presente una parte CoNLL-U;
 - rifiuto dell'upload senza lingua o con un codice assente dalla lista ISO 639;

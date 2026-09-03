@@ -475,17 +475,21 @@ file front matter is ignored. Supported front-matter keys are `id`, `title`,
 
 ## Canonical text and offsets
 
-Plain TXT and JSON `text.content` preserve every line break in the canonical
-text. CRLF and CR are normalized to LF; within each line, leading and trailing
-whitespace is removed and every remaining whitespace run is normalized to one
-space. Blank lines, repeated blank lines, and trailing LF characters are
-preserved. Controlled CommonMark retains its existing rendering semantics, so
-a single soft line break inside a Markdown paragraph becomes one space.
+Apart from removing an optional front-matter block, plain TXT preserves its
+decoded UTF-8 body exactly as canonical text. Spaces, tabs, blank lines, CRLF,
+bare CR, LF, a possible BOM, and the original Unicode normalization form are
+not rewritten. JSON `text.content` uses the same zero-normalization rule; its
+leading `---` content is ordinary text because JSON metadata is supplied by the
+sibling `metadata` object. Controlled CommonMark retains its existing rendering
+semantics, so a single soft line break inside a Markdown paragraph becomes one
+space.
 
 Every NIF, attestation, CoNLL-U, and annotation offset is a Unicode code-point
-offset on the resulting canonical `nif:isString`. It does not necessarily refer
-to a position in the physical uploaded file, whose line endings and other
-whitespace may differ.
+offset on the resulting canonical `nif:isString`. For TXT without front matter
+and for JSON `text.content`, this string matches the decoded content exactly,
+but offsets are still Unicode code points rather than byte positions. When TXT
+front matter is present, the canonical body starts after it and its offsets
+restart from zero.
 
 ## Bulk text upload
 

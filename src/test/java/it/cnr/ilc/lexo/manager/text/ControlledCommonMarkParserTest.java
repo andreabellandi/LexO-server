@@ -117,23 +117,42 @@ class ControlledCommonMarkParserTest {
     }
 
     @Test
-    @DisplayName("Plain TXT and JSON preserve LF positions while normalizing other whitespace")
-    void preservesPlainLineBreaksAndNormalizesOtherWhitespace() throws Exception {
-        String source = "  prima\t  riga  \r\n seconda\f riga \r\n\r\n\r\n terza  \n";
+    @DisplayName("Plain TXT and JSON content preserve every decoded character")
+    void preservesExactTxtAndJsonContent() throws Exception {
+        String source = "\uFEFF  prima\t  riga  \r\n seconda\f riga \r\n\r\n\r\n terza  \n";
 
         ParsedTextDocument txt = parser.parsePlainTextStructure(source);
         ParsedTextDocument json = parser.parseJsonTextStructure(source);
 
-        assertThat(txt.cleanText).isEqualTo("prima riga\nseconda riga\n\n\nterza\n");
-        assertThat(json.cleanText).isEqualTo(txt.cleanText);
+        assertThat(txt.cleanText).isEqualTo(source);
+        assertThat(json.cleanText).isEqualTo(source);
+        assertThat(json.paragraphs.get(0).text)
+                .isEqualTo(txt.paragraphs.get(0).text);
         assertThat(txt.paragraphs).hasSize(2);
         assertThat(txt.paragraphs.get(0).text)
-                .isEqualTo("prima riga\nseconda riga");
+                .isEqualTo(source.substring(0, source.indexOf("\r\n\r\n")));
         assertThat(txt.paragraphs.get(0).beginChar).isZero();
-        assertThat(txt.paragraphs.get(0).endChar).isEqualTo(23);
-        assertThat(txt.paragraphs.get(1).text).isEqualTo("terza");
-        assertThat(txt.paragraphs.get(1).beginChar).isEqualTo(26);
-        assertThat(txt.paragraphs.get(1).endChar).isEqualTo(31);
+        assertThat(txt.paragraphs.get(0).endChar)
+                .isEqualTo(source.indexOf("\r\n\r\n"));
+        assertThat(txt.paragraphs.get(1).text).isEqualTo(" terza  ");
+        assertThat(txt.paragraphs.get(1).beginChar)
+                .isEqualTo(source.indexOf(" terza"));
+        assertThat(txt.paragraphs.get(1).endChar).isEqualTo(source.length() - 1);
+    }
+
+    @Test
+    @DisplayName("TXT front matter is removed without changing the exact body")
+    void preservesExactTxtBodyAfterFrontMatter() throws Exception {
+        String body = "  e\u0301  \t\r\nseconda  riga\r";
+        ParsedTextDocument document = parser.parsePlainTextStructure(
+                "---\r\ntitle: Documento\r\n---\r\n" + body);
+
+        assertThat(document.metadataValues.get("title"))
+                .containsExactly("Documento");
+        assertThat(document.cleanText).isEqualTo(body);
+        assertThat(document.paragraphs).hasSize(1);
+        assertThat(document.paragraphs.get(0).text)
+                .isEqualTo("  e\u0301  \t\r\nseconda  riga");
     }
 
     @Test

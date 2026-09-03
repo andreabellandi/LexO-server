@@ -87,75 +87,41 @@ public final class ControlledCommonMarkParser {
 
     /**
      * Parses only the paragraph structure of an unstructured text file.
-     * LF boundaries are retained in the canonical text while other whitespace
-     * is normalized per line. Linguistic segmentation can then be supplied by
-     * an optional CoNLL-U file.
+     * Apart from removing an optional front-matter block, the canonical text
+     * is the exact decoded UTF-8 body: whitespace, line endings, BOM and Unicode
+     * normalization form are not changed. Linguistic segmentation can then be
+     * supplied by an optional CoNLL-U file.
      */
     public ParsedTextDocument parsePlainTextStructure(String rawText)
             throws ControlledCommonMarkException {
-        return parsePlainTextStructure(rawText, true);
+        return parseExactPlainTextStructure(rawText, true);
     }
 
-    /**
-     * Parses plain text embedded in the JSON bulk format. The content is always
-     * canonical text: a leading {@code ---} block is not interpreted as front
-     * matter because JSON metadata is carried by the sibling metadata object.
-     * It follows the same LF-preserving whitespace rules as a plain TXT.
-     */
-    public ParsedTextDocument parseJsonTextStructure(String rawText)
-            throws ControlledCommonMarkException {
-        return parsePlainTextStructure(rawText, false);
-    }
-
-    private ParsedTextDocument parsePlainTextStructure(String rawText,
-                                                        boolean parseFrontMatter)
+    private ParsedTextDocument parseExactPlainTextStructure(String rawText,
+                                                             boolean parseFrontMatter)
             throws ControlledCommonMarkException {
         List<ValidationIssue> issues = new ArrayList<ValidationIssue>();
         if (rawText == null) {
             issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT", "Documento assente"));
             throw new ControlledCommonMarkException(issues);
         }
-
-        String source = normalizeText(rawText);
-        if (source.indexOf('\u0000') >= 0) {
+        if (rawText.indexOf('\u0000') >= 0) {
             issues.add(new ValidationIssue(1, 1, "NUL_CHARACTER",
                     "Il file contiene un carattere NUL"));
         }
 
-        String[] lines = source.split("\\n", -1);
+        List<RawLine> sourceLines = splitRawLines(rawText);
+        String[] frontMatterLines = new String[sourceLines.size()];
+        for (int i = 0; i < sourceLines.size(); i++) {
+            frontMatterLines[i] = sourceLines.get(i).text;
+        }
         ParsedTextDocument doc = new ParsedTextDocument();
-        int contentStart = parseFrontMatter
-                ? parseOptionalFrontMatter(lines, doc, issues) : 0;
-        StringBuilder clean = new StringBuilder();
-        int paragraphOrdinal = 0;
-        int paragraphBegin = -1;
-        int paragraphEnd = -1;
-
-        for (int i = contentStart; i < lines.length; i++) {
-            if (i > contentStart) {
-                clean.append('\n');
-            }
-            String line = normalizeNonLineWhitespace(lines[i]);
-            int lineBegin = clean.length();
-            clean.append(line);
-            if (line.isEmpty()) {
-                if (paragraphBegin >= 0) {
-                    paragraphOrdinal = addPlainParagraph(clean, doc,
-                            paragraphOrdinal, paragraphBegin, paragraphEnd);
-                    paragraphBegin = -1;
-                    paragraphEnd = -1;
-                }
-            } else {
-                if (paragraphBegin < 0) {
-                    paragraphBegin = lineBegin;
-                }
-                paragraphEnd = clean.length();
-            }
-        }
-        if (paragraphBegin >= 0) {
-            addPlainParagraph(clean, doc, paragraphOrdinal,
-                    paragraphBegin, paragraphEnd);
-        }
+        int contentLine = parseFrontMatter
+                ? parseOptionalFrontMatter(frontMatterLines, doc, issues) : 0;
+        int contentStart = contentLine < sourceLines.size()
+                ? sourceLines.get(contentLine).begin : rawText.length();
+        String canonical = rawText.substring(contentStart);
+        addExactPlainParagraphs(canonical, doc);
 
         if (doc.paragraphs.isEmpty()) {
             issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT",
@@ -164,9 +130,20 @@ public final class ControlledCommonMarkParser {
         if (!issues.isEmpty()) {
             throw new ControlledCommonMarkException(issues);
         }
-
-        doc.cleanText = clean.toString();
+        doc.cleanText = canonical;
         return doc;
+    }
+
+    /**
+     * Parses plain text embedded in the JSON bulk format. The content is always
+     * canonical text: a leading {@code ---} block is not interpreted as front
+     * matter because JSON metadata is carried by the sibling metadata object.
+     * The decoded content is preserved exactly, using the same zero-normalization
+     * rule as a TXT body.
+     */
+    public ParsedTextDocument parseJsonTextStructure(String rawText)
+            throws ControlledCommonMarkException {
+        return parseExactPlainTextStructure(rawText, false);
     }
 
     /**
@@ -537,18 +514,67 @@ public final class ControlledCommonMarkParser {
         return ordinal;
     }
 
-    private static int addPlainParagraph(StringBuilder clean,
+    private static void addExactPlainParagraphs(String canonical,
+                                                ParsedTextDocument doc) {
+        int ordinal = 0;
+        int paragraphBegin = -1;
+        int paragraphEnd = -1;
+        for (RawLine line : splitRawLines(canonical)) {
+            if (line.text.trim().isEmpty()) {
+                if (paragraphBegin >= 0) {
+                    ordinal = addPlainParagraph(canonical, doc, ordinal,
+                            paragraphBegin, paragraphEnd);
+                    paragraphBegin = -1;
+                    paragraphEnd = -1;
+                }
+            } else {
+                if (paragraphBegin < 0) {
+                    paragraphBegin = line.begin;
+                }
+                paragraphEnd = line.end;
+            }
+        }
+        if (paragraphBegin >= 0) {
+            addPlainParagraph(canonical, doc, ordinal,
+                    paragraphBegin, paragraphEnd);
+        }
+    }
+
+    private static int addPlainParagraph(String canonical,
                                          ParsedTextDocument doc, int ordinal,
                                          int begin, int end) {
         Paragraph paragraph = new Paragraph();
         paragraph.ordinal = ++ordinal;
         paragraph.id = "paragraph-" + ordinal;
-        paragraph.text = clean.substring(begin, end);
+        paragraph.text = canonical.substring(begin, end);
         paragraph.beginChar = begin;
         paragraph.endChar = end;
         paragraph.heading = null;
         doc.paragraphs.add(paragraph);
         return ordinal;
+    }
+
+    private static List<RawLine> splitRawLines(String text) {
+        List<RawLine> lines = new ArrayList<RawLine>();
+        int begin = 0;
+        int cursor = 0;
+        while (cursor < text.length()) {
+            char current = text.charAt(cursor);
+            if (current != '\r' && current != '\n') {
+                cursor++;
+                continue;
+            }
+            int separatorEnd = cursor + 1;
+            if (current == '\r' && separatorEnd < text.length()
+                    && text.charAt(separatorEnd) == '\n') {
+                separatorEnd++;
+            }
+            lines.add(new RawLine(begin, cursor, text.substring(begin, cursor)));
+            begin = separatorEnd;
+            cursor = separatorEnd;
+        }
+        lines.add(new RawLine(begin, text.length(), text.substring(begin)));
+        return lines;
     }
 
     private static void clearSegmentation(ParsedTextDocument doc) {
@@ -655,5 +681,17 @@ public final class ControlledCommonMarkParser {
     private static final class Counter {
         int sentences;
         int tokens;
+    }
+
+    private static final class RawLine {
+        final int begin;
+        final int end;
+        final String text;
+
+        RawLine(int begin, int end, String text) {
+            this.begin = begin;
+            this.end = end;
+            this.text = text;
+        }
     }
 }

@@ -1,5 +1,16 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 3 settembre 2026: gli import TXT conservano ora esattamente il
+corpo UTF-8 decodificato, senza trim, collasso del whitespace, conversione dei
+line ending, rimozione del BOM o normalizzazione Unicode. L'eventuale front
+matter continua a essere interpretato e rimosso dal canonico; gli offset del
+corpo ripartono quindi da zero e restano code point di `nif:isString`. Il
+`text.content` dei JSON applica la stessa conservazione esatta, senza
+interpretare come front matter un eventuale blocco `---`; CommonMark non cambia.
+I test mirati e la suite Maven completa di 216 test sono passati senza failure,
+errori o test saltati; gli end-to-end non sono stati eseguiti in questa attività
+perché richiedono il redeploy della build sul Tomcat di test.
+
 Aggiornato al 2 settembre 2026 dopo la separazione della normalizzazione plain
 text da quella CommonMark. TXT e `text.content` dei JSON conservano ora tutti i
 ritorni a capo, dopo la conversione CRLF/CR in LF, mentre il whitespace restante

@@ -101,10 +101,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
-- Plain TXT and JSON text imports now preserve canonical line breaks while
-  normalizing other whitespace per line. CommonMark soft-break rendering is
-  unchanged, and all offsets continue to address the canonical `nif:isString`
-  rather than the physical source file.
+- Apart from optional TXT front matter, plain TXT imports and JSON
+  `text.content` now preserve the exact decoded content, including whitespace,
+  line endings, BOM, and Unicode normalization form. CommonMark rendering is
+  unchanged, and offsets address the canonical `nif:isString` in Unicode code
+  points.
 - Runtime configuration can now be supplied through an external properties
   file, `LEXO_*` environment variables, or JVM system properties without
   rebuilding the WAR; filesystem paths and bounded GraphDB startup retries use

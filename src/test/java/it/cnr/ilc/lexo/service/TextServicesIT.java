@@ -79,8 +79,9 @@ class TextServicesIT {
         assumeConfigured();
         String fileId = null;
         try {
+            String exactText = "  Prima  riga senza heading.\r\nSeconda\triga.  ";
             Path input = write("plain-" + UUID.randomUUID() + ".txt",
-                    "Prima riga senza heading.\nSeconda riga.");
+                    exactText);
             fileId = upload(input);
 
             assertStatus(post("texts/" + fileId + "/convert"), 200);
@@ -99,7 +100,7 @@ class TextServicesIT {
             assertStatus(get("texts/" + fileId + "/original"), 200);
             assertThat(get("texts/" + fileId + "/canonical")
                     .readEntity(String.class))
-                    .isEqualTo("Prima riga senza heading.\nSeconda riga.");
+                    .isEqualTo(exactText);
 
             JsonNode catalog = json(get("texts"));
             JsonNode catalogItem = findText(catalog, fileId);
@@ -276,7 +277,7 @@ class TextServicesIT {
             Path input = write("bulk-json-" + UUID.randomUUID() + ".json", "{"
                     + "\"metadata\":{\"title\":\"Intervista JSON\"},"
                     + "\"text\":{\"type\":\"txt\","
-                    + "\"content\":\"Testo importato.\\nSeconda riga.\"},"
+                    + "\"content\":\"  Testo  importato.\\r\\nSeconda\\triga. \"},"
                     + "\"attestations\":[{\"id\":\"missing-1\",\"observable\":\"\","
                     + "\"type\":\"http://www.w3.org/ns/lemon/ontolex#LexicalSense\","
                     + "\"value\":\"Testo\",\"gloss\":\"Testo\","
@@ -311,7 +312,7 @@ class TextServicesIT {
                     .isEqualTo("MISSING_PARAMETER");
 
             assertThat(get("texts/" + fileId + "/canonical").readEntity(String.class))
-                    .isEqualTo("Testo importato.\nSeconda riga.");
+                    .isEqualTo("  Testo  importato.\r\nSeconda\triga. ");
             assertThat(get("texts/" + fileId + "/original")
                     .getMediaType().toString()).startsWith("application/json");
             Model nif = turtle(get("texts/" + fileId + "/nif"));

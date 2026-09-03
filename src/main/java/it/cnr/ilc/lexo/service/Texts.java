@@ -106,7 +106,7 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text upload",
-            notes = "This method uploads one TXT or CommonMark file, its required ISO 639 language code and an optional CoNLL-U file, and returns the generated file id. TXT canonical text preserves LF line breaks while normalizing other whitespace per line; CommonMark soft line breaks retain their existing space rendering. Offsets always address the canonical nif:isString")
+            notes = "This method uploads one TXT or CommonMark file, its required ISO 639 language code and an optional CoNLL-U file, and returns the generated file id. Apart from an optional front-matter block, TXT canonical text preserves the exact decoded UTF-8 body without whitespace, line-ending, BOM, or Unicode normalization; CommonMark retains its existing rendering. Offsets always address the canonical nif:isString")
     @ApiImplicitParam(
             name = "language",
             value = "required text language code present in ISO 639-1, ISO 639-2 or ISO 639-3",
@@ -237,7 +237,7 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Bulk text upload and NIF conversion",
-            notes = "This method validates and uploads multiple TXT, CommonMark, or fixed-schema JSON files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. TXT and JSON canonical text preserve LF line breaks while normalizing other whitespace per line; CommonMark soft line breaks retain their existing space rendering. Offsets always address the canonical nif:isString. JSON files may include per-document corpus membership and FRAC attestations; CoNLL-U is not allowed in bulk requests")
+            notes = "This method validates and uploads multiple TXT, CommonMark, or fixed-schema JSON files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. Apart from optional TXT front matter, TXT bodies and JSON text content preserve their exact decoded content without whitespace, line-ending, BOM, or Unicode normalization; CommonMark keeps its existing rendering. Offsets always address the canonical nif:isString. JSON files may include per-document corpus membership and FRAC attestations; CoNLL-U is not allowed in bulk requests")
     @ApiImplicitParam(
             name = "language",
             value = "single required ISO 639 language code applied to every text in the bulk",
