@@ -9,6 +9,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- `GET /attestations/export/web-annotation` exports selected or all attestation
+  document graphs as Web Annotation JSON-LD, with Unicode text selectors and
+  optional lossless LexO metadata/provenance. Missing canonical evidence or
+  inconsistent records fail the entire request with a diagnostic HTTP 422.
+
 - A Docker Compose starter distribution now runs versioned LexO-server/Tomcat
   and GraphDB containers with persistent data and log volumes, dependency-aware
   health checks, idempotent startup, coordinated backup/restore scripts, and a

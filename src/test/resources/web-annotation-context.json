@@ -1,0 +1,26 @@
+{
+  "@context": {
+    "oa": "http://www.w3.org/ns/oa#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "id": {"@type":"@id","@id":"@id"},
+    "type": {"@type":"@id","@id":"@type"},
+    "Annotation": "oa:Annotation",
+    "SpecificResource": "oa:SpecificResource",
+    "TextPositionSelector": "oa:TextPositionSelector",
+    "TextQuoteSelector": "oa:TextQuoteSelector",
+    "FragmentSelector": "oa:FragmentSelector",
+    "identifying": "oa:identifying",
+    "body": {"@type":"@id","@id":"oa:hasBody"},
+    "target": {"@type":"@id","@id":"oa:hasTarget"},
+    "source": {"@type":"@id","@id":"oa:hasSource"},
+    "selector": {"@type":"@id","@id":"oa:hasSelector"},
+    "motivation": {"@type":"@vocab","@id":"oa:motivatedBy"},
+    "conformsTo": {"@type":"@id","@id":"http://purl.org/dc/terms/conformsTo"},
+    "start": {"@type":"xsd:nonNegativeInteger","@id":"oa:start"},
+    "end": {"@type":"xsd:nonNegativeInteger","@id":"oa:end"},
+    "exact": "oa:exact",
+    "prefix": "oa:prefix",
+    "suffix": "oa:suffix",
+    "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#value"
+  }
+}

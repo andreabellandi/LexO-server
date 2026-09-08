@@ -8,6 +8,8 @@ import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.AttestationManager;
 import it.cnr.ilc.lexo.manager.ManagerException;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
+import it.cnr.ilc.lexo.manager.WebAnnotationExportException;
+import it.cnr.ilc.lexo.service.data.attestation.output.WebAnnotationDocument;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByLocusInput;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationDeleteByObservableInput;
@@ -18,6 +20,7 @@ import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import java.util.List;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PathParam;
@@ -33,8 +36,58 @@ import org.slf4j.event.Level;
 public class Attestations extends Service {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private final AttestationManager manager =
-            ManagerFactory.getManager(AttestationManager.class);
+    private final AttestationManager manager;
+
+    public Attestations() {
+        this(ManagerFactory.getManager(AttestationManager.class));
+    }
+
+    Attestations(AttestationManager manager) {
+        this.manager = manager;
+    }
+
+    @GET
+    @javax.ws.rs.Path("export/web-annotation")
+    @Produces("application/ld+json; charset=UTF-8")
+    @ApiOperation(value = "Attestation Web Annotation export",
+            response = WebAnnotationDocument.class,
+            notes = "Exports one, multiple, or all supported attestation document graphs as JSON-LD. "
+                    + "With includeMetadata=true, preserves native metadata and separate lexoProvenance as JSON-LD 1.1 JSON literals. "
+                    + "Empty or absent supported graphs yield an empty graph. The entire export is validated before response: "
+                    + "unavailable canonical text (including external attestations) or inconsistent data returns 422 without partial output. "
+                    + "Errors use text/plain machine codes; repositories are unchanged.")
+    public Response exportWebAnnotations(
+            @ApiParam(name = "Authorization", value = "optional authorization header", required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "context", value = "Optional repeatable absolute attestation document graph IRI; "
+                    + "if omitted, exports all supported document graphs in LexOLexica. This is not a NIF context IRI.", required = false)
+            @QueryParam("context") List<String> contexts,
+            @ApiParam(name = "includeMetadata", value = "Optional boolean, default false; true includes the existing "
+                    + "custom metadata and separate creator/date provenance as JSON literals.", allowableValues = "true,false", required = false)
+            @QueryParam("includeMetadata") String includeMetadata) {
+        try {
+            checkKey(key);
+            if (includeMetadata != null && !"true".equalsIgnoreCase(includeMetadata)
+                    && !"false".equalsIgnoreCase(includeMetadata)) {
+                return plain(Response.Status.BAD_REQUEST,
+                        "WA_INVALID_BOOLEAN: includeMetadata must be true or false");
+            }
+            WebAnnotationDocument document = manager.exportWebAnnotations(contexts,
+                    "true".equalsIgnoreCase(includeMetadata));
+            // Serialize completely before creating a successful response.
+            return Response.ok(MAPPER.writeValueAsBytes(document), "application/ld+json; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=\"attestations-web-annotation.jsonld\"")
+                    .build();
+        } catch (WebAnnotationExportException e) {
+            log(Level.ERROR, "/attestations/export/web-annotation: " + e.getMessage());
+            return Response.status(e.httpStatus).type(MediaType.TEXT_PLAIN).entity(e.getMessage()).build();
+        } catch (AuthorizationException | ServiceException e) {
+            return plain(Response.Status.BAD_REQUEST, "not authorized");
+        } catch (ManagerException | JsonProcessingException | RuntimeException e) {
+            log(Level.ERROR, "/attestations/export/web-annotation: export failed", e);
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, "WA_EXPORT_FAILED: export could not be completed");
+        }
+    }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)

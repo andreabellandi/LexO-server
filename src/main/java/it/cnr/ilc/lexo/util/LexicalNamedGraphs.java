@@ -46,6 +46,20 @@ public final class LexicalNamedGraphs {
         return attestationGraphBaseUri() + requireFileId(fileId);
     }
 
+    /** Returns the document id only for a supported attestation graph. */
+    public static String attestationFileId(String graph) {
+        String prefix = attestationGraphBaseUri();
+        if (graph == null || !graph.startsWith(prefix)) {
+            return null;
+        }
+        String id = graph.substring(prefix.length());
+        try {
+            return graph.equals(attestationGraphUri(id)) ? id : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     public static String annotationGraphUri(String fileId) {
         return annotationGraphBaseUri() + requireFileId(fileId);
     }

@@ -409,3 +409,13 @@ nei commenti:
 5. per errori, verificare il codice macchina (`ValidationIssue.code`), non soltanto
    il messaggio italiano;
 6. per test remoti, eliminare sempre le risorse in un blocco `finally`.
+
+## Export Web Annotation delle attestazioni
+
+L'export FrAC/NIF usa entrambi i repository ed è verificato separatamente da
+questa suite testuale. `AttestationWebAnnotationExporterTest` e
+`AttestationsExportTest` fanno parte di `mvn test`; il controllo JSON-LD 1.1
+aggiuntivo usa `python3 scripts/verify-web-annotation-jsonld.py` dopo i test Java.
+`AttestationsExportIT` richiede esplicitamente un deployment e due repository
+GraphDB dedicati. Configurazione e cleanup sono documentati in
+[attestation-web-annotation-export.md](attestation-web-annotation-export.md#implementation-and-verification).

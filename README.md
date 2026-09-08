@@ -688,6 +688,43 @@ The default limit is 100 identifiers and can be changed with the JVM system
 property `lexo.text.maxBulkDeleteFiles`. Job status is held in memory and is no
 longer available after an application restart.
 
+## Attestation Web Annotation export
+
+`GET /service/attestations/export/web-annotation` exports FrAC attestations as
+`application/ld+json; charset=UTF-8`, with an `@graph` and a downloadable filename.
+Repeat the optional `context` query parameter to select attestation document
+**graph IRIs**; omitting it selects all supported attestation document graphs.
+Missing supported graphs contribute empty results; invalid or unrelated graphs
+return HTTP 400. The default graph and legacy graphs are never consulted.
+
+FrAC is read from `LexOLexica`, while loci and canonical text are resolved in
+the matching `LexOTexts` document graph through `nif:referenceContext`. Corpus
+references in `frac:observedIn` are supported. Each annotation contains all its
+lexical Bodies and a canonical text Target with TextPosition, TextQuote, and
+RFC5147 Fragment selectors. Offsets and the configurable
+`webAnnotation.quoteContextLength=50` window count Unicode code points.
+
+`includeMetadata=true` preserves the existing custom `metadata` map and adds
+`lexoProvenance` with the unchanged creator and date values. These are JSON-LD
+1.1 `rdf:JSON` extensions; clients need a JSON-LD 1.1 processor to interpret them.
+Both are omitted by default. No RDF data is created or modified by this GET.
+
+The entire export is validated and serialized in memory before HTTP 200.
+Inconsistent data or unavailable canonical text returns HTTP 422 with a stable
+machine code and the offending attestation/graph; this includes external
+attestations without local canonical text. No external URLs are fetched and no
+partial success is returned. Large exports require memory for the result and
+canonical text retained for duplicate validation. The two repositories do not
+provide a distributed snapshot.
+
+```text
+GET /service/attestations/export/web-annotation?includeMetadata=true
+GET /service/attestations/export/web-annotation?context=https%3A%2F%2Flexo.ilc.cnr.it%2Fgraphs%2Flexical%2Fattestations%2Fdocuments%2Ffile-a
+```
+
+The complete contract, extension vocabulary, error policy, and test procedure
+are in [docs/attestation-web-annotation-export.md](docs/attestation-web-annotation-export.md).
+
 ## Attestations
 
 `POST /service/attestations` creates multiple FRAC attestations for one OntoLex

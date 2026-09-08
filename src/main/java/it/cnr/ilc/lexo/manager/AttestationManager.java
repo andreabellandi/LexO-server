@@ -17,6 +17,8 @@ import it.cnr.ilc.lexo.service.data.attestation.input.AttestationLocusUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationObservableUpdate;
 import it.cnr.ilc.lexo.service.data.attestation.input.AttestationOccurrence;
 import it.cnr.ilc.lexo.service.data.attestation.output.Attestation;
+import it.cnr.ilc.lexo.service.data.attestation.output.AttestationProvenance;
+import it.cnr.ilc.lexo.service.data.attestation.output.WebAnnotationDocument;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionItem;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationDeletionResult;
 import it.cnr.ilc.lexo.service.data.attestation.output.AttestationListItem;
@@ -120,6 +122,37 @@ public class AttestationManager implements Manager {
                 "lexo.text.structureNamespace", DEFAULT_STRUCTURE_NAMESPACE));
         this.textGraphBase = trailingSeparator(configured("TextGraphDb.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
+    }
+
+    /** Fully materializes and validates an export before the REST response starts. */
+    public WebAnnotationDocument exportWebAnnotations(List<String> contexts,
+                                                       boolean includeMetadata)
+            throws ManagerException {
+        AttestationWebAnnotationExporter exporter =
+                new AttestationWebAnnotationExporter(this, textGraphBase);
+        List<IRI> graphs = exporter.validateContexts(contexts);
+        int window = exporter.quoteContextLength();
+        RepositoryConnection lexical = null;
+        RepositoryConnection text = null;
+        try {
+            lexical = connections.acquire(RepositoryTarget.LEXICON);
+            text = connections.acquire(RepositoryTarget.TEXT);
+            return exporter.export(lexical, text, graphs, includeMetadata, window);
+        } finally {
+            try {
+                connections.release(RepositoryTarget.TEXT, text);
+            } finally {
+                connections.release(RepositoryTarget.LEXICON, lexical);
+            }
+        }
+    }
+
+    AttestationProvenance readProvenance(Model model, Resource attestation) {
+        AttestationProvenance result = new AttestationProvenance();
+        result.creator = firstString(model, attestation, DCTERMS.CREATOR);
+        result.creationDate = firstString(model, attestation, DCTERMS.CREATED);
+        result.lastUpdate = firstString(model, attestation, DCTERMS.MODIFIED);
+        return result;
     }
 
     /** Manager entry point for one attestation occurrence. */
@@ -1588,7 +1621,7 @@ public class AttestationManager implements Manager {
                             || !graph.stringValue().startsWith(graphBase)) {
                         continue;
                     }
-                    String fileId = attestationFileId(graph, graphBase);
+                    String fileId = LexicalNamedGraphs.attestationFileId(graph.stringValue());
                     if (fileId == null || !lexical.hasStatement((Resource) object,
                             RDF.TYPE, vf.createIRI(FRAC + "Attestation"), false, graph)) {
                         continue;
@@ -1611,20 +1644,6 @@ public class AttestationManager implements Manager {
         } finally {
             connections.release(RepositoryTarget.TEXT, text);
             connections.release(RepositoryTarget.LEXICON, lexical);
-        }
-    }
-
-    private String attestationFileId(Resource graph, String graphBase) {
-        String graphValue = graph.stringValue();
-        if (!graphValue.startsWith(graphBase)) {
-            return null;
-        }
-        String fileId = graphValue.substring(graphBase.length());
-        try {
-            return graphValue.equals(LexicalNamedGraphs.attestationGraphUri(fileId))
-                    ? fileId : null;
-        } catch (IllegalArgumentException e) {
-            return null;
         }
     }
 
@@ -1732,7 +1751,7 @@ public class AttestationManager implements Manager {
         return null;
     }
 
-    private Model loadAttestationModel(RepositoryConnection connection,
+    Model loadAttestationModel(RepositoryConnection connection,
                                        Resource graph,
                                        List<Resource> attestations) {
         if (attestations.isEmpty()) {
@@ -1754,7 +1773,7 @@ public class AttestationManager implements Manager {
         return evaluateGraphQuery(connection, graph, sparql);
     }
 
-    private Model loadResourceModel(RepositoryConnection connection,
+    Model loadResourceModel(RepositoryConnection connection,
                                     Resource graph,
                                     List<Resource> resources) {
         if (resources.isEmpty()) {
@@ -2124,12 +2143,10 @@ public class AttestationManager implements Manager {
             }
             result.observableLabel = observableLabels.get(key);
         }
-        result.creator = firstString(attestationModel, attestation,
-                DCTERMS.CREATOR);
-        result.creationDate = firstString(attestationModel, attestation,
-                DCTERMS.CREATED);
-        result.lastUpdate = firstString(attestationModel, attestation,
-                DCTERMS.MODIFIED);
+        AttestationProvenance provenance = readProvenance(attestationModel, attestation);
+        result.creator = provenance.creator;
+        result.creationDate = provenance.creationDate;
+        result.lastUpdate = provenance.lastUpdate;
         result.metadata = readMetadata(attestationModel, attestation);
         result.value = firstString(attestationModel, attestation, RDF.VALUE);
         if (result.value == null) {
@@ -2213,7 +2230,7 @@ public class AttestationManager implements Manager {
         return result;
     }
 
-    private Map<String, List<AttestationMetadataValue>> readMetadata(
+    Map<String, List<AttestationMetadataValue>> readMetadata(
             Model model, Resource attestation) {
         Map<String, List<AttestationMetadataValue>> unsorted =
                 new HashMap<String, List<AttestationMetadataValue>>();
@@ -3047,7 +3064,7 @@ public class AttestationManager implements Manager {
         return result;
     }
 
-    private String unicodeSubstring(String canonical, int start, int end)
+    String unicodeSubstring(String canonical, int start, int end)
             throws ManagerException {
         int length = canonical.codePointCount(0, canonical.length());
         if (end > length) {

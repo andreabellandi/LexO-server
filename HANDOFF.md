@@ -1,5 +1,37 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato all'8 settembre 2026 dopo l'implementazione di
+`GET /service/attestations/export/web-annotation`. L'endpoint esporta i graph
+documentali delle attestazioni con tre selettori Unicode e Body multipli;
+FrAC e NIF restano rispettivamente in `LexOLexica` e `LexOTexts`. Il contesto
+si risolve dal locus, anche quando `observedIn` identifica un corpus.
+`includeMetadata=true` riusa la mappa metadati esistente e conserva creator e
+date in `lexoProvenance`, entrambi JSON literals in JSON-LD 1.1. Duplicati
+compatibili vengono unificati; dati discordanti, identificatori strutturali
+non IRI e canonico assente producono HTTP 422 senza risposta parziale.
+L'export non scrive nei repository e non scarica URL esterni.
+
+La suite completa, eseguita con il Maven di NetBeans 12.2 in modalità offline
+(`mvn -o test`), ha superato 252 test senza failure, errori o test saltati.
+Il controllo separato `python3 scripts/verify-web-annotation-jsonld.py` è passato
+con RDFLib 6.2.0, verificando RDF Web Annotation e i due `rdf:JSON` generati
+realmente dai test Java. Il parser Java già incluso supporta JSON-LD 1.0:
+nessuna dipendenza del WAR è stata cambiata per il controllo 1.1. La prima
+esecuzione Maven non offline ha mostrato warning sui tracking file `~/.m2`
+non scrivibili nel sandbox; le successive verifiche offline sono passate.
+Restano i messaggi preesistenti del compilatore su API deprecate/unchecked.
+
+È stato aggiunto e compilato `AttestationsExportIT`, ma il collaudo REST contro
+Tomcat/GraphDB non è stato eseguito: occorre distribuire questa build su un
+deployment con due repository dedicati, seguendo
+`docs/attestation-web-annotation-export.md`. L'export è attualmente preparato e
+serializzato in memoria: occupazione proporzionale al risultato e ai testi
+canonici conservati per il confronto dei duplicati; nessuno snapshot distribuito
+tra i due repository. Il prossimo passo è il collaudo end-to-end dedicato.
+Consegna tramite commit dedicato su `master`: `Export attestations as Web Annotation JSON-LD`.
+Non è stato eseguito alcun deploy; le microguide manuali preesistenti restano
+escluse dal commit dell’export.
+
 Aggiornato al 3 settembre 2026: gli import TXT conservano ora esattamente il
 corpo UTF-8 decodificato, senza trim, collasso del whitespace, conversione dei
 line ending, rimozione del BOM o normalizzazione Unicode. L'eventuale front
@@ -660,12 +692,30 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 ## Stato Git
 
 - Branch locale corrente: `master`.
-- I riferimenti di `origin/master` sono stati aggiornati prima del lavoro e il
-  branch locale era già allineato in fast-forward al commit `04d190ac`. Le
-  modifiche Docker sono presenti nel working tree e non sono state committate.
+- Base del commit export dell'8 settembre 2026: `9799a44`
+  (`Preserve imported plain text exactly`).
+  `git fetch origin master` e `git merge --ff-only origin/master` hanno
+  confermato che tutti i commit remoti sono presenti. Prima del commit export
+  il branch locale aveva quattro commit in più rispetto a `origin/master`,
+  senza commit remoti mancanti.
+- Il commit `Export attestations as Web Annotation JSON-LD` contiene il servizio,
+  i test e la relativa documentazione. Le modifiche preesistenti alle microguide
+  manuali e ai loro riferimenti in README/HANDOFF restano nel working tree,
+  escluse dal commit dell'export.
 - Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
 
 ## Ultimi file modificati
+
+Per l'export dell'8 settembre: `Attestations.java`, `AttestationManager.java`,
+`AttestationWebAnnotationExporter.java`, `WebAnnotationExportException.java`,
+`LexicalNamedGraphs.java`, i DTO `WebAnnotationDocument`/`AttestationProvenance`,
+la proprietà `webAnnotation.quoteContextLength`, i test
+`AttestationWebAnnotationExporterTest`/`AttestationsExportTest`/`AttestationsExportIT`,
+il contesto locale e lo script di verifica JSON-LD 1.1. Contratto completo in
+`docs/attestation-web-annotation-export.md`; aggiornati README, documentazione
+test, CHANGELOG Unreleased e questo handoff.
+
+Cronologia delle attività precedenti:
 
 Il lavoro corrente aggiunge `TextBulkDeletionManager`, i DTO di input e stato,
 gli endpoint `DELETE /texts/bulk` e
