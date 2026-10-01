@@ -9,10 +9,6 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 
 - Eseguire `git status -sb`, identificare il branch e preservare ogni modifica
   preesistente dell'utente.
-- Usare esclusivamente il branch principale del repository, attualmente
-  `master`. Non creare branch dedicati, feature branch o branch temporanei per
-  le modifiche. Se il branch remoto predefinito verrà rinominato, usare il suo
-  nuovo nome al posto di `master`.
 - Prima di modificare, aggiornare `origin/master` e allineare il branch locale
   con un fast-forward. Se modifiche locali o una divergenza impediscono
   l'allineamento sicuro, fermarsi e chiedere istruzioni senza scartare o
@@ -159,10 +155,9 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 
 - Creare commit focalizzati con messaggi descrittivi; non usare `git add -A` in
   un worktree misto.
-- Creare i commit direttamente sul branch principale, attualmente `master`, e
-  non creare branch separati per prepararli.
-- Quando l'utente chiede un commit, eseguire anche il push su `origin/master`,
-  salvo impedimenti di autenticazione o rete da comunicare esplicitamente.
+- Quando l'utente chiede un commit, eseguire anche il push sul branch remoto
+  corrispondente, salvo impedimenti di autenticazione o rete da comunicare
+  esplicitamente.
 - Non aprire una pull request per integrare modifiche preparate localmente,
   salvo richiesta esplicita dell'utente; il flusso ordinario usa direttamente
   il branch principale.

@@ -1,5 +1,13 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 1 ottobre 2026 con la documentazione sintetica dei servizi ECD
+legacy dichiarati in `ECDCreation`, `ECDData`, `ECDDeletion` ed `ECDUpdate`.
+`docs/ecd-services.md` riporta metodo, endpoint, funzione, parametri essenziali
+e comportamento dei 24 servizi operativi, separando esplicitamente le sei rotte
+placeholder che restituiscono ancora `null`. Non sono stati modificati codice
+Java o contratti REST. Per questa modifica esclusivamente documentale non è
+stata eseguita la suite Maven; la verifica applicabile è `git diff --check`.
+
 Aggiornato all'8 settembre 2026 dopo l'implementazione di
 `GET /service/attestations/export/web-annotation`. L'endpoint esporta i graph
 documentali delle attestazioni con tre selettori Unicode e Body multipli;

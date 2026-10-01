@@ -9,6 +9,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Concise endpoint documentation now covers every implemented ECD creation,
+  retrieval, update, and deletion service and identifies the declared routes
+  that are still placeholders.
+
 - `GET /attestations/export/web-annotation` exports selected or all attestation
   document graphs as Web Annotation JSON-LD, with Unicode text selectors and
   optional lossless LexO metadata/provenance. Missing canonical evidence or
