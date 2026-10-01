@@ -189,8 +189,8 @@ After every substantial change:
    - remaining work;
    - known problems;
    - recommended next steps.
-2. Update `README.md` if installation, configuration, usage, or project structure
-   changed.
+2. Keep `README.md` unchanged. Modify it only when the user explicitly requests
+   a README change.
 3. Run the relevant tests before completing the task.
 4. Do not update `HANDOFF.md` for trivial formatting-only changes.
 
