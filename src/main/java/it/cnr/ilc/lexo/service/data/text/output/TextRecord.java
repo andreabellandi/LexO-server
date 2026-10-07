@@ -15,6 +15,12 @@ public class TextRecord implements Data {
     public String corpusId;
     public String corpusUri;
     public String segmentationMethod;
+    public String segmentationSource;
+    public String tokenizerProfile;
+    public String sentenceSplitterProfile;
+    public String segmentationSchemaVersion;
+    public String contentHash;
+    public String segmentationHash;
     public Boolean frontMatterPresent;
     public String originalFileName;
     public String conlluFileName;

@@ -9,6 +9,16 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Standalone Apache Lucene corpus indexing now provides occurrence-level
+  full-text search, phrase and multi-term queries, positional KWIC resizing,
+  frequencies, co-occurrences and collocate extraction without GraphDB-specific
+  full-text functions. Dedicated status, consistency verification, per-document
+  reindex and safe rebuild endpoints support operation and migration.
+- Canonical text and segmentation are now explicit shared inputs for NIF and
+  Lucene, with CoNLL-U-first precedence, validated annotated-JSON spans,
+  Unicode code-point offsets, provenance profiles and SHA-256 content and
+  segmentation fingerprints. Collocation statistics and explicit FrAC
+  persistence are exposed separately.
 - Concise endpoint documentation now covers every implemented ECD creation,
   retrieval, update, and deletion service and identifies the declared routes
   that are still placeholders.
@@ -110,11 +120,16 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Swagger now groups the ten corpus search, collocation, and Lucene index
+  endpoints under `Text Search`, separately from the existing
+  `Text Corpus NIF` services, without changing their REST paths.
+
 - Apart from optional TXT front matter, plain TXT imports and JSON
-  `text.content` now preserve the exact decoded content, including whitespace,
-  line endings, BOM, and Unicode normalization form. CommonMark rendering is
-  unchanged, and offsets address the canonical `nif:isString` in Unicode code
-  points.
+  `text.content` now use strict UTF-8, remove one leading BOM, normalize CRLF/CR
+  to LF and normalize Unicode to NFC while preserving all other whitespace.
+  CommonMark rendering remains controlled, and offsets address the canonical
+  `nif:isString` in Unicode code points. Text creation and deletion keep RDF/NIF
+  and the standalone Lucene document consistent with compensation on failure.
 - Runtime configuration can now be supplied through an external properties
   file, `LEXO_*` environment variables, or JVM system properties without
   rebuilding the WAR; filesystem paths and bounded GraphDB startup retries use

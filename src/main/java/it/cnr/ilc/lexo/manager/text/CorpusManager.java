@@ -152,10 +152,55 @@ public final class CorpusManager {
             if (record == null) {
                 return false;
             }
-            TextNifRepository.get().deleteCorpus(corpusId, record.corpusUri);
+            List<CorpusIndexDocument> previous = new ArrayList<CorpusIndexDocument>();
+            try {
+                for (String fileId : record.documentIds) {
+                    CorpusIndexDocument document =
+                            LuceneCorpusIndexService.get().get(fileId);
+                    if (document != null) {
+                        previous.add(document);
+                        CorpusIndexDocument detached = copy(document);
+                        detached.corpusIRI = null;
+                        LuceneCorpusIndexService.get().index(detached);
+                    }
+                }
+                TextNifRepository.get().deleteCorpus(corpusId, record.corpusUri);
+            } catch (RuntimeException | IOException failure) {
+                for (CorpusIndexDocument document : previous) {
+                    try {
+                        LuceneCorpusIndexService.get().index(document);
+                    } catch (Throwable compensation) {
+                        failure.addSuppressed(compensation);
+                    }
+                }
+                if (failure instanceof IOException) {
+                    throw (IOException) failure;
+                }
+                throw (RuntimeException) failure;
+            }
             deleteRecursively(corpusRoot.resolve(corpusId));
             return true;
         }
+    }
+
+    private static CorpusIndexDocument copy(CorpusIndexDocument source) {
+        CorpusIndexDocument result = new CorpusIndexDocument();
+        result.fileId = source.fileId;
+        result.contextIRI = source.contextIRI;
+        result.corpusIRI = source.corpusIRI;
+        result.graphIRI = source.graphIRI;
+        result.content = source.content;
+        result.contentHash = source.contentHash;
+        result.segmentationHash = source.segmentationHash;
+        result.segmentationSource = source.segmentationSource;
+        result.language = source.language;
+        result.analyzerProfile = source.analyzerProfile;
+        result.tokenizerProfile = source.tokenizerProfile;
+        result.sentenceSplitterProfile = source.sentenceSplitterProfile;
+        result.segmentationSchemaVersion = source.segmentationSchemaVersion;
+        result.tokens.addAll(source.tokens);
+        result.sentences.addAll(source.sentences);
+        return result;
     }
 
     private static void copyMetadataValues(ParsedTextDocument source, CorpusRecord target) {

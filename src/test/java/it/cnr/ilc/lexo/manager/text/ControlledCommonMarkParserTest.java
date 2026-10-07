@@ -34,7 +34,7 @@ class ControlledCommonMarkParserTest {
                 .isEqualTo("Prima riga del testo.\nSeconda riga dello stesso paragrafo.");
         assertThat(document.sentences).isNotEmpty();
         assertThat(document.tokens).isNotEmpty();
-        assertThat(document.segmentationMethod).isEqualTo("break-iterator");
+        assertThat(document.segmentationMethod).isEqualTo("lucene-standard");
     }
 
     @Test
@@ -117,42 +117,43 @@ class ControlledCommonMarkParserTest {
     }
 
     @Test
-    @DisplayName("Plain TXT and JSON content preserve every decoded character")
-    void preservesExactTxtAndJsonContent() throws Exception {
+    @DisplayName("Plain TXT and JSON content share the canonical text normalization")
+    void canonicalizesTxtAndJsonContent() throws Exception {
         String source = "\uFEFF  prima\t  riga  \r\n seconda\f riga \r\n\r\n\r\n terza  \n";
+        String canonical = "  prima\t  riga  \n seconda\f riga \n\n\n terza  \n";
 
         ParsedTextDocument txt = parser.parsePlainTextStructure(source);
         ParsedTextDocument json = parser.parseJsonTextStructure(source);
 
-        assertThat(txt.cleanText).isEqualTo(source);
-        assertThat(json.cleanText).isEqualTo(source);
+        assertThat(txt.cleanText).isEqualTo(canonical);
+        assertThat(json.cleanText).isEqualTo(canonical);
         assertThat(json.paragraphs.get(0).text)
                 .isEqualTo(txt.paragraphs.get(0).text);
         assertThat(txt.paragraphs).hasSize(2);
         assertThat(txt.paragraphs.get(0).text)
-                .isEqualTo(source.substring(0, source.indexOf("\r\n\r\n")));
+                .isEqualTo("  prima\t  riga  \n seconda\f riga ");
         assertThat(txt.paragraphs.get(0).beginChar).isZero();
         assertThat(txt.paragraphs.get(0).endChar)
-                .isEqualTo(source.indexOf("\r\n\r\n"));
+                .isEqualTo(canonical.indexOf("\n\n"));
         assertThat(txt.paragraphs.get(1).text).isEqualTo(" terza  ");
         assertThat(txt.paragraphs.get(1).beginChar)
-                .isEqualTo(source.indexOf(" terza"));
-        assertThat(txt.paragraphs.get(1).endChar).isEqualTo(source.length() - 1);
+                .isEqualTo(canonical.indexOf(" terza"));
+        assertThat(txt.paragraphs.get(1).endChar).isEqualTo(canonical.length() - 1);
     }
 
     @Test
-    @DisplayName("TXT front matter is removed without changing the exact body")
-    void preservesExactTxtBodyAfterFrontMatter() throws Exception {
+    @DisplayName("TXT front matter is removed after canonical normalization")
+    void canonicalizesTxtBodyAfterFrontMatter() throws Exception {
         String body = "  e\u0301  \t\r\nseconda  riga\r";
         ParsedTextDocument document = parser.parsePlainTextStructure(
                 "---\r\ntitle: Documento\r\n---\r\n" + body);
 
         assertThat(document.metadataValues.get("title"))
                 .containsExactly("Documento");
-        assertThat(document.cleanText).isEqualTo(body);
+        assertThat(document.cleanText).isEqualTo("  é  \t\nseconda  riga\n");
         assertThat(document.paragraphs).hasSize(1);
         assertThat(document.paragraphs.get(0).text)
-                .isEqualTo("  e\u0301  \t\r\nseconda  riga");
+                .isEqualTo("  é  \t\nseconda  riga");
     }
 
     @Test

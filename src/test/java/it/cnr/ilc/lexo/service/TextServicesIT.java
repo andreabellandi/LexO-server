@@ -100,7 +100,7 @@ class TextServicesIT {
             assertStatus(get("texts/" + fileId + "/original"), 200);
             assertThat(get("texts/" + fileId + "/canonical")
                     .readEntity(String.class))
-                    .isEqualTo(exactText);
+                    .isEqualTo("  Prima  riga senza heading.\nSeconda\triga.  ");
 
             JsonNode catalog = json(get("texts"));
             JsonNode catalogItem = findText(catalog, fileId);
@@ -112,10 +112,28 @@ class TextServicesIT {
             assertThat(catalogItem.path("attestationCount").asLong()).isNotNegative();
             assertThat(catalogItem.path("annotationCount").asLong()).isNotNegative();
 
+            JsonNode indexStatus = json(get("texts/index/status"));
+            assertThat(indexStatus.path("available").asBoolean()).isTrue();
+            com.fasterxml.jackson.databind.node.ObjectNode searchRequest =
+                    JSON.createObjectNode()
+                    .put("query", "Prima")
+                    .put("queryType", "TERM")
+                    .put("caseSensitive", true)
+                    .put("leftContext", 1)
+                    .put("rightContext", 1);
+            searchRequest.putArray("contextIRIs")
+                    .add(catalogItem.path("documentUri").asText() + "#context");
+            JsonNode search = json(postJson("texts/search/fulltext", searchRequest));
+            assertThat(search.path("totalOccurrences").asLong()).isEqualTo(1L);
+            assertThat(search.path("occurrences").get(0).path("match")
+                    .path("text").asText()).isEqualTo("Prima");
+
             JsonNode deletion = json(delete("texts/" + fileId));
             assertThat(deletion.path("deleted").asBoolean()).isTrue();
             assertStatus(get("texts/" + fileId), 404);
             assertStatus(get("texts/" + fileId + "/nif"), 404);
+            assertThat(json(postJson("texts/search/fulltext", searchRequest))
+                    .path("totalOccurrences").asLong()).isZero();
             assertNoServerFilesystemArtifacts(fileId);
             fileId = null;
         } finally {
@@ -312,7 +330,7 @@ class TextServicesIT {
                     .isEqualTo("MISSING_PARAMETER");
 
             assertThat(get("texts/" + fileId + "/canonical").readEntity(String.class))
-                    .isEqualTo("  Testo  importato.\r\nSeconda\triga. ");
+                    .isEqualTo("  Testo  importato.\nSeconda\triga. ");
             assertThat(get("texts/" + fileId + "/original")
                     .getMediaType().toString()).startsWith("application/json");
             Model nif = turtle(get("texts/" + fileId + "/nif"));
@@ -597,6 +615,10 @@ class TextServicesIT {
 
     private static Response post(String path) {
         return request(path).post(Entity.text(""));
+    }
+
+    private static Response postJson(String path, JsonNode body) {
+        return request(path).post(Entity.json(body.toString()));
     }
 
     private static Response delete(String path) {

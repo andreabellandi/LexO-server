@@ -114,6 +114,17 @@ public final class NifModelWriter {
         }
         addLiteral(model, context, structureNamespace + "fileId", fileId, null);
         addLiteral(model, context, structureNamespace + "segmentationMethod", doc.segmentationMethod, null);
+        addLiteral(model, context, structureNamespace + "segmentationSource",
+                doc.segmentationSource == null ? null : doc.segmentationSource.name(), null);
+        addLiteral(model, context, structureNamespace + "tokenizerProfile",
+                doc.tokenizerProfile, null);
+        addLiteral(model, context, structureNamespace + "sentenceSplitterProfile",
+                doc.sentenceSplitterProfile, null);
+        addLiteral(model, context, structureNamespace + "segmentationSchemaVersion",
+                doc.segmentationSchemaVersion, null);
+        addLiteral(model, context, structureNamespace + "contentHash", doc.contentHash, null);
+        addLiteral(model, context, structureNamespace + "segmentationHash",
+                doc.segmentationHash, null);
         model.add(context, iri(structureNamespace + "frontMatterPresent"),
                 vf.createLiteral(doc.frontMatterPresent));
         writeMetadata(model, context, doc, language);
@@ -407,7 +418,7 @@ public final class NifModelWriter {
     }
 
     private static int codePointOffset(String text, int charOffset) {
-        return text.codePointCount(0, charOffset);
+        return UnicodeOffsetMapper.utf16ToCodePoint(text, charOffset);
     }
 
     private static String safeLanguageTag(String value) {

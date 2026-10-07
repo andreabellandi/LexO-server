@@ -146,6 +146,9 @@ public final class TextJobManager {
             try {
                 copyLimited(input, temp, maxBytes);
                 Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+                // Reject malformed UTF-8 at admission time so no asynchronous
+                // job can be created for bytes that cannot become CanonicalText.
+                readUtf8Strict(target);
             } finally {
                 Files.deleteIfExists(temp);
             }
@@ -244,7 +247,6 @@ public final class TextJobManager {
         Path workDir = workRoot.resolve(fileId + "-" + UUID.randomUUID().toString());
         Path finalDir = documentRoot.resolve(fileId);
         boolean committed = false;
-        boolean graphCommitted = false;
         TextJobState terminalState = null;
         LOGGER.info("Text NIF conversion job started corpusId={}", corpusId);
         try {
@@ -267,7 +269,9 @@ public final class TextJobManager {
                     throw new IllegalStateException(
                             "BULK_JSON_CORPUS_CHANGED: metadata.corpus changed after admission");
                 }
-                doc = parser.parseJsonTextStructure(jsonImport.content);
+                doc = "markdown".equals(jsonImport.textType)
+                        ? parser.parseStructure(jsonImport.content)
+                        : parser.parseJsonTextStructure(jsonImport.content);
                 applyJsonMetadata(doc, jsonImport);
             } else {
                 boolean plainText = !parser.hasControlledCommonMarkHeading(rawInput);
@@ -276,10 +280,12 @@ public final class TextJobManager {
                         : parser.parseStructure(rawInput);
             }
             applyUploadLanguage(doc, upload.language);
-            if (rawConllu == null) {
-                parser.segmentWithBreakIterator(doc);
-            } else {
+            if (rawConllu != null) {
                 new ConlluSegmenter().apply(doc, rawConllu, upload.conlluFileName);
+            } else if (jsonImport != null && !jsonImport.tokens.isEmpty()) {
+                new AnnotatedSegmentationImporter().apply(doc, jsonImport);
+            } else {
+                parser.segmentWithBreakIterator(doc);
             }
             job.progress = 55;
             job.message = "Document structure and linguistic segmentation validated";
@@ -307,9 +313,13 @@ public final class TextJobManager {
             TextRecord record = buildRecord(fileId, upload, doc, writer.documentUri(fileId),
                     corpusId, corpusUri);
             moveDirectory(workDir, finalDir);
-            TextNifRepository.get().saveDocument(fileId, nifModel,
-                    record.documentUri + "#context", corpusId, corpusUri, record);
-            graphCommitted = true;
+            CorpusIndexDocument indexDocument = CorpusIndexDocument.from(fileId,
+                    record.documentUri + "#context", corpusUri,
+                    TextNifRepository.get().documentGraphUri(fileId), doc);
+            CorpusPersistenceCoordinator.create(LuceneCorpusIndexService.get(),
+                    indexDocument, () -> TextNifRepository.get().saveDocument(
+                            fileId, nifModel, record.documentUri + "#context",
+                            corpusId, corpusUri, record));
             committed = true;
             if (jsonImport != null) {
                 String evidence = corpusUri == null
@@ -347,15 +357,6 @@ public final class TextJobManager {
             LOGGER.error("Text NIF conversion job failed corpusId={}", corpusId, e);
         } finally {
             if (!committed) {
-                if (graphCommitted) {
-                    try {
-                        TextNifRepository.get().deleteDocument(fileId,
-                                writerDocumentUri(fileId) + "#context", corpusId, corpusUri);
-                    } catch (Throwable ignored) {
-                        LOGGER.error("Unable to roll back text NIF graph corpusId={}",
-                                corpusId, ignored);
-                    }
-                }
                 cleanupFailedConversion(fileId, workDir);
             }
             if (terminalState != null) {
@@ -372,6 +373,13 @@ public final class TextJobManager {
         record.corpusId = corpusId;
         record.corpusUri = corpusUri;
         record.segmentationMethod = doc.segmentationMethod;
+        record.segmentationSource = doc.segmentationSource == null
+                ? null : doc.segmentationSource.name();
+        record.tokenizerProfile = doc.tokenizerProfile;
+        record.sentenceSplitterProfile = doc.sentenceSplitterProfile;
+        record.segmentationSchemaVersion = doc.segmentationSchemaVersion;
+        record.contentHash = doc.contentHash;
+        record.segmentationHash = doc.segmentationHash;
         record.frontMatterPresent = Boolean.valueOf(doc.frontMatterPresent);
         record.originalFileName = upload.textFileName;
         record.conlluFileName = upload.conlluFileName;
@@ -538,21 +546,48 @@ public final class TextJobManager {
         TextRecord record = getRecord(fileId);
         cancel(fileId);
         boolean graphExisted = TextNifRepository.get().containsDocument(fileId);
-        if (record != null) {
-            TextNifRepository.get().deleteDocument(fileId,
-                    record.documentUri + "#context", record.corpusId, record.corpusUri);
-        } else if (graphExisted) {
-            TextNifRepository.get().deleteDocument(fileId,
-                    writerDocumentUri(fileId) + "#context", null, null);
-        }
-        boolean lexicalGraphsExisted = LexicalTextGraphManager.get()
-                .deleteDocumentGraphs(fileId);
+        Model previousModel = graphExisted
+                ? TextNifRepository.get().getDocumentModel(fileId) : null;
+        CorpusIndexDocument previousIndex = LuceneCorpusIndexService.get().get(fileId);
+        boolean indexExisted = previousIndex != null;
+        final boolean[] rdfDeleted = new boolean[]{false};
+        final boolean[] lexicalGraphsExisted = new boolean[]{false};
+        CorpusPersistenceCoordinator.delete(LuceneCorpusIndexService.get(), fileId,
+                previousIndex, new CorpusPersistenceCoordinator.CompensatingOperation() {
+                    @Override
+                    public void run() {
+                        if (record != null) {
+                            TextNifRepository.get().deleteDocument(fileId,
+                                    record.documentUri + "#context", record.corpusId,
+                                    record.corpusUri);
+                        } else if (graphExisted) {
+                            TextNifRepository.get().deleteDocument(fileId,
+                                    writerDocumentUri(fileId) + "#context", null, null);
+                        }
+                        rdfDeleted[0] = graphExisted;
+                        lexicalGraphsExisted[0] = LexicalTextGraphManager.get()
+                                .deleteDocumentGraphs(fileId);
+                    }
+
+                    @Override
+                    public void compensate() {
+                        if (!rdfDeleted[0] || previousModel == null) {
+                            return;
+                        }
+                        String context = record == null
+                                ? writerDocumentUri(fileId) + "#context"
+                                : record.documentUri + "#context";
+                        TextNifRepository.get().saveDocument(fileId, previousModel,
+                                context, record == null ? null : record.corpusId,
+                                record == null ? null : record.corpusUri, record);
+                    }
+                });
         jobs.remove(fileId);
         futures.remove(fileId);
         uploads.remove(fileId);
         boolean existed = Files.exists(documentRoot.resolve(fileId))
                 || Files.exists(uploadRoot.resolve(fileId)) || graphExisted
-                || lexicalGraphsExisted;
+                || lexicalGraphsExisted[0] || indexExisted;
         deleteRecursively(documentRoot.resolve(fileId));
         deleteRecursively(uploadRoot.resolve(fileId));
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(workRoot, fileId + "-*")) {

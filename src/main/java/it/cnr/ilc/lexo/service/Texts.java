@@ -8,6 +8,9 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
+import it.cnr.ilc.lexo.manager.text.CollocationPersistenceManager;
+import it.cnr.ilc.lexo.manager.text.CorpusIndexDocument;
+import it.cnr.ilc.lexo.manager.text.CorpusIndexManager;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.manager.text.TextBulkImportValidator;
 import it.cnr.ilc.lexo.manager.text.TextBulkDeletionManager;
@@ -18,6 +21,8 @@ import it.cnr.ilc.lexo.manager.text.TextJsonImportParser;
 import it.cnr.ilc.lexo.manager.text.TextJobManager;
 import it.cnr.ilc.lexo.manager.text.TextTotalManager;
 import it.cnr.ilc.lexo.manager.text.TextValidationException;
+import it.cnr.ilc.lexo.manager.text.LuceneCorpusSearchService;
+import it.cnr.ilc.lexo.manager.text.LuceneCorpusIndexService;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.TextJobInfo;
 import it.cnr.ilc.lexo.manager.text.TextJobManager.UploadKind;
 import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
@@ -28,6 +33,12 @@ import it.cnr.ilc.lexo.service.data.text.input.TextBulkDeletionInput;
 import it.cnr.ilc.lexo.service.data.text.output.TextRecord;
 import it.cnr.ilc.lexo.service.data.text.output.TextBulkDeletionJob;
 import it.cnr.ilc.lexo.service.data.text.input.TextTotalInput;
+import it.cnr.ilc.lexo.service.data.text.input.CollocateExtractionRequest;
+import it.cnr.ilc.lexo.service.data.text.input.CollocationPersistRequest;
+import it.cnr.ilc.lexo.service.data.text.input.CooccurrenceRequest;
+import it.cnr.ilc.lexo.service.data.text.input.FrequencyRequest;
+import it.cnr.ilc.lexo.service.data.text.input.FullTextSearchRequest;
+import it.cnr.ilc.lexo.service.data.text.input.KwicResizeRequest;
 import it.cnr.ilc.lexo.service.data.text.output.TextTotalResult;
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,6 +76,12 @@ public class Texts extends Service {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final long MAX_TEXT_BYTES = longProperty(
             "lexo.text.maxTextBytes", TextJobManager.DEFAULT_MAX_TEXT_BYTES);
+    private static final long MAX_TXT_BYTES = longProperty(
+            "lexo.text.maxTxtBytes", MAX_TEXT_BYTES);
+    private static final long MAX_MARKDOWN_BYTES = longProperty(
+            "lexo.text.maxMarkdownBytes", MAX_TEXT_BYTES);
+    private static final long MAX_JSON_BYTES = longProperty(
+            "lexo.text.maxJsonImportBytes", MAX_TEXT_BYTES);
     private static final long MAX_CONLLU_BYTES = longProperty(
             "lexo.text.maxConlluBytes", TextJobManager.DEFAULT_MAX_CONLLU_BYTES);
     private static final int MAX_BULK_FILES = intProperty(
@@ -106,7 +123,7 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text upload",
-            notes = "This method uploads one TXT or CommonMark file, its required ISO 639 language code and an optional CoNLL-U file, and returns the generated file id. Apart from an optional front-matter block, TXT canonical text preserves the exact decoded UTF-8 body without whitespace, line-ending, BOM, or Unicode normalization; CommonMark retains its existing rendering. Offsets always address the canonical nif:isString")
+            notes = "This method uploads one TXT, controlled CommonMark or annotated JSON file, its required ISO 639 language code and an optional CoNLL-U file, and returns the generated file id. TXT/JSON input is decoded as strict UTF-8, has a leading BOM removed, CRLF/CR normalized to LF and Unicode normalized to NFC; CommonMark is indexed only after controlled rendering. Segmentation precedence is CONLLU > ANNOTATED_IMPORT > LUCENE_STANDARD and public offsets always address canonical nif:isString in Unicode code points")
     @ApiImplicitParam(
             name = "language",
             value = "required text language code present in ISO 639-1, ISO 639-2 or ISO 639-3",
@@ -160,13 +177,14 @@ public class Texts extends Service {
                 String lower = name.toLowerCase(Locale.ROOT);
                 UploadKind kind;
                 long maxBytes;
-                if (TextJobManager.isTextExtension(lower)) {
+                if (TextJobManager.isTextExtension(lower)
+                        || TextJobManager.isJsonExtension(lower)) {
                     if (textFileName != null) {
                         TextJobManager.get().cleanupUpload(fileId);
                         return plain(Response.Status.BAD_REQUEST, "Only one TXT/Markdown file is allowed");
                     }
                     kind = UploadKind.TEXT;
-                    maxBytes = MAX_TEXT_BYTES;
+                    maxBytes = uploadLimit(lower);
                     textFileName = name;
                 } else if (TextJobManager.isConlluExtension(lower)) {
                     if (conlluFileName != null) {
@@ -179,7 +197,7 @@ public class Texts extends Service {
                 } else {
                     TextJobManager.get().cleanupUpload(fileId);
                     return plain(Response.Status.UNSUPPORTED_MEDIA_TYPE,
-                            "Allowed extensions: .txt, .md, .markdown, .conllu, .conll-u, .conll");
+                            "Allowed extensions: .txt, .md, .markdown, .json, .conllu, .conll-u, .conll");
                 }
 
                 try (InputStream input = part.getEntityAs(InputStream.class)) {
@@ -237,7 +255,7 @@ public class Texts extends Service {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Bulk text upload and NIF conversion",
-            notes = "This method validates and uploads multiple TXT, CommonMark, or fixed-schema JSON files with one shared ISO 639 language, then starts an independent asynchronous NIF conversion for each document. Apart from optional TXT front matter, TXT bodies and JSON text content preserve their exact decoded content without whitespace, line-ending, BOM, or Unicode normalization; CommonMark keeps its existing rendering. Offsets always address the canonical nif:isString. JSON files may include per-document corpus membership and FRAC attestations; CoNLL-U is not allowed in bulk requests")
+            notes = "This method validates and uploads multiple TXT, controlled CommonMark, or fixed-schema annotated JSON files with one shared ISO 639 language, then starts an independent asynchronous NIF and Lucene conversion for each document. Canonical text normalization, segmentation precedence and code-point offsets are identical to single import. JSON files may include explicit token/sentence spans, per-document corpus membership and FrAC attestations; CoNLL-U is not allowed in bulk requests")
     @ApiImplicitParam(
             name = "language",
             value = "single required ISO 639 language code applied to every text in the bulk",
@@ -324,7 +342,8 @@ public class Texts extends Service {
                     throw new BulkSizeException("BULK_SIZE_LIMIT_EXCEEDED",
                             "Il bulk supera il limite configurato di " + MAX_BULK_BYTES + " byte");
                 }
-                long itemLimit = Math.min(MAX_TEXT_BYTES, remaining);
+                long formatLimit = uploadLimit(originalName.toLowerCase(Locale.ROOT));
+                long itemLimit = Math.min(formatLimit, remaining);
                 Path stored;
                 try (InputStream input = part.getEntityAs(InputStream.class)) {
                     stored = TextJobManager.get().saveUpload(fileId, input, originalName,
@@ -334,7 +353,7 @@ public class Texts extends Service {
                             || !e.getMessage().contains("exceeds configured limit")) {
                         throw e;
                     }
-                    String code = itemLimit < MAX_TEXT_BYTES
+                    String code = itemLimit < formatLimit
                             ? "BULK_SIZE_LIMIT_EXCEEDED" : "BULK_FILE_TOO_LARGE";
                     throw new BulkSizeException(code, e.getMessage(), e);
                 }
@@ -924,6 +943,267 @@ public class Texts extends Service {
         }
     }
 
+    @POST
+    @javax.ws.rs.Path("/search/fulltext")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Full-text occurrence search",
+            notes = "Searches the standalone Lucene corpus index and returns every matched occurrence with NIF code-point offsets, canonical token positions and KWIC. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD and FUZZY are supported within configured limits; no GraphDB full-text extension is used",
+            tags = {"Text Search"})
+    public Response fullTextSearch(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "query, corpus/context filters, case mode, boundary, independent left/right context sizes and cursor pagination",
+                    required = true)
+            FullTextSearchRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().fullText(request));
+        } catch (IllegalArgumentException e) {
+            return searchValidation(e);
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/search/fulltext");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/search/kwic/resize")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Resize existing KWIC occurrences",
+            notes = "Recomputes left and right context for hash-verified occurrences without rerunning the original full-text query. TOKEN, CHARACTER and SENTENCE context units are supported",
+            tags = {"Text Search"})
+    public Response resizeKwic(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "previous occurrence coordinates and new independent context sizes",
+                    required = true)
+            KwicResizeRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().resize(request));
+        } catch (IllegalArgumentException e) {
+            return searchValidation(e);
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/search/kwic/resize");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/search/cooccurrences")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Token co-occurrence search",
+            notes = "Returns positional node/collocate pairs. leftWindow=5 means positions p-5 through p-1; rightWindow=5 means p+1 through p+5. DOCUMENT and SENTENCE boundaries and LEFT, RIGHT or BOTH directions are supported",
+            tags = {"Text Search"})
+    public Response cooccurrences(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "node, collocate, asymmetric positional window, boundary, direction and corpus subset",
+                    required = true)
+            CooccurrenceRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().cooccurrences(request));
+        } catch (IllegalArgumentException e) {
+            return searchValidation(e);
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/search/cooccurrences");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/search/frequency")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Corpus token frequency",
+            notes = "Returns token frequency, document frequency, total canonical tokens, relative frequency and per-million frequency from the standalone Lucene index",
+            tags = {"Text Search"})
+    public Response frequency(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "term, case mode and optional corpus/context/graph subset",
+                    required = true)
+            FrequencyRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().frequency(request));
+        } catch (IllegalArgumentException e) {
+            return searchValidation(e);
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/search/frequency");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/collocations/extract")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Collocate extraction and statistics",
+            notes = "Extracts all collocates of a node from canonical positions and computes raw/relative frequency, PMI family, Dice/logDice, minimum sensitivity, t/z scores, log-likelihood, chi-square, support, confidence, lift and conviction. Contingency metrics explicitly use PAIR_SPACE",
+            tags = {"Text Search"})
+    public Response extractCollocates(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "node, asymmetric window, boundary, direction, metrics, stoplist, filters, sort and limit",
+                    required = true)
+            CollocateExtractionRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().extract(request));
+        } catch (IllegalArgumentException e) {
+            return searchValidation(e);
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/collocations/extract");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/collocations/persist")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Persist one computed OntoLex-FrAC collocation",
+            notes = "Explicitly persists a selected collocation and finite scores using the FrAC properties already bundled by LexO-server. Search and extraction never write RDF automatically",
+            tags = {"Text Search"})
+    public Response persistCollocation(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "head and collocate IRIs, observedIn corpus/context, author, frequency and finite metrics",
+                    required = true)
+            CollocationPersistRequest request) {
+        try {
+            checkKey(key);
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("collocation", CollocationPersistenceManager.get().persist(request));
+            return json(Response.Status.CREATED, response);
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (RuntimeException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, message(e));
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/collocations/persist");
+        }
+    }
+
+    @GET
+    @javax.ws.rs.Path("/index/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Standalone corpus index status",
+            notes = "Returns availability, document count, last commit, Lucene version, tokenizer profile and index schema version without exposing the filesystem path",
+            tags = {"Text Search"})
+    public Response indexStatus(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key) {
+        try {
+            checkKey(key);
+            return json(CorpusIndexManager.get().status());
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("GET /texts/index/status");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/index/verify")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Verify RDF/Lucene corpus consistency",
+            notes = "Compares context presence, contentHash and segmentationHash; deep=true also compares NIF word/sentence counts with the canonical Lucene snapshot",
+            tags = {"Text Search"})
+    public Response verifyIndex(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "deep", value = "also verify token and sentence counts",
+                    required = false)
+            @QueryParam("deep") Boolean deep) {
+        try {
+            checkKey(key);
+            return json(CorpusIndexManager.get().verify(Boolean.TRUE.equals(deep)));
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (RuntimeException e) {
+            return plain(Response.Status.INTERNAL_SERVER_ERROR, message(e));
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/index/verify");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/index/reindex/{fileId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Reindex one persisted NIF context",
+            notes = "Reconstructs the exact persisted nif:Word/nif:Sentence segmentation and never substitutes StandardTokenizer for CoNLL-U or imported annotation spans",
+            tags = {"Text Search"})
+    public Response reindex(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "fileId", value = "persisted text id", required = true)
+            @PathParam("fileId") String fileId) {
+        try {
+            checkKey(key);
+            CorpusIndexDocument document = CorpusIndexManager.get().reindex(fileId);
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("fileId", document.fileId);
+            response.put("contentHash", document.contentHash);
+            response.put("segmentationHash", document.segmentationHash);
+            response.put("tokenCount", Integer.valueOf(document.tokens.size()));
+            return json(response);
+        } catch (IllegalArgumentException e) {
+            return e.getMessage() != null && e.getMessage().startsWith("CONTEXT_NOT_FOUND")
+                    ? plain(Response.Status.NOT_FOUND, e.getMessage())
+                    : plain(Response.Status.CONFLICT, e.getMessage());
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/index/reindex/{fileId}");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/index/rebuild")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Safely rebuild the complete corpus index",
+            notes = "Builds and CheckIndex-validates a temporary index from persisted canonical NIF segmentation, then swaps it atomically where supported and keeps/restores the previous index on failure",
+            tags = {"Text Search"})
+    public Response rebuildIndex(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key) {
+        try {
+            checkKey(key);
+            return json(CorpusIndexManager.get().rebuild());
+        } catch (IllegalArgumentException e) {
+            return plain(Response.Status.CONFLICT, e.getMessage());
+        } catch (IOException e) {
+            return luceneFailure(e);
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/index/rebuild");
+        }
+    }
+
     private Response artifact(String key, String fileId, Artifact artifact) {
         try {
             checkKey(key);
@@ -976,6 +1256,30 @@ public class Texts extends Service {
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("/texts/{fileId}/" + artifact.name().toLowerCase(Locale.ROOT));
         }
+    }
+
+    private Response searchValidation(IllegalArgumentException error) {
+        String detail = message(error);
+        if (detail.startsWith("CONTEXT_NOT_FOUND")) {
+            return plain(Response.Status.NOT_FOUND, detail);
+        }
+        if (detail.startsWith("HASH_MISMATCH")
+                || detail.startsWith("HIT_NOT_ALIGNED")) {
+            return plain(Response.Status.CONFLICT, detail);
+        }
+        return plain(Response.Status.BAD_REQUEST, detail);
+    }
+
+    private Response luceneFailure(IOException error) {
+        Response.Status status = LuceneCorpusIndexService.get().available()
+                ? Response.Status.INTERNAL_SERVER_ERROR
+                : Response.Status.SERVICE_UNAVAILABLE;
+        return plain(status, message(error));
+    }
+
+    private static String message(Throwable error) {
+        return error.getMessage() == null ? error.getClass().getSimpleName()
+                : error.getMessage();
     }
 
     private static Response streamNif(StreamingOutput output, String downloadName) {
@@ -1067,6 +1371,16 @@ public class Texts extends Service {
         }
         return lower.endsWith(".md") || lower.endsWith(".markdown")
                 ? "text/markdown; charset=UTF-8" : "text/plain; charset=UTF-8";
+    }
+
+    private static long uploadLimit(String lowerName) {
+        if (TextJobManager.isJsonExtension(lowerName)) {
+            return MAX_JSON_BYTES;
+        }
+        if (TextJobManager.isMarkdownExtension(lowerName)) {
+            return MAX_MARKDOWN_BYTES;
+        }
+        return MAX_TXT_BYTES;
     }
 
     private static String safeHeaderFileName(String fileName) {

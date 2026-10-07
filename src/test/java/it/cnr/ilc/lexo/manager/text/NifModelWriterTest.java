@@ -167,26 +167,28 @@ class NifModelWriterTest {
     }
 
     @Test
-    @DisplayName("NIF stores exact TXT whitespace and line endings with code-point offsets")
-    void preservesExactTxtInNifOffsets() throws Exception {
+    @DisplayName("NIF stores canonical TXT with code-point offsets")
+    void storesCanonicalTxtInNifOffsets() throws Exception {
         String source = " A😀  \r\nB\t ";
+        String canonical = " A😀  \nB\t ";
         ParsedTextDocument document = parser.parsePlainText(source);
         setUploadLanguage(document, "it");
         Model model = writer.build("exact-txt", "exact.txt", document);
         IRI context = iri(BASE + "exact-txt#context");
 
         assertThat(model.contains(context, iri(NIF + "isString"),
-                values.createLiteral(source, "it"))).isTrue();
+                values.createLiteral(canonical, "it"))).isTrue();
         Value contextEnd = model.filter(context, iri(NIF + "endIndex"), null)
                 .objects().iterator().next();
         assertThat(((Literal) contextEnd).intValue())
-                .isEqualTo(source.codePointCount(0, source.length()));
+                .isEqualTo(canonical.codePointCount(0, canonical.length()));
     }
 
     @Test
-    @DisplayName("Exact JSON text content is stored in NIF and counted as code points")
-    void storesExactJsonTextContentInNifOffsets() throws Exception {
+    @DisplayName("Canonical JSON text content is stored in NIF and counted as code points")
+    void storesCanonicalJsonTextContentInNifOffsets() throws Exception {
         String source = "A😀\r\n  B";
+        String canonical = "A😀\n  B";
         ParsedTextDocument document = parser.parseJsonTextStructure(source);
         setUploadLanguage(document, "it");
         Model model = writer.build("newlines", "newlines.json", document);
@@ -194,15 +196,15 @@ class NifModelWriterTest {
         IRI paragraph = iri(BASE + "newlines#paragraph=1");
 
         assertThat(model.contains(context, iri(NIF + "isString"),
-                values.createLiteral(source, "it"))).isTrue();
+                values.createLiteral(canonical, "it"))).isTrue();
         assertThat(model.contains(paragraph, iri(NIF + "anchorOf"),
-                values.createLiteral(source, "it"))).isTrue();
+                values.createLiteral(canonical, "it"))).isTrue();
         Value contextEnd = model.filter(context, iri(NIF + "endIndex"), null)
                 .objects().iterator().next();
         Value paragraphEnd = model.filter(paragraph, iri(NIF + "endIndex"), null)
                 .objects().iterator().next();
-        assertThat(((Literal) contextEnd).intValue()).isEqualTo(7);
-        assertThat(((Literal) paragraphEnd).intValue()).isEqualTo(7);
+        assertThat(((Literal) contextEnd).intValue()).isEqualTo(6);
+        assertThat(((Literal) paragraphEnd).intValue()).isEqualTo(6);
     }
 
     private void assertLiteral(Model model, IRI subject, String predicate, String lexicalValue) {

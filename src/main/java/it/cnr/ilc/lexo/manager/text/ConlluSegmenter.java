@@ -6,6 +6,7 @@ import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.manager.text.model.Sentence;
 import it.cnr.ilc.lexo.manager.text.model.Token;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
+import it.cnr.ilc.lexo.manager.text.model.SegmentationSource;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -215,7 +216,12 @@ public final class ConlluSegmenter {
         }
         doc.tokens.addAll(tokens);
         doc.segmentationMethod = "conllu";
+        doc.segmentationSource = SegmentationSource.CONLLU;
+        doc.tokenizerProfile = "CONLLU_INTEGER_IDS";
+        doc.sentenceSplitterProfile = "CONLLU_SENTENCE_BLOCKS";
         doc.conlluFileName = conlluFileName;
+        CanonicalSegmentationService.validate(doc);
+        SegmentationFingerprint.complete(doc);
     }
 
     private static void parseComment(String line, int lineNo, SentenceDraft current,

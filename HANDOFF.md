@@ -1,5 +1,59 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 7 ottobre 2026: i dieci nuovi endpoint di ricerca full-text,
+KWIC, frequenze, co-occorrenze, collocazioni e amministrazione dell'indice
+Lucene sono ora pubblicati in Swagger con il tag separato `Text Search`. Gli
+endpoint preesistenti restano nel gruppo `Text Corpus NIF`; path REST e
+contratti non sono cambiati. `TextsTest` verifica esplicitamente il tag di tutti
+i dieci endpoint nel modello Swagger generato e il mantenimento del gruppo
+storico. La suite completa `mvn test` ha superato 272 test senza failure,
+errori o test saltati; restano i warning ambientali Maven/Lucene già noti.
+
+Aggiornato al 2 ottobre 2026 dopo il refactoring completo NIF + Apache Lucene
+standalone dei servizi `Text Corpus NIF`. Il lavoro è sul branch dedicato
+`lucene`, allineato a `origin/lucene` e un commit avanti a `origin/master` prima
+delle modifiche locali; `master` non è stato modificato. La consegna completa è
+consolidata in un commit dedicato sul branch `lucene` e pubblicata sul branch
+remoto corrispondente; non sono stati eseguiti merge o deploy.
+
+TXT e contenuti JSON sono ora decodificati in UTF-8 stretto, privati di un BOM
+iniziale, normalizzati CRLF/CR → LF e NFC. La segmentazione unica applica
+`CONLLU > ANNOTATED_IMPORT > LUCENE_STANDARD`; gli stessi span generano
+`nif:Word`, `nif:Sentence`, positions/offsets Lucene e fingerprint SHA-256 RDF e
+indice. Gli span pubblici restano code point Unicode, quelli interni Lucene sono
+UTF-16. I NIF legacy vengono reindicizzati dai word/sentence persistiti come
+`PERSISTED_NIF`, senza ritokenizzazione.
+
+L'indice Lucene 8.11.3 usa `FSDirectory`, `IndexWriter`, `SearcherManager`,
+positions, offsets e term vector sui campi surface/lowercase. Sono disponibili
+full-text occurrence search, resize KWIC stateless, frequenze, co-occorrenze,
+collocati e tutte le metriche richieste; occurrence, frequenze e coppie leggono
+le positions/term vector Lucene. Import e delete usano compensazioni esplicite
+tra Lucene e RDF. Status, verify, reindex e safe rebuild con `CheckIndex`, swap
+e rollback completano la gestione operativa. La ricerca non usa connector
+GraphDB o funzioni SPARQL full-text; l'arricchimento usa `VALUES` SPARQL 1.1 e
+la persistenza FrAC è un'azione separata.
+
+La suite completa `mvn test` ha superato 272 test senza failure, errori o test
+saltati. `mvn -DskipTests package` ha prodotto con successo
+`target/LexO-server.war`. Sono coperti canonicalizzazione/Unicode, Markdown,
+CoNLL-U, JSON annotato, query Lucene, sentence boundary, KWIC, co-occorrenze,
+frequenze, metriche, failure RDF/Lucene, reindex legacy e safe rebuild. I nuovi
+controlli in `TextServicesIT` compilano e verificano import → ricerca → delete,
+ma gli end-to-end non sono stati eseguiti perché richiedono un deployment
+Tomcat/GraphDB e directory Lucene dedicate. Restano warning ambientali non
+bloccanti sul metadata repository Maven con certificato java.net scaduto, sulle
+API deprecated/unchecked preesistenti e su `MMapDirectory` con il JDK moderno.
+
+Prima di usare l'indice su dati esistenti: configurare
+`lexo.lucene.index.path` e `lexo.lucene.rebuild.temp.dir`, distribuire il WAR,
+eseguire `POST /texts/index/verify`, `POST /texts/index/rebuild` e infine
+`POST /texts/index/verify?deep=true`. Il prossimo passo raccomandato è il
+collaudo `mvn verify` contro repository e filesystem esclusivamente di test.
+Architettura, configurazione, migrazione e checklist completa degli endpoint
+sono in `docs/text-lucene-architecture.md`; la procedura test è aggiornata in
+`docs/text-services-tests.md`.
+
 Aggiornato al 1 ottobre 2026 con la documentazione sintetica dei servizi ECD
 legacy dichiarati in `ECDCreation`, `ECDData`, `ECDDeletion` ed `ECDUpdate`.
 `docs/ecd-services.md` riporta metodo, endpoint, funzione, parametri essenziali

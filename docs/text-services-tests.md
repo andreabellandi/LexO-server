@@ -1,41 +1,49 @@
 # Test dei servizi del testo
 
 Questa suite verifica il comportamento introdotto per TXT, CommonMark controllato,
-JSON con attestazioni, CoNLL-U, metadati NIF e corpus. È divisa in test unitari,
-sempre eseguibili, e test end-to-end contro un LexO-server realmente avviato con
-GraphDB Free.
+JSON con attestazioni, CoNLL-U, metadati NIF, corpus e indice Apache Lucene
+standalone. È divisa in test unitari, sempre eseguibili, e test end-to-end contro
+un LexO-server realmente avviato con GraphDB Free e una directory Lucene dedicata.
 
 ## Struttura della suite
 
 | Classe | Livello | Cosa verifica |
 |---|---|---|
-| `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/JSON/CommonMark, conservazione esatta di corpo TXT e `text.content`, soft break Markdown, struttura, codici di errore e front matter |
+| `ControlledCommonMarkParserTest` | Unitario | Distinzione TXT/JSON/CommonMark, canonicalizzazione di corpo TXT e `text.content`, soft break Markdown, struttura, codici di errore e front matter |
+| `CanonicalSegmentationServiceTest` | Unitario | Normalizzazione BOM/CRLF/NFC, sentence splitting, token Lucene, emoji, offset code point/UTF-16 e identità tra span NIF e indice |
+| `AnnotatedSegmentationImporterTest` | Unitario | Segmentazione JSON esplicita, validazione rigorosa degli span Unicode e rifiuto delle annotazioni incoerenti |
 | `Iso639LanguageValidatorTest` | Unitario | Validazione del campo upload nelle prime quattro colonne ISO 639 e codici di errore stabili |
-| `NifModelWriterTest` | Unitario RDF | Mapping dcterms, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
-| `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U, offset obbligatori e corrispondenza tra FORM e testo canonico |
-| `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto TXT, attestazioni e tipi JSON obbligatori |
+| `NifModelWriterTest` | Unitario RDF | Mapping dcterms, provenienza e fingerprint della segmentazione, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
+| `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U autorevole, multiword/empty node, `SpaceAfter=No`, offset obbligatori e corrispondenza tra FORM e testo canonico |
+| `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto canonicalizzato, segmentazione esplicita, attestazioni e tipi JSON obbligatori |
+| `LuceneCorpusSearchServiceTest` | Unitario Lucene | Indicizzazione persistente, case sensitivity, phrase boundary, occurrence/KWIC, co-occorrenze, overlap, rebuild verificato e conservazione dei fingerprint |
+| `CollocationStatisticsServiceTest` | Unitario | Frequenze, PMI/PMI2/PMI3/NPMI, Dice/logDice, t/z-score, log-likelihood, chi-quadro e association-rule metrics con valori indefiniti espliciti |
+| `NifCanonicalSegmentationReaderTest` | Unitario repository | Reindex esatto da `nif:Word`/`nif:Sentence` persistiti, inclusi documenti CoNLL-U e JSON annotati |
+| `CorpusPersistenceCoordinatorTest` | Unitario | Simulazione di errori RDF e Lucene su import/delete, ordine delle operazioni e ripristino dello snapshot precedente |
 | `TextBulkImportValidatorTest` | Unitario | Ammissione di TXT/CommonMark/JSON, regole del `corpusId`, limite numerico e rifiuto stabile di CoNLL-U nel bulk |
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextBulkDeletionManagerTest` | Unitario | Avvio asincrono, validazione preventiva, ordine ed esiti indipendenti `DELETED`, `NOT_FOUND` e `FAILED` |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
-| `TextsTest` | Unitario API | Routing e documentazione Swagger degli endpoint di cancellazione multipla asincrona |
-| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, whitespace e line ending TXT/JSON invariati, soft break CommonMark, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, cancellazione singola e multipla e rollback |
+| `TextsTest` | Unitario API | Routing e documentazione Swagger degli endpoint testuali, di ricerca, collocazione e amministrazione dell'indice |
+| `TextServicesIT` | End-to-end | Upload singolo e bulk TXT/JSON, canonicalizzazione TXT/JSON, ricerca occurrence Lucene e rimozione dall'indice, soft break CommonMark, attestazioni JSON non salvate, regole corpus, risultato parziale, rifiuto CoNLL-U, download, GraphDB, cancellazione singola e multipla e rollback |
 | `TextServiceUseCasesIT` | Workflow end-to-end | Casi d'uso multi-chiamata verificati via REST, SPARQL sul repository testi e filesystem |
 
 Tutte le classi di questa suite riguardano soltanto il dominio **testi**. Non
-chiamano servizi lessicali, non eseguono query sul repository del lessico e non
-creano o modificano indici lessicali.
+chiamano servizi lessicali e non modificano gli indici lessicali GraphDB. Il
+solo test della persistenza FrAC dei collocati usa il named graph lessicale
+esplicito previsto dal servizio.
 
 La persistenza è intenzionalmente ibrida: NIF, record operativi, metadati e
 relazioni di appartenenza sono letti e scritti nel repository `LexOTexts`;
-il filesystem conserva i file originali caricati, gli eventuali CoNLL-U e i
-descrittori originali dei corpus. Il testo canonico viene ricavato dal NIF e non
-viene duplicato in un file `canonical.txt`; analogamente non vengono creati file
-`metadata.json` locali. I record operativi sono isolati nel named graph interno
-`https://lexo.ilc.cnr.it/graphs/nif/records`, quindi non contaminano il Turtle
-NIF scaricato per un documento o un corpus.
+Apache Lucene standalone conserva sul filesystem l'indice di ricerca e le mappe
+posizionali; lo storage testuale conserva i file originali caricati, gli
+eventuali CoNLL-U e i descrittori originali dei corpus. Il testo canonico viene
+ricavato dal NIF e non viene duplicato in un file `canonical.txt`; analogamente
+non vengono creati file `metadata.json` locali. I record operativi sono isolati
+nel named graph interno `https://lexo.ilc.cnr.it/graphs/nif/records`, quindi non
+contaminano il Turtle NIF scaricato per un documento o un corpus.
 
 L'upload di ogni TXT/CommonMark richiede il campo multipart `language`. Il
 valore è confrontato senza distinzione tra maiuscole e minuscole con le prime
@@ -46,15 +54,21 @@ valore non presente produce `INVALID_LANGUAGE`. Il codice validato viene scritto
 come `dcterms:language` nel NIF e usato come language tag del testo e dei suoi
 segmenti.
 
-Tolto l'eventuale blocco di front matter, il testo canonico di un TXT coincide
-esattamente con il corpo UTF-8 decodificato: spazi, tab, righe vuote, CRLF, CR,
-LF, BOM e forma di normalizzazione Unicode non vengono modificati. La stessa
-conservazione esatta vale per `text.content` dei JSON; un eventuale blocco
-iniziale `---` al suo interno resta testo ordinario perché i metadati JSON sono
-nell'oggetto fratello `metadata`. CommonMark continua a rendere come spazio il
-soft break interno a un paragrafo. Tutti gli offset sono code point Unicode sul
-`nif:isString` canonico; non sono offset in byte e, nel solo TXT con front
-matter, ripartono dall'inizio del corpo.
+Tolto l'eventuale blocco di front matter, il testo canonico di un TXT e il
+`text.content` dei JSON sono decodificati in UTF-8 stretto, privati di un solo
+BOM iniziale, convertiti da CRLF/CR a LF e normalizzati in NFC. Spazi, tab e
+righe vuote restanti sono preservati. Un eventuale blocco iniziale `---` nel
+contenuto JSON resta testo ordinario perché i metadati sono nell'oggetto
+fratello `metadata`. CommonMark continua a rendere come spazio il soft break
+interno a un paragrafo. Tutti gli offset pubblici sono code point Unicode sul
+`nif:isString` canonico; non sono offset in byte o indici UTF-16 e, nel solo TXT
+con front matter, ripartono dall'inizio del corpo.
+
+La segmentazione canonica usa la precedenza `CONLLU > ANNOTATED_IMPORT >
+LUCENE_STANDARD`. La stessa struttura alimenta `nif:Word`, `nif:Sentence`,
+posizioni e offset Lucene; contenuto e segmentazione sono legati da fingerprint
+SHA-256 salvati in entrambi gli store. Reindex e rebuild dei documenti legacy
+riusano gli span NIF persistiti senza ritokenizzare.
 
 Il bulk usa un solo campo `language` per tutti i file e accetta parti `file` con
 estensione `.txt`, `.md`, `.markdown` o `.json`, anche miste. Per un batch di soli
@@ -100,6 +114,8 @@ Per eseguire una sola classe:
 mvn -Dtest=ControlledCommonMarkParserTest test
 mvn -Dtest=NifModelWriterTest test
 mvn -Dtest=ConlluSegmenterTest test
+mvn -Dtest=CanonicalSegmentationServiceTest,AnnotatedSegmentationImporterTest,LuceneCorpusSearchServiceTest,CollocationStatisticsServiceTest,NifCanonicalSegmentationReaderTest test
+mvn -Dtest=CorpusPersistenceCoordinatorTest test
 mvn -Dtest=TextJsonImportParserTest,TextBulkImportValidatorTest,TextBulkJobManagerTest,TextBulkDeletionManagerTest,TextsTest test
 ```
 
@@ -118,9 +134,11 @@ Prima di eseguirli:
 
 1. avviare GraphDB Free;
 2. configurare LexO-server con un repository testi dedicato ai test;
-3. avviare LexO-server e attendere il completamento del bootstrap;
-4. ottenere un valore valido per l'header HTTP `Authorization`;
-5. non usare repository di sviluppo o produzione.
+3. configurare `lexo.lucene.index.path` e `lexo.lucene.rebuild.temp.dir` su
+   directory dedicate ai test;
+4. avviare LexO-server e attendere il completamento del bootstrap;
+5. ottenere un valore valido per l'header HTTP `Authorization`;
+6. non usare repository o indici di sviluppo o produzione.
 
 La `baseUrl` deve terminare alla radice dei servizi Jersey, senza slash finale. Con
 il WAR standard è normalmente simile a:
@@ -215,7 +233,8 @@ conversione non valida non esponga né il record del testo né il relativo NIF.
 È comunque opportuno dedicare ai test:
 
 - un repository GraphDB per i testi;
-- una directory `lexo.text.storage.dir` separata.
+- una directory `lexo.text.storage.dir` separata;
+- directory `lexo.lucene.index.path` e `lexo.lucene.rebuild.temp.dir` separate.
 
 Questo garantisce isolamento anche in caso di arresto forzato della JVM prima del
 cleanup del test.
@@ -256,13 +275,13 @@ cleanup del test.
 ### Ciclo REST e rollback
 
 - upload e conversione asincrona di TXT semplice, verificando che spazi
-  multipli, tab e CRLF restino identici nel testo canonico;
+  multipli e tab restino identici e che CRLF venga canonicalizzato in LF;
 - conversione CommonMark controllata, con verifica che il soft break interno al
   paragrafo continui a diventare uno spazio;
 - upload bulk di TXT/CommonMark con una lingua comune, polling aggregato e
   rollback indipendente che conserva i documenti riusciti;
 - upload bulk JSON, conversione di `text.content`, conservazione dell'originale,
-  metadati NIF, whitespace e line ending invariati nel canonicale, stato
+  metadati NIF, whitespace preservato e line ending canonicalizzato, stato
   separato delle attestazioni e dettaglio degli elementi non salvati;
 - rifiuto del `corpusId` query per richieste contenenti solo JSON;
 - rifiuto atomico del bulk quando è presente una parte CoNLL-U;

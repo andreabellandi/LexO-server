@@ -8,6 +8,12 @@ import java.util.Map;
 public class ParsedTextDocument {
     public String cleanText;
     public String segmentationMethod;
+    public SegmentationSource segmentationSource;
+    public String tokenizerProfile;
+    public String sentenceSplitterProfile;
+    public String segmentationSchemaVersion;
+    public String contentHash;
+    public String segmentationHash;
     public boolean frontMatterPresent;
     public String conlluFileName;
     public final Map<String, String> metadata = new LinkedHashMap<String, String>();

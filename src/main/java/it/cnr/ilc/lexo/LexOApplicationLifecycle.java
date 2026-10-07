@@ -2,6 +2,7 @@ package it.cnr.ilc.lexo;
 
 import it.cnr.ilc.lexo.bootstrap.GraphDbBootstrap;
 import it.cnr.ilc.lexo.manager.converter.adapter.OntoLexToTBXConverterAdapter;
+import it.cnr.ilc.lexo.manager.text.LuceneCorpusIndexService;
 import it.cnr.ilc.lexo.sparql.SparqlSelectData;
 import it.cnr.ilc.lexo.sparql.SparqlVariable;
 import it.cnr.ilc.lexo.util.ConverterRegistry;
@@ -38,6 +39,9 @@ public final class LexOApplicationLifecycle implements ServletContextListener {
                 LexOFilter.CONTEXT, LexOFilter.VERSION);
         try {
             GraphDbBootstrap.initialize();
+            if (!LuceneCorpusIndexService.get().available()) {
+                LOGGER.warn("Standalone Lucene corpus index is unavailable; text search will return 503");
+            }
             setResourceModel();
             LOGGER.info("LexO-server started context={}", LexOFilter.CONTEXT);
         } catch (RuntimeException e) {
@@ -74,6 +78,7 @@ public final class LexOApplicationLifecycle implements ServletContextListener {
     @Override
     public void contextDestroyed(ServletContextEvent event) {
         LOGGER.info("LexO-server stopping context={}", LexOFilter.CONTEXT);
+        LuceneCorpusIndexService.get().close();
         GraphDbUtil.shutDown();
         LOGGER.info("LexO-server stopped context={}", LexOFilter.CONTEXT);
     }

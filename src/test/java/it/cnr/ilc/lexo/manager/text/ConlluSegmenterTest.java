@@ -64,4 +64,28 @@ class ConlluSegmenterTest {
                                 .map(issue -> issue.code).collect(Collectors.toList()))
                                 .contains("MISSING_TOKEN_OFFSETS"));
     }
+
+    @Test
+    @DisplayName("Multiword rows and empty nodes do not duplicate canonical positions")
+    void preservesIntegerIdTokensSpaceAfterAndUnicodeOnly() throws Exception {
+        ParsedTextDocument document = parser.parsePlainTextStructure("dell'uomo 😀.");
+        segmenter.apply(document,
+                "# sent_id = unicode-1\n"
+                        + "# text = dell'uomo 😀.\n"
+                        + "# start_char = 0\n# end_char = 12\n"
+                        + "1-2\tdell'uomo\t_\t_\t_\t_\t_\t_\t_\t_\n"
+                        + "1\tdell'\tdi\tADP\t_\t_\t2\tcase\t_\tTokenRange=0:5|SpaceAfter=No\n"
+                        + "2\tuomo\tuomo\tNOUN\t_\t_\t0\troot\t_\tTokenRange=5:9\n"
+                        + "2.1\tellissi\t_\tX\t_\t_\t_\t_\t_\tTokenRange=5:9\n"
+                        + "3\t😀\t😀\tSYM\t_\t_\t2\tdep\t_\tTokenRange=10:11|SpaceAfter=No\n"
+                        + "4\t.\t.\tPUNCT\t_\t_\t2\tpunct\t_\tTokenRange=11:12\n",
+                "unicode.conllu");
+
+        assertThat(document.tokens).extracting(token -> token.conlluId)
+                .containsExactly("1", "2", "3", "4");
+        assertThat(document.tokens).extracting(token -> token.text)
+                .containsExactly("dell'", "uomo", "😀", ".");
+        assertThat(document.tokens).extracting(token -> token.ordinal)
+                .containsExactly(1, 2, 3, 4);
+    }
 }

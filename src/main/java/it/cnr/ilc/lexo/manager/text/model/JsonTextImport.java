@@ -13,7 +13,10 @@ public final class JsonTextImport {
     public final Map<String, List<String>> metadata =
             new LinkedHashMap<String, List<String>>();
     public String corpusId;
+    public String textType;
     public String content;
+    public final List<AnnotatedToken> tokens = new ArrayList<AnnotatedToken>();
+    public final List<AnnotatedSentence> sentences = new ArrayList<AnnotatedSentence>();
     public final List<AttestationInput> attestations =
             new ArrayList<AttestationInput>();
 
@@ -28,5 +31,20 @@ public final class JsonTextImport {
         public Integer start;
         public Integer end;
         public List<RdfMetadataProperty> metadata;
+    }
+
+    public static final class AnnotatedToken {
+        public int start;
+        public int end;
+        public Integer sentence;
+        public String text;
+        public String lemma;
+        public String pos;
+    }
+
+    public static final class AnnotatedSentence {
+        public int start;
+        public int end;
+        public String text;
     }
 }

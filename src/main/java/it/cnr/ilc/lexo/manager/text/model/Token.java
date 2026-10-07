@@ -4,6 +4,7 @@ public class Token {
     public String id;
     public int ordinal;
     public String text;
+    public String indexedText;
     public int beginChar;
     public int endChar;
     public String conlluId;

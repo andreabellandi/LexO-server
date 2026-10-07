@@ -17,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -187,6 +189,31 @@ public final class TextNifRepository {
         return literal(model, context, iri(NIF + "isString"));
     }
 
+    /** Returns a detached copy of one document graph for verification/reindex. */
+    public Model getDocumentModel(String fileId) {
+        return readGraph(iri(documentGraphUri(fileId)));
+    }
+
+    /** Lists document ids from NIF contexts, excluding corpus and records graphs. */
+    public List<String> listDocumentFileIds() {
+        Set<String> result = new TreeSet<String>();
+        RepositoryConnection connection = acquire();
+        try (RepositoryResult<Statement> statements = connection.getStatements(null,
+                iri(structureNamespace + "fileId"), null, false)) {
+            while (statements.hasNext()) {
+                Statement statement = statements.next();
+                Resource context = statement.getContext();
+                if (context != null && context.stringValue().startsWith(
+                        graphBase + "documents/")) {
+                    result.add(statement.getObject().stringValue());
+                }
+            }
+        } finally {
+            release(connection);
+        }
+        return new ArrayList<String>(result);
+    }
+
     public boolean containsDocument(String fileId) {
         return containsGraph(iri(documentGraphUri(fileId)));
     }
@@ -284,6 +311,18 @@ public final class TextNifRepository {
         record.nifGraph = documentGraphUri(fileId);
         record.segmentationMethod = literal(model, context,
                 iri(structureNamespace + "segmentationMethod"));
+        record.segmentationSource = literal(model, context,
+                iri(structureNamespace + "segmentationSource"));
+        record.tokenizerProfile = literal(model, context,
+                iri(structureNamespace + "tokenizerProfile"));
+        record.sentenceSplitterProfile = literal(model, context,
+                iri(structureNamespace + "sentenceSplitterProfile"));
+        record.segmentationSchemaVersion = literal(model, context,
+                iri(structureNamespace + "segmentationSchemaVersion"));
+        record.contentHash = literal(model, context,
+                iri(structureNamespace + "contentHash"));
+        record.segmentationHash = literal(model, context,
+                iri(structureNamespace + "segmentationHash"));
         record.frontMatterPresent = booleanLiteral(model, context,
                 iri(structureNamespace + "frontMatterPresent"));
         Resource source = record.documentUri == null ? null : iri(record.documentUri + "/source");

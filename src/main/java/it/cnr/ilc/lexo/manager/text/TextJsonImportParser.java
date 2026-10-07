@@ -29,13 +29,18 @@ import java.util.Set;
 public final class TextJsonImportParser {
 
     private static final Set<String> ROOT_FIELDS = fields(
-            "metadata", "text", "attestations");
+            "metadata", "text", "segmentation", "attestations");
     private static final Set<String> TEXT_FIELDS = fields("type", "content");
     private static final Set<String> TEXT_METADATA_FIELDS = fields(
             "id", "title", "author", "date", "description", "format", "corpus");
     private static final Set<String> ATTESTATION_FIELDS = fields(
             "id", "observable", "type", "value", "gloss", "start_char",
             "end_char", "metadata");
+    private static final Set<String> SEGMENTATION_FIELDS = fields("tokens", "sentences");
+    private static final Set<String> TOKEN_FIELDS = fields(
+            "start_char", "end_char", "sentence", "text", "lemma", "pos");
+    private static final Set<String> SENTENCE_FIELDS = fields(
+            "start_char", "end_char", "text");
     private static final Set<String> RDF_PROPERTY_FIELDS = fields("property", "values");
     private static final Set<String> RDF_VALUE_FIELDS = fields(
             "value", "type", "language", "datatype");
@@ -72,6 +77,7 @@ public final class TextJsonImportParser {
         JsonTextImport result = new JsonTextImport();
         parseTextMetadata(root.get("metadata"), result);
         parseText(root.get("text"), result);
+        parseSegmentation(root.get("segmentation"), result);
         parseAttestations(root.get("attestations"), result);
         return result;
     }
@@ -111,11 +117,60 @@ public final class TextJsonImportParser {
         }
         rejectUnknown(node, TEXT_FIELDS, "$.text", "BULK_UNKNOWN_JSON_TEXT_FIELD");
         String type = requiredText(node, "type", "$.text.type");
-        if (!"txt".equals(type)) {
+        if (!"txt".equals(type) && !"markdown".equals(type)) {
             throw invalid("BULK_UNSUPPORTED_JSON_TEXT_TYPE",
-                    "$.text.type must be exactly txt");
+                    "$.text.type must be txt or markdown");
         }
+        result.textType = type;
         result.content = requiredText(node, "content", "$.text.content");
+    }
+
+    private void parseSegmentation(JsonNode node, JsonTextImport result) {
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (!node.isObject()) {
+            throw invalid("BULK_INVALID_JSON_SEGMENTATION",
+                    "$.segmentation must be an object");
+        }
+        rejectUnknown(node, SEGMENTATION_FIELDS, "$.segmentation",
+                "BULK_UNKNOWN_SEGMENTATION_FIELD");
+        JsonNode sentences = node.get("sentences");
+        JsonNode tokens = node.get("tokens");
+        if (sentences == null || !sentences.isArray()
+                || tokens == null || !tokens.isArray()
+                || sentences.size() == 0 || tokens.size() == 0) {
+            throw invalid("BULK_INCOMPLETE_JSON_SEGMENTATION",
+                    "$.segmentation requires non-empty tokens and sentences arrays");
+        }
+        for (int index = 0; index < sentences.size(); index++) {
+            JsonNode item = sentences.get(index);
+            String path = "$.segmentation.sentences[" + index + "]";
+            requireObject(item, path, "BULK_INVALID_JSON_SEGMENTATION");
+            rejectUnknown(item, SENTENCE_FIELDS, path,
+                    "BULK_UNKNOWN_SEGMENTATION_FIELD");
+            JsonTextImport.AnnotatedSentence span =
+                    new JsonTextImport.AnnotatedSentence();
+            span.start = requiredInteger(item, "start_char", path + ".start_char");
+            span.end = requiredInteger(item, "end_char", path + ".end_char");
+            span.text = optionalText(item, "text", path + ".text");
+            result.sentences.add(span);
+        }
+        for (int index = 0; index < tokens.size(); index++) {
+            JsonNode item = tokens.get(index);
+            String path = "$.segmentation.tokens[" + index + "]";
+            requireObject(item, path, "BULK_INVALID_JSON_SEGMENTATION");
+            rejectUnknown(item, TOKEN_FIELDS, path,
+                    "BULK_UNKNOWN_SEGMENTATION_FIELD");
+            JsonTextImport.AnnotatedToken span = new JsonTextImport.AnnotatedToken();
+            span.start = requiredInteger(item, "start_char", path + ".start_char");
+            span.end = requiredInteger(item, "end_char", path + ".end_char");
+            span.sentence = requiredInteger(item, "sentence", path + ".sentence");
+            span.text = optionalText(item, "text", path + ".text");
+            span.lemma = optionalText(item, "lemma", path + ".lemma");
+            span.pos = optionalText(item, "pos", path + ".pos");
+            result.tokens.add(span);
+        }
     }
 
     private void parseAttestations(JsonNode node, JsonTextImport result) {
@@ -265,6 +320,12 @@ public final class TextJsonImportParser {
             if (!allowed.contains(name)) {
                 throw invalid(code, path + "." + name + " is not allowed");
             }
+        }
+    }
+
+    private static void requireObject(JsonNode node, String path, String code) {
+        if (node == null || !node.isObject()) {
+            throw invalid(code, path + " must be an object");
         }
     }
 

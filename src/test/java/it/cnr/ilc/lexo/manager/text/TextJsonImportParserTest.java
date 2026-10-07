@@ -98,10 +98,13 @@ class TextJsonImportParserTest {
     }
 
     @Test
-    @DisplayName("Only txt is accepted as the embedded text type")
-    void rejectsUnsupportedEmbeddedTextTypes() {
+    @DisplayName("TXT and Markdown are accepted while other embedded types are rejected")
+    void acceptsSupportedAndRejectsUnsupportedEmbeddedTextTypes() {
+        assertThat(parser.parse(
+                "{\"text\":{\"type\":\"markdown\",\"content\":\"# title\"}}")
+                .textType).isEqualTo("markdown");
         assertThatThrownBy(() -> parser.parse(
-                "{\"text\":{\"type\":\"markdown\",\"content\":\"# title\"}}"))
+                "{\"text\":{\"type\":\"html\",\"content\":\"<p>title</p>\"}}"))
                 .hasMessageStartingWith("BULK_UNSUPPORTED_JSON_TEXT_TYPE:");
     }
 

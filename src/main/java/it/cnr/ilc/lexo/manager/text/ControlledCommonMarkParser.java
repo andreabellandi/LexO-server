@@ -3,12 +3,9 @@ package it.cnr.ilc.lexo.manager.text;
 import it.cnr.ilc.lexo.manager.text.model.Heading;
 import it.cnr.ilc.lexo.manager.text.model.Paragraph;
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
-import it.cnr.ilc.lexo.manager.text.model.Sentence;
 import it.cnr.ilc.lexo.manager.text.model.TitleSegment;
-import it.cnr.ilc.lexo.manager.text.model.Token;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
-import java.text.BreakIterator;
-import java.text.Normalizer;
+import it.cnr.ilc.lexo.manager.text.model.CanonicalText;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -88,9 +85,8 @@ public final class ControlledCommonMarkParser {
     /**
      * Parses only the paragraph structure of an unstructured text file.
      * Apart from removing an optional front-matter block, the canonical text
-     * is the exact decoded UTF-8 body: whitespace, line endings, BOM and Unicode
-     * normalization form are not changed. Linguistic segmentation can then be
-     * supplied by an optional CoNLL-U file.
+     * preserves content whitespace while normalizing BOM, line endings and
+     * Unicode NFC. Linguistic segmentation can then be supplied by CoNLL-U.
      */
     public ParsedTextDocument parsePlainTextStructure(String rawText)
             throws ControlledCommonMarkException {
@@ -105,12 +101,13 @@ public final class ControlledCommonMarkParser {
             issues.add(new ValidationIssue(1, 1, "EMPTY_DOCUMENT", "Documento assente"));
             throw new ControlledCommonMarkException(issues);
         }
-        if (rawText.indexOf('\u0000') >= 0) {
+        String canonicalSource = CanonicalText.fromDecodedText(rawText).value();
+        if (canonicalSource.indexOf('\u0000') >= 0) {
             issues.add(new ValidationIssue(1, 1, "NUL_CHARACTER",
                     "Il file contiene un carattere NUL"));
         }
 
-        List<RawLine> sourceLines = splitRawLines(rawText);
+        List<RawLine> sourceLines = splitRawLines(canonicalSource);
         String[] frontMatterLines = new String[sourceLines.size()];
         for (int i = 0; i < sourceLines.size(); i++) {
             frontMatterLines[i] = sourceLines.get(i).text;
@@ -119,8 +116,8 @@ public final class ControlledCommonMarkParser {
         int contentLine = parseFrontMatter
                 ? parseOptionalFrontMatter(frontMatterLines, doc, issues) : 0;
         int contentStart = contentLine < sourceLines.size()
-                ? sourceLines.get(contentLine).begin : rawText.length();
-        String canonical = rawText.substring(contentStart);
+                ? sourceLines.get(contentLine).begin : canonicalSource.length();
+        String canonical = canonicalSource.substring(contentStart);
         addExactPlainParagraphs(canonical, doc);
 
         if (doc.paragraphs.isEmpty()) {
@@ -138,8 +135,7 @@ public final class ControlledCommonMarkParser {
      * Parses plain text embedded in the JSON bulk format. The content is always
      * canonical text: a leading {@code ---} block is not interpreted as front
      * matter because JSON metadata is carried by the sibling metadata object.
-     * The decoded content is preserved exactly, using the same zero-normalization
-     * rule as a TXT body.
+     * The decoded content uses the same canonical normalization as a TXT body.
      */
     public ParsedTextDocument parseJsonTextStructure(String rawText)
             throws ControlledCommonMarkException {
@@ -311,79 +307,7 @@ public final class ControlledCommonMarkParser {
     }
 
     public void segmentWithBreakIterator(ParsedTextDocument doc) {
-        clearSegmentation(doc);
-        Locale locale = localeFor(doc.metadata.get("language"));
-        Counter counter = new Counter();
-
-        for (Heading heading : doc.allHeadings) {
-            TitleSegment title = heading.titleSegment;
-            segmentRange(doc, title.beginChar, title.endChar, null, heading, true, locale, counter);
-        }
-        for (Paragraph paragraph : doc.paragraphs) {
-            segmentRange(doc, paragraph.beginChar, paragraph.endChar, paragraph, null, false, locale, counter);
-        }
-        doc.segmentationMethod = "break-iterator";
-    }
-
-    private static void segmentRange(ParsedTextDocument doc, int rangeBegin, int rangeEnd,
-                                     Paragraph paragraph, Heading heading, boolean inHeadingTitle,
-                                     Locale locale, Counter counter) {
-        String segment = doc.cleanText.substring(rangeBegin, rangeEnd);
-        BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(locale);
-        sentenceIterator.setText(segment);
-        int relativeStart = sentenceIterator.first();
-        for (int relativeEnd = sentenceIterator.next(); relativeEnd != BreakIterator.DONE;
-             relativeStart = relativeEnd, relativeEnd = sentenceIterator.next()) {
-            int begin = rangeBegin + relativeStart;
-            int end = rangeBegin + relativeEnd;
-            int[] trimmed = trimWhitespace(doc.cleanText, begin, end);
-            begin = trimmed[0];
-            end = trimmed[1];
-            if (begin >= end) {
-                continue;
-            }
-
-            Sentence sentence = new Sentence();
-            sentence.ordinal = ++counter.sentences;
-            sentence.id = "sentence-" + sentence.ordinal;
-            sentence.beginChar = begin;
-            sentence.endChar = end;
-            sentence.text = doc.cleanText.substring(begin, end);
-            sentence.paragraph = paragraph;
-            sentence.heading = heading;
-            sentence.inHeadingTitle = inHeadingTitle;
-
-            BreakIterator wordIterator = BreakIterator.getWordInstance(locale);
-            wordIterator.setText(sentence.text);
-            int wordStart = wordIterator.first();
-            for (int wordEnd = wordIterator.next(); wordEnd != BreakIterator.DONE;
-                 wordStart = wordEnd, wordEnd = wordIterator.next()) {
-                int tokenBegin = begin + wordStart;
-                int tokenEnd = begin + wordEnd;
-                int[] tokenTrimmed = trimWhitespace(doc.cleanText, tokenBegin, tokenEnd);
-                tokenBegin = tokenTrimmed[0];
-                tokenEnd = tokenTrimmed[1];
-                if (tokenBegin >= tokenEnd) {
-                    continue;
-                }
-                Token token = new Token();
-                token.ordinal = ++counter.tokens;
-                token.id = "token-" + token.ordinal;
-                token.beginChar = tokenBegin;
-                token.endChar = tokenEnd;
-                token.text = doc.cleanText.substring(tokenBegin, tokenEnd);
-                token.sentence = sentence;
-                sentence.tokens.add(token);
-                doc.tokens.add(token);
-            }
-
-            if (paragraph != null) {
-                paragraph.sentences.add(sentence);
-            } else if (heading != null) {
-                heading.titleSentences.add(sentence);
-            }
-            doc.sentences.add(sentence);
-        }
+        new CanonicalSegmentationService().applyLuceneStandard(doc);
     }
 
     private static int parseOptionalFrontMatter(String[] lines, ParsedTextDocument doc,
@@ -577,25 +501,8 @@ public final class ControlledCommonMarkParser {
         return lines;
     }
 
-    private static void clearSegmentation(ParsedTextDocument doc) {
-        doc.sentences.clear();
-        doc.tokens.clear();
-        for (Paragraph paragraph : doc.paragraphs) {
-            paragraph.sentences.clear();
-        }
-        for (Heading heading : doc.allHeadings) {
-            heading.titleSentences.clear();
-        }
-    }
-
     private static String normalizeText(String rawText) {
-        String source = Normalizer.normalize(rawText, Normalizer.Form.NFC)
-                .replace("\r\n", "\n")
-                .replace('\r', '\n');
-        if (!source.isEmpty() && source.charAt(0) == '\uFEFF') {
-            source = source.substring(1);
-        }
-        return source;
+        return CanonicalText.fromDecodedText(rawText).value();
     }
 
     private static void appendBlockSeparator(StringBuilder clean) {
@@ -644,43 +551,12 @@ public final class ControlledCommonMarkParser {
         return 1;
     }
 
-    private static int[] trimWhitespace(String text, int begin, int end) {
-        while (begin < end) {
-            int cp = text.codePointAt(begin);
-            if (!Character.isWhitespace(cp)) {
-                break;
-            }
-            begin += Character.charCount(cp);
-        }
-        while (end > begin) {
-            int cp = text.codePointBefore(end);
-            if (!Character.isWhitespace(cp)) {
-                break;
-            }
-            end -= Character.charCount(cp);
-        }
-        return new int[]{begin, end};
-    }
-
-    private static Locale localeFor(String language) {
-        if (language == null || language.trim().isEmpty()) {
-            return Locale.ROOT;
-        }
-        Locale locale = Locale.forLanguageTag(language.trim().replace('_', '-'));
-        return locale.getLanguage().isEmpty() ? Locale.ROOT : locale;
-    }
-
     private static String trimToNull(String value) {
         if (value == null) {
             return null;
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private static final class Counter {
-        int sentences;
-        int tokens;
     }
 
     private static final class RawLine {
