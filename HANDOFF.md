@@ -4,7 +4,9 @@ Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
 è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
 sono verificati conflitti e non è stata riscritta la storia. Dopo
 l'integrazione la suite completa è stata rieseguita su `master`; non è stato
-effettuato alcun deploy.
+effettuato alcun deploy. Verificato che `lucene` fosse interamente contenuto in
+`master`, il branch dedicato è stato eliminato sia localmente sia da `origin`;
+il lavoro prosegue sul solo branch `master`.
 
 Aggiornato al 7 ottobre 2026: i dieci nuovi endpoint di ricerca full-text,
 KWIC, frequenze, co-occorrenze, collocazioni e amministrazione dell'indice
@@ -19,7 +21,8 @@ Aggiornato al 2 ottobre 2026 dopo il refactoring completo NIF + Apache Lucene
 standalone dei servizi `Text Corpus NIF`. Il lavoro è sul branch dedicato
 `lucene`, dal quale è stato successivamente integrato in `master`. La consegna
 completa è consolidata nel commit `9eac18f`, inizialmente pubblicato su
-`origin/lucene`; non è stato eseguito alcun deploy.
+`origin/lucene` e poi integrato in `master`; il branch dedicato è stato
+successivamente eliminato. Non è stato eseguito alcun deploy.
 
 TXT e contenuti JSON sono ora decodificati in UTF-8 stretto, privati di un BOM
 iniziale, normalizzati CRLF/CR → LF e NFC. La segmentazione unica applica
