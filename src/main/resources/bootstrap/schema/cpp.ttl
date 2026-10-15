@@ -1,0 +1,586 @@
+@prefix collscore: <https://ilc.cnr.it/klab/ontology/cooccurrence-measures#> .
+@prefix cpp: <https://ilc.cnr.it/klab/ontology/cpp#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix frac: <http://www.w3.org/ns/lemon/frac#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix p-plan: <http://purl.org/net/p-plan#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+cpp:CollocationExtractionConfiguration a owl:Class ;
+    rdfs:label "Collocation extraction configuration"@en ;
+    rdfs:comment "A reusable concrete configuration of the one canonical extraction plan. It groups parameter bindings using prov:hadMember and may be reused by successful runs; it is not an alternative p-plan:Plan."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty prov:hadMember ;
+            owl:someValuesFrom cpp:ParameterBinding ],
+        p-plan:Entity,
+        prov:Collection .
+
+cpp:CorpusSelectionSnapshot a owl:Class ;
+    rdfs:label "Corpus selection snapshot"@en ;
+    rdfs:comment "An immutable collection of selected corpusIRI, contextIRI and/or graphIRI resources constituting one effective input corpus snapshot. prov:hadMember enumerates selected resource IRIs; an ordinary cpp:CorpusSnapshot may represent a single corpus directly."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf prov:Collection,
+        cpp:CorpusSnapshot .
+
+cpp:ExcludeTermsValue a owl:Class ;
+    rdfs:label "Excluded-terms value"@en ;
+    rdfs:comment "An unordered rdf:Bag of specific excluded surface terms, recorded through rdf:_1, rdf:_2 and so on; its membership need not be semantically unique."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:excludeTerms ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        rdf:Bag,
+        cpp:ParameterBinding .
+
+cpp:Lexicographer a owl:Class ;
+    rdfs:label "Lexicographer"@en ;
+    rdfs:comment "A human agent associated with a collocation extraction run in collaborative lexicographic workflows."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf prov:Person .
+
+cpp:MinFrequencyValue a owl:Class ;
+    rdfs:label "Minimum collocate frequency value"@en ;
+    rdfs:comment "Non-negative integer minimum frequency for the individual collocate, as distinct from minimum joint co-occurrence frequency."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:minFrequency ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:nonNegativeInteger ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:MinScoreValue a owl:Class ;
+    rdfs:label "Minimum-score value"@en ;
+    rdfs:comment "Minimum finite numeric score of the association measure selected for sorting; may be negative. The precise score scale depends on that measure."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:minScore ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:decimal ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:POSPatternValue a owl:Class ;
+    rdfs:label "POS pattern value"@en ;
+    rdfs:comment "Optional ordered POS pattern bound to cpp:posPattern; modeled with rdf:Seq and rdf:_1, rdf:_2, etc. Not currently applied by the Lucene extraction engine."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:posPattern ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        rdf:Seq,
+        cpp:ParameterBinding .
+
+cpp:StopListValue a owl:Class ;
+    rdfs:label "Stop-list value"@en ;
+    rdfs:comment "An unordered rdf:Bag of stop terms (lexical strings or compatible term IRIs) excluded from extraction, through rdf:_1, rdf:_2 and so on."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:stopList ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        rdf:Bag,
+        cpp:ParameterBinding .
+
+rdf:Seq a owl:Class .
+
+frac:Collocation a owl:Class .
+
+cpp:CaseSensitiveValue a owl:Class ;
+    rdfs:label "Case-sensitivity value"@en ;
+    rdfs:comment "Boolean controlling whether letter case differences are distinguished."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
+            owl:onProperty prov:value ],
+        [ a owl:Restriction ;
+            owl:hasValue cpp:caseSensitive ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        cpp:LiteralParameterValue .
+
+cpp:CollocationExtractionPlan a owl:Class ;
+    rdfs:label "Collocation extraction plan"@en ;
+    rdfs:comment "A P-Plan plan describing the intended computational procedure for corpus-based collocation extraction."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf p-plan:Plan .
+
+cpp:CollocationExtractionRun a owl:Class ;
+    rdfs:label "Collocation extraction run"@en ;
+    rdfs:comment "A successful concrete execution of the single canonical collocation extraction step, linked to used corpus snapshot, index, the effective extraction and result-selection bindings, the associated software, and at least one generated FrAC collocation observation. No failed, canceled or zero-observation completed runs are modeled. POS patterns are optional and not applied by the current Lucene implementation."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:SortByValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:SortOrderValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:CaseSensitiveValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:NodeValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:DirectionValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:LimitValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:generated ;
+            owl:someValuesFrom cpp:CollocationObservation ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:WindowRightValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:wasAssociatedWith ;
+            owl:someValuesFrom cpp:ExtractorSoftware ],
+        [ a owl:Restriction ;
+            owl:hasValue cpp:extractCollocations ;
+            owl:onProperty p-plan:correspondsToStep ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:CorpusIndex ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:CorpusSnapshot ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:MeasureSetValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:MinimumFrequencyValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:OrderedValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:SentenceBoundaryValue ],
+        [ a owl:Restriction ;
+            owl:onProperty prov:used ;
+            owl:someValuesFrom cpp:WindowLeftValue ],
+        p-plan:Activity .
+
+cpp:CollocationExtractionStep a owl:Class ;
+    rdfs:label "Collocation extraction step"@en ;
+    rdfs:comment "The fixed planned extraction step that receives corpus, index, extraction parameters and post-scoring selection parameters, and produces collocation observations."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:collocationExtractionPlan ;
+            owl:onProperty p-plan:isStepOfPlan ],
+        p-plan:Step .
+
+cpp:CollocationObservation a owl:Class ;
+    rdfs:label "Collocation observation"@en ;
+    rdfs:comment "A FrAC collocation observation materialized as the output entity of one concrete CPP extraction run."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:collocationObservation ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:onClass cpp:CollocationExtractionRun ;
+            owl:onProperty prov:wasGeneratedBy ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ],
+        p-plan:Entity,
+        frac:Collocation .
+
+cpp:CorpusIndex a owl:Class ;
+    rdfs:label "Corpus index"@en ;
+    rdfs:comment "Identifies the concrete Lucene index used, including its configured identifier or name and, where available, stable version or fingerprint, with prov:wasDerivedFrom referencing the corpus snapshot."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty prov:wasDerivedFrom ;
+            owl:someValuesFrom cpp:CorpusSnapshot ],
+        [ a owl:Restriction ;
+            owl:hasValue cpp:index ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        p-plan:Entity .
+
+cpp:DirectionValue a owl:Class ;
+    rdfs:label "Context direction value"@en ;
+    rdfs:comment "A string token LEFT, RIGHT or BOTH; the application MUST validate the closed allowed-value set."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:direction ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:ExtractorSoftware a owl:Class ;
+    rdfs:label "Collocation extraction software"@en ;
+    rdfs:comment "A software agent responsible for executing a collocation extraction run."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf prov:SoftwareAgent .
+
+cpp:LimitValue a owl:Class ;
+    rdfs:label "Result-limit value"@en ;
+    rdfs:comment "Positive integer cap on ranked candidates returned by an extraction run. Can change the persisted result set."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom xsd:positiveInteger ;
+            owl:onProperty prov:value ],
+        [ a owl:Restriction ;
+            owl:hasValue cpp:limit ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        cpp:LiteralParameterValue .
+
+cpp:MeasureSetValue a owl:Class ;
+    rdfs:label "Association-measure set"@en ;
+    rdfs:comment "Unordered rdf:Bag of selected measures for a run; rdf:_1, rdf:_2, etc. refer to CollScore named measure individuals (e.g. collscore:LogDice, collscore:PMI), not the datatype score properties (e.g. collscore:logDice)."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:measures ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        rdf:Bag,
+        cpp:ParameterBinding .
+
+cpp:MinimumFrequencyValue a owl:Class ;
+    rdfs:label "Minimum co-occurrence frequency value"@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:minimumFrequency ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:nonNegativeInteger ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:OrderedValue a owl:Class ;
+    rdfs:label "Order-sensitivity value"@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:ordered ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:SentenceBoundaryValue a owl:Class ;
+    rdfs:label "Sentence-boundary value"@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:sentenceBoundary ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:SortByValue a owl:Class ;
+    rdfs:label "Sort-by measure value"@en ;
+    rdfs:comment "Selects the CollScore measure individual used for ranking; see collscore:selectsMeasure. Do not use the CollScore datatype score predicate as the value."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:sortBy ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:onClass collscore:CooccurrenceMeasure ;
+            owl:onProperty collscore:selectsMeasure ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ],
+        cpp:ParameterBinding .
+
+cpp:SortOrderValue a owl:Class ;
+    rdfs:label "Sort-order value"@en ;
+    rdfs:comment "String token ASC or DESC; application validation enforces the two allowed values."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:sortOrder ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:WindowLeftValue a owl:Class ;
+    rdfs:label "Left context window value"@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:windowLeft ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:nonNegativeInteger ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+cpp:WindowRightValue a owl:Class ;
+    rdfs:label "Right context window value"@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:windowRight ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:nonNegativeInteger ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+<https://www.ilc.cnr.it/people/giulia-benotto-2/> a owl:NamedIndividual,
+        prov:Person ;
+    rdfs:label "Giulia Benotto" .
+
+cpp:NodeValue a owl:Class ;
+    rdfs:label "Reference node surface-form value"@en ;
+    rdfs:comment "Binding for the reference node as the surface-form string used by the extraction engine. Its value is recorded using prov:value (xsd:string), without requiring an OntoLex lexical-resource IRI."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:node ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty prov:value ],
+        cpp:LiteralParameterValue .
+
+<https://www.ilc.cnr.it/people/andrea-bellandi-2/> a owl:NamedIndividual,
+        prov:Person ;
+    rdfs:label "Andrea Bellandi" .
+
+rdf:Bag a owl:Class .
+
+cpp:CorpusSnapshot a owl:Class ;
+    rdfs:label "Corpus snapshot"@en ;
+    rdfs:comment "Identifies one immutable LexO corpus, text or a stable selection snapshot; selected resource IRIs must be retained to make extraction provenance reproducible."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:corpus ;
+            owl:onProperty p-plan:correspondsToVariable ],
+        p-plan:Entity .
+
+cpp:ProcessingParameter a owl:Class ;
+    rdfs:label "CPP processing parameter"@en ;
+    rdfs:comment "A planned input variable relevant to the production or selection of corpus-based collocation observations, linked to the one canonical CPP extraction plan."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:hasValue cpp:collocationExtractionPlan ;
+            owl:onProperty p-plan:isVariableOfPlan ],
+        p-plan:Variable .
+
+cpp:caseSensitive a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "case sensitivity"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Boolean switch controlling case-sensitive lookup and term matching."@en .
+
+cpp:collocationObservation a p-plan:Variable,
+        owl:NamedIndividual ;
+    rdfs:label "collocation observation"@en ;
+    p-plan:isOutputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Output role for the FrAC collocation observation generated by the extraction step."@en .
+
+cpp:corpus a p-plan:Variable,
+        owl:NamedIndividual ;
+    rdfs:label "corpus"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Input role for the corpus resource or corpus snapshot used by the run."@en .
+
+cpp:direction a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "context direction"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Allowed directions LEFT, RIGHT or BOTH, relative to the lexical node; independent from cpp:ordered."@en .
+
+cpp:excludeTerms a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "excluded terms"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "User-specified terms to exclude from candidate extraction; unordered set-like container."@en .
+
+cpp:index a p-plan:Variable,
+        owl:NamedIndividual ;
+    rdfs:label "index"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Input role for the concrete corpus index used by the run."@en .
+
+cpp:limit a owl:NamedIndividual,
+        cpp:ResultSelectionParameter ;
+    rdfs:label "result limit"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Maximum number of ranked candidates returned for observation persistence, not a merely cosmetic frontend page size."@en .
+
+cpp:measures a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "association measures"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Identifiers of the CollScore named measure individuals requested for a run; CollScore distinguishes mathematical measure entities from numeric score properties."@en .
+
+cpp:minFrequency a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "minimum collocate frequency"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Minimum individual frequency fy of a collocate; distinct from cpp:minimumFrequency, which denotes joint co-occurrence frequency fxy."@en .
+
+cpp:minScore a owl:NamedIndividual,
+        cpp:ResultSelectionParameter ;
+    rdfs:label "minimum score threshold"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Optional minimum numeric association score of the measure selected with cpp:sortBy; filters which candidate observations are retained."@en .
+
+cpp:minimumFrequency a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "minimum co-occurrence frequency"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Minimum joint co-occurrence count fxy required to retain a candidate (maps to Lucene minCooccurrenceFrequency, not minFrequency)."@en .
+
+cpp:node a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "reference lexical node"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Surface-form string of the node used to extract co-occurrence candidates; its binding is a cpp:NodeValue carrying prov:value as xsd:string."@en .
+
+cpp:ordered a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "order sensitivity"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Boolean parameter indicating whether the relative order of the co-occurring elements is significant for extraction."@en .
+
+cpp:posPattern a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "part-of-speech pattern"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Optional ordered sequence of part-of-speech categories for candidate filtering; retained in the canonical plan but not used by the current extraction implementation."@en .
+
+cpp:sentenceBoundary a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "sentence boundary constraint"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Boolean parameter indicating whether candidate co-occurrences are constrained not to cross sentence boundaries."@en .
+
+cpp:sortBy a owl:NamedIndividual,
+        cpp:ResultSelectionParameter ;
+    rdfs:label "sort-by association measure"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "IRI of the CollScore named individual representing the measure used to rank candidates and, if minScore is supplied, to apply the score threshold."@en .
+
+cpp:sortOrder a owl:NamedIndividual,
+        cpp:ResultSelectionParameter ;
+    rdfs:label "sort order"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Sorting order of the candidates: ASC (ascending) or DESC (descending)."@en .
+
+cpp:stopList a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "stop list"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "A list of stop terms excluded from candidate extraction; distinct in origin from individually excluded terms."@en .
+
+cpp:windowLeft a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "left context window"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Number of context units admitted to the left of the node; runtime values are non-negative integers."@en .
+
+cpp:windowRight a owl:NamedIndividual,
+        cpp:ExtractionParameter ;
+    rdfs:label "right context window"@en ;
+    p-plan:isInputVarOf cpp:extractCollocations ;
+    p-plan:isVariableOfPlan cpp:collocationExtractionPlan ;
+    rdfs:comment "Number of context units admitted to the right of the node; runtime values are non-negative integers."@en .
+
+cpp:ResultSelectionParameter a owl:Class ;
+    rdfs:label "CPP result-selection parameter"@en ;
+    rdfs:comment "A planned input variable controlling score-dependent filtering, ranking or truncation of computed collocation candidates that can affect which observations are returned or persisted."@en ;
+    rdfs:isDefinedBy <https://ilc.cnr.it/klab/ontology/cpp> ;
+    rdfs:subClassOf cpp:ProcessingParameter .
+
+cpp:ParameterBinding a owl:Class ;
+    rdfs:label "Parameter binding"@en ;
+    rdfs:comment "A runtime entity binding exactly one planned CPP processing parameter (extraction or result selection) to its literal or structured value, via p-plan:correspondsToVariable."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onClass cpp:ProcessingParameter ;
+            owl:onProperty p-plan:correspondsToVariable ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ],
+        p-plan:Entity .
+
+cpp:LiteralParameterValue a owl:Class ;
+    rdfs:label "Literal parameter value"@en ;
+    rdfs:comment "A parameter binding whose concrete runtime value is represented by prov:value."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:cardinality "1"^^xsd:nonNegativeInteger ;
+            owl:onProperty prov:value ],
+        cpp:ParameterBinding .
+
+cpp:ExtractionParameter a owl:Class ;
+    rdfs:label "Collocation extraction parameter"@en ;
+    rdfs:comment "A processing parameter determining the corpus observation, candidate extraction, filtering prior to scoring or statistical evaluation, as opposed to subsequent result selection."@en ;
+    rdfs:isDefinedBy cpp: ;
+    rdfs:subClassOf cpp:ProcessingParameter ;
+    owl:disjointWith cpp:ResultSelectionParameter .
+
+<https://ilc.cnr.it/klab/ontology/cpp> a owl:Ontology ;
+    dct:contributor <https://www.ilc.cnr.it/people/giulia-benotto-2/> ;
+    dct:created "2026-10-06"^^xsd:date ;
+    dct:creator <https://www.ilc.cnr.it/people/andrea-bellandi-2/> ;
+    dct:description "A conforming CPP execution is represented as a p-plan:Activity corresponding to cpp:extractCollocations. It uses p-plan:Entity resources bound through p-plan:correspondsToVariable to the shared CPP variables; scalar values are expressed with prov:value. The run uses the concrete corpus snapshot and index, is associated through prov:wasAssociatedWith with the responsible software agent and, where relevant, human lexicographer(s), and generates a frac:Collocation represented as a provenance entity through prov:wasGeneratedBy. The collocation remains linked to its empirical source through frac:observedIn and carries association scores through the FrAC-compatible CollScore score properties."@en,
+        "OWL formalization of the Collocation Processing Profile (CPP), an application profile that links OntoLex-FrAC collocation observations to planned extraction procedures and concrete execution provenance by reusing P-Plan and PROV-O."@en,
+        "Reusable configurations are instances of cpp:CollocationExtractionConfiguration grouping CPP parameter bindings through prov:hadMember; they do not change the single canonical P-Plan plan or step."@en,
+        "This CPP version distinguishes extraction parameters from result-selection parameters (sortBy, sortOrder, limit and minScore); both are recorded as plan input bindings for successful executions. Purely visual frontend settings are outside the planned extraction process. POS patterns remain modeled but are not currently required by a run."@en ;
+    dct:modified "2026-10-15"^^xsd:date ;
+    dct:title "Collocation Processing Profile (CPP)"@en ;
+    rdfs:comment "CPP reuses P-Plan and PROV-O for plan/execution provenance, OntoLex-FrAC for observations and CollScore for score semantics. The canonical extraction plan and step remain fixed; configurations and successful concrete runs can vary. The reference node is recorded as a string with prov:value; the link between a successful run and its FrAC collocation observations uses the existing PROV-O properties prov:generated and prov:wasGeneratedBy."@en ;
+    rdfs:seeAlso <https://www.ilc.cnr.it/people/andrea-bellandi-2/> ;
+    owl:imports p-plan:,
+        <http://www.lexinfo.net/ontology/3.0/lexinfo>,
+        frac:,
+        <http://www.w3.org/ns/prov-o#>,
+        <https://ilc.cnr.it/klab/ontology/cooccurrence-measures> ;
+    owl:versionIRI <https://ilc.cnr.it/klab/ontology/cpp/0.2.1> ;
+    owl:versionInfo "0.2.1" .
+
+cpp:extractCollocations a owl:NamedIndividual,
+        cpp:CollocationExtractionStep ;
+    rdfs:label "Extract collocations"@en ;
+    p-plan:hasInputVar cpp:caseSensitive,
+        cpp:corpus,
+        cpp:direction,
+        cpp:excludeTerms,
+        cpp:index,
+        cpp:limit,
+        cpp:measures,
+        cpp:minFrequency,
+        cpp:minScore,
+        cpp:minimumFrequency,
+        cpp:node,
+        cpp:ordered,
+        cpp:posPattern,
+        cpp:sentenceBoundary,
+        cpp:sortBy,
+        cpp:sortOrder,
+        cpp:stopList,
+        cpp:windowLeft,
+        cpp:windowRight ;
+    p-plan:hasOutputVar cpp:collocationObservation ;
+    p-plan:isStepOfPlan cpp:collocationExtractionPlan .
+
+cpp:collocationExtractionPlan a owl:NamedIndividual,
+        cpp:CollocationExtractionPlan ;
+    rdfs:label "CPP collocation extraction plan"@en .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( cpp:collocationObservation cpp:corpus cpp:index cpp:measures cpp:minimumFrequency cpp:ordered cpp:posPattern cpp:sentenceBoundary cpp:windowLeft cpp:windowRight cpp:node cpp:direction cpp:caseSensitive cpp:minFrequency cpp:minScore cpp:excludeTerms cpp:stopList cpp:sortBy cpp:sortOrder cpp:limit ) .
+

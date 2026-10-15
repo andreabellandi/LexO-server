@@ -51,7 +51,6 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
-import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
 
 /** Reads administration statistics directly from the two configured repositories. */
@@ -327,7 +326,7 @@ public class RepositoryStatisticsManager implements Manager {
         byte[] bytes = BootstrapResources.readBytes(resource);
         Model model;
         try (ByteArrayInputStream input = new ByteArrayInputStream(bytes)) {
-            model = Rio.parse(input, schemaBaseIri(resource), RDFFormat.RDFXML);
+            model = Rio.parse(input, schemaBaseIri(resource), it.cnr.ilc.lexo.bootstrap.GraphDbBootstrap.schemaFormat(resource));
         } catch (IOException e) {
             throw new IllegalStateException("Unable to parse schema resource: " + resource, e);
         }

@@ -173,7 +173,7 @@ public final class GraphDbBootstrap {
         LOGGER.info("Created GraphDB Free repository: {}", repositoryId);
     }
 
-    private static void importSchema(Repository repository) {
+    static void importSchema(Repository repository) {
         String manifestResource = LexOProperties.getProperty("Bootstrap.schema.manifest",
                 "bootstrap/schema/schema-imports.json");
         JsonNode manifest = parseJson(manifestResource);
@@ -194,11 +194,6 @@ public final class GraphDbBootstrap {
 
         try (RepositoryConnection connection = repository.getConnection()) {
             IRI legacyGraph = VF.createIRI(LEGACY_SCHEMA_GRAPH);
-            if (!legacyGraph.equals(graph)
-                    && connection.hasStatement(null, null, null, false, legacyGraph)) {
-                connection.clear(legacyGraph);
-                LOGGER.info("Removed legacy schema graph {}", LEGACY_SCHEMA_GRAPH);
-            }
             if (checksum.equals(readChecksum(connection, marker, metadataGraph))
                     && connection.hasStatement(null, null, null, false, graph)) {
                 LOGGER.info("Schema resources unchanged; import skipped");
@@ -206,11 +201,14 @@ public final class GraphDbBootstrap {
             }
             connection.begin();
             try {
+                if (!legacyGraph.equals(graph)) {
+                    connection.clear(legacyGraph);
+                }
                 connection.clear(graph);
                 for (String resource : resources) {
                     byte[] bytes = BootstrapResources.readBytes(resource);
                     try (InputStream input = new ByteArrayInputStream(bytes)) {
-                        connection.add(input, schemaBaseIri(resource), RDFFormat.RDFXML, graph);
+                        connection.add(input, schemaBaseIri(resource), schemaFormat(resource), graph);
                     }
                 }
                 writeChecksum(connection, marker, checksum, metadataGraph);
@@ -221,6 +219,16 @@ public final class GraphDbBootstrap {
                 throw new IllegalStateException("Unable to import schema resources", ex);
             }
         }
+    }
+
+    public static RDFFormat schemaFormat(String resource) {
+        if (resource.endsWith(".ttl")) {
+            return RDFFormat.TURTLE;
+        }
+        if (resource.endsWith(".rdf") || resource.endsWith(".owl")) {
+            return RDFFormat.RDFXML;
+        }
+        throw new IllegalArgumentException("Unsupported schema resource format: " + resource);
     }
 
     private static void applyIndexes(Repository repository, boolean force) {

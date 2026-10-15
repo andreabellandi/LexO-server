@@ -9,6 +9,9 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- CPP 0.2.1 and CollScore 1.2.0 schemas (18 measures) are now included in
+  GraphDB bootstrap alongside the existing RDF/XML vocabularies.
+
 - Standalone Apache Lucene corpus indexing now provides occurrence-level
   full-text search, phrase and multi-term queries, positional KWIC resizing,
   frequencies, co-occurrences and collocate extraction without GraphDB-specific

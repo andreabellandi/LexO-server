@@ -1,5 +1,17 @@
 # LexO-server — handoff per attività Codex
 
+Attività CPP del 15 ottobre 2026 sul branch `cpp`, creato da `master`
+aggiornato con fetch e fast-forward sicuro (base `9eac18f`). Prima fase:
+ontologie CPP 0.2.1 e CollScore 1.2.0 copiate senza modifiche dal pacchetto
+concordato; bootstrap misto Turtle/RDF/XML con transazione e checksum dei byte.
+Test repository aggiunti per idempotenza, isolamento dei graph e regressione
+RDF/XML. Suite completa `mvn -o test`: 274 test passati, nessun errore o
+test saltato. Aggiornato anche il parser del report amministrativo degli
+schemi, che assumeva RDF/XML. Restano da implementare API, mapper, persistenza ed export CPP.
+I vocabolari FrAC, P-Plan e PROV-O non sono importati come schemi locali:
+le nuove API applicheranno vincoli espliciti senza dipendere da inferenze
+o download di `owl:imports`. Nessun deploy.
+
 Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
 è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
 sono verificati conflitti e non è stata riscritta la storia. Dopo

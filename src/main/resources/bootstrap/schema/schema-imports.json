@@ -13,6 +13,8 @@
     "bootstrap/schema/lfrelrdf-xml.owl",
     "bootstrap/schema/lfreprdf-xml.owl",
     "bootstrap/schema/lfrlfrdf-xml.owl",
-    "bootstrap/schema/lfsemrdf-xml.owl"
+    "bootstrap/schema/lfsemrdf-xml.owl",
+    "bootstrap/schema/collocation-score.ttl",
+    "bootstrap/schema/cpp.ttl"
   ]
 }
