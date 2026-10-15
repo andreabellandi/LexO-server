@@ -44,6 +44,31 @@ class GraphDbBootstrapTest {
     }
 
     @Test
+    void invalidRdfRollsBackSchemaLegacyCleanupAndChecksum() {
+        SailRepository memory = new SailRepository(new MemoryStore()); memory.init();
+        String previous = it.cnr.ilc.lexo.LexOProperties.getProperty("Bootstrap.schema.manifest");
+        IRI schema = iri("https://lexo.ilc.cnr.it/graphs/lexical/schema");
+        IRI legacy = iri("https://lexo.ilc.cnr.it/graphs/schema");
+        IRI sentinel = iri("urn:test:sentinel");
+        try {
+            try (RepositoryConnection c = memory.getConnection()) {
+                c.add(sentinel, RDF.TYPE, sentinel, schema);
+                c.add(sentinel, RDF.TYPE, sentinel, legacy);
+            }
+            it.cnr.ilc.lexo.LexOProperties.setProperty("Bootstrap.schema.manifest", "bootstrap/cpp-invalid-manifest.json");
+            assertThatThrownBy(() -> GraphDbBootstrap.importSchema(memory)).isInstanceOf(IllegalStateException.class);
+            try (RepositoryConnection c = memory.getConnection()) {
+                assertThat(c.size(schema)).isEqualTo(1); assertThat(c.size(legacy)).isEqualTo(1);
+                assertThat(c.size(iri("https://lexo.ilc.cnr.it/graphs/bootstrap"))).isZero();
+                assertThat(c.size((org.eclipse.rdf4j.model.Resource) null)).isZero();
+            }
+        } finally {
+            it.cnr.ilc.lexo.LexOProperties.setProperty("Bootstrap.schema.manifest", previous);
+            memory.shutDown();
+        }
+    }
+
+    @Test
     void selectsParserDeterministicallyAndRejectsUnknownExtensions() {
         assertThat(GraphDbBootstrap.schemaFormat("cpp.ttl")).isEqualTo(RDFFormat.TURTLE);
         assertThat(GraphDbBootstrap.schemaFormat("old.owl")).isEqualTo(RDFFormat.RDFXML);

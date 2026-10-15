@@ -1,16 +1,38 @@
 # LexO-server — handoff per attività Codex
 
-Attività CPP del 15 ottobre 2026 sul branch `cpp`, creato da `master`
-aggiornato con fetch e fast-forward sicuro (base `9eac18f`). Prima fase:
-ontologie CPP 0.2.1 e CollScore 1.2.0 copiate senza modifiche dal pacchetto
-concordato; bootstrap misto Turtle/RDF/XML con transazione e checksum dei byte.
-Test repository aggiunti per idempotenza, isolamento dei graph e regressione
-RDF/XML. Suite completa `mvn -o test`: 274 test passati, nessun errore o
-test saltato. Aggiornato anche il parser del report amministrativo degli
-schemi, che assumeva RDF/XML. Restano da implementare API, mapper, persistenza ed export CPP.
-I vocabolari FrAC, P-Plan e PROV-O non sono importati come schemi locali:
-le nuove API applicheranno vincoli espliciti senza dipendere da inferenze
-o download di `owl:imports`. Nessun deploy.
+Attività CPP del 15 ottobre 2026 sul branch `cpp`, creato dal `master`
+aggiornato `d4429e3` con fetch e fast-forward sicuro. Il commit `b03e398`
+introduce le ontologie CPP 0.2.1 e CollScore 1.2.0 senza alterarne i byte,
+il bootstrap misto Turtle/RDF/XML e il report amministrativo compatibile.
+
+Implementate le sei API `/service/cpp/runs` (POST/lista/dettaglio/PATCH/DELETE)
+e `/service/cpp/runs/export`, con DTO Swagger, JSON rigoroso, normalizzazione
+condivisa con Lucene, 18 misure, mapper CPP, graph dedicato e transazioni
+LEXICON. Idempotenza autore/chiave e unicità delle associazioni sono protette
+da lock condiviso nella JVM. L'export Turtle appiattisce i graph, conserva
+letterali e score esistenti e usa temporanei con cleanup anche su errori o
+disconnessione. Non esegue ricerche e non modifica FrAC, indice o TEXT.
+Documentazione completa: `docs/cpp-run-services.md`.
+
+Verifica completata: 302 test unitari/repository passati senza errori o skip,
+sia con JDK 21 sia sulla JVM Java 8 `1.8.0_504` (Surefire `-Djvm=...`).
+`mvn -o verify -Dit.test=CppRunsIT` ha generato `target/LexO-server.war` e
+superato la verifica: il solo test E2E CPP è skipped per assenza di opt-in e
+configurazione Tomcat/GraphDB dedicata, quindi non è un collaudo remoto.
+`git diff --check` passato. Restano warning non bloccanti del modello Maven e
+delle policy checksum di repository legacy, API deprecated/unchecked e
+Lucene MMapDirectory sul JDK moderno. Nessun deploy. README.md invariato.
+Maven disponibile in `/opt/homebrew/bin/mvn`; il percorso storico NetBeans
+12.2 non è presente.
+
+Limiti noti: configurare un solo writer CPP per repository (nessun lock
+distribuito); snapshot e parametri sono provenienza dichiarata, non prova di
+riesecuzione storica. FrAC/P-Plan/PROV-O non sono schemi locali completi e non
+vengono scaricati da owl:imports; i vincoli sono validati nel servizio. Restano
+fuori scope migrazione dei 15 score FrAC legacy e persistenza di
+RAW_FREQUENCY/NPMI/Z_SCORE. PATCH conserva la vista corrente e non uno storico
+di versioni. Prossimi passi: collaudo E2E isolato e, se richiesto, gestione
+multi-writer e migrazione score in attività separate.
 
 Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
 è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
@@ -773,22 +795,26 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `master`.
-- Base del commit export dell'8 settembre 2026: `9799a44`
-  (`Preserve imported plain text exactly`).
-  `git fetch origin master` e `git merge --ff-only origin/master` hanno
-  confermato che tutti i commit remoti sono presenti. Prima del commit export
-  il branch locale aveva quattro commit in più rispetto a `origin/master`,
-  senza commit remoti mancanti.
-- Il commit `Export attestations as Web Annotation JSON-LD` contiene il servizio,
-  i test e la relativa documentazione. Le modifiche preesistenti alle microguide
-  manuali e ai loro riferimenti in README/HANDOFF restano nel working tree,
-  escluse dal commit dell'export.
-- Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
+- Branch di consegna corrente: `cpp`, richiesto dall'utente.
+- Base verificata con fetch di `origin/master` e fast-forward: `d4429e3`.
+- Primo commit CPP: `b03e398`, bootstrap e ontologie.
+- Il commit `Record and export CPP collocation extraction provenance` completa
+  API, mapper, repository, limiti, test e documentazione.
+- Pubblicazione sul branch remoto corrispondente `origin/cpp`, senza PR e senza
+  modificare `master` o riscrivere storia.
+- Nessuna modifica utente preesistente all'avvio; artefatti runtime, IDE e WAR
+  restano esclusi dai commit.
 
 ## Ultimi file modificati
 
-Per l'export dell'8 settembre: `Attestations.java`, `AttestationManager.java`,
+Per CPP: `service/CppRuns.java`, `manager/CppRunManager.java`, componenti sotto
+`manager/cpp`, DTO sotto `service/data/cpp`, normalizzazione condivisa
+`CollocateExtractionParameters`, manifest e risorse bootstrap, proprietà,
+`CppRunManagerTest`, `CppContractTest`, `CppRunsTest`, `CppRunsIT` e
+`GraphDbBootstrapTest`. Contratto e deployment in `docs/cpp-run-services.md`;
+aggiornati test-services, CHANGELOG Unreleased e questo handoff.
+
+Cronologia precedente: per l'export dell'8 settembre: `Attestations.java`, `AttestationManager.java`,
 `AttestationWebAnnotationExporter.java`, `WebAnnotationExportException.java`,
 `LexicalNamedGraphs.java`, i DTO `WebAnnotationDocument`/`AttestationProvenance`,
 la proprietà `webAnnotation.quoteContextLength`, i test

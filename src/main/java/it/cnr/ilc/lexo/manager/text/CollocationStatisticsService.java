@@ -201,7 +201,7 @@ public final class CollocationStatisticsService {
         }
     }
 
-    private static List<Metric> parse(List<String> requested) {
+    public static List<Metric> parse(List<String> requested) {
         if (requested == null || requested.isEmpty()
                 || requested.contains("ALL")) {
             return ALL;

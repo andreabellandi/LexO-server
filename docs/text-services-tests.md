@@ -438,3 +438,11 @@ aggiuntivo usa `python3 scripts/verify-web-annotation-jsonld.py` dopo i test Jav
 `AttestationsExportIT` richiede esplicitamente un deployment e due repository
 GraphDB dedicati. Configurazione e cleanup sono documentati in
 [attestation-web-annotation-export.md](attestation-web-annotation-export.md#implementation-and-verification).
+
+## Provenienza CPP delle estrazioni
+
+I run CPP hanno test separati `CppRunManagerTest`, `CppContractTest`,
+`CppRunsTest` e `GraphDbBootstrapTest`, inclusi in `mvn test`. Non modificano
+il corpus o l'indice: registrano dichiarazioni e collegano FrAC esistenti.
+`CppRunsIT` è opt-in su un deployment e repository dedicati, con cleanup in
+`finally`; procedura e limiti in [cpp-run-services.md](cpp-run-services.md).

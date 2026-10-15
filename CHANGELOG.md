@@ -9,6 +9,12 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Six CPP run endpoints now register declared collocation extraction provenance,
+  list and read effective parameters, correct associations, delete provenance
+  while preserving FrAC data, and export selected or all runs as flattened
+  Turtle with optional existing scores. Writes are atomic in a dedicated graph,
+  with caller-scoped idempotency and exclusive run ownership of collocations.
+
 - CPP 0.2.1 and CollScore 1.2.0 schemas (18 measures) are now included in
   GraphDB bootstrap alongside the existing RDF/XML vocabularies.
 

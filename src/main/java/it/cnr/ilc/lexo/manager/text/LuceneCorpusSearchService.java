@@ -300,20 +300,14 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
     @Override
     public CollocateExtractionResult extract(CollocateExtractionRequest request)
             throws IOException {
-        require(request != null, "MISSING_COLLOCATION_REQUEST", "request body is required");
-        String node = required(request.node, "MISSING_NODE");
-        int left = bounded(request.leftWindow, 5, maxWindow, "leftWindow");
-        int right = bounded(request.rightWindow, 5, maxWindow, "rightWindow");
-        int minimum = boundedPositive(request.minCooccurrenceFrequency, 2,
-                Integer.MAX_VALUE, "minCooccurrenceFrequency");
-        int limit = boundedPositive(request.limit, 100, maxPageSize, "limit");
-        require(request.minFrequency == null || request.minFrequency.longValue() >= 0L,
-                "INVALID_MIN_FREQUENCY", "minFrequency must be non-negative");
-        require(request.minScore == null
-                || Double.isFinite(request.minScore.doubleValue()),
-                "INVALID_MIN_SCORE", "minScore must be finite");
-        String boundary = boundary(request.boundary);
-        String direction = direction(request.direction);
+        request = CollocateExtractionParameters.normalize(request);
+        String node = request.node;
+        int left = request.leftWindow;
+        int right = request.rightWindow;
+        int minimum = request.minCooccurrenceFrequency;
+        int limit = request.limit;
+        String boundary = request.boundary;
+        String direction = request.direction;
         List<CorpusIndexDocument> documents = selectedDocuments(request);
         Set<String> excluded = normalizedSet(request.excludeTerms, request.caseSensitive);
         excluded.addAll(normalizedSet(request.stoplist, request.caseSensitive));
