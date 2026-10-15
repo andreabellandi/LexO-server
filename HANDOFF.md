@@ -1,5 +1,11 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
+è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
+sono verificati conflitti e non è stata riscritta la storia. Dopo
+l'integrazione la suite completa è stata rieseguita su `master`; non è stato
+effettuato alcun deploy.
+
 Aggiornato al 7 ottobre 2026: i dieci nuovi endpoint di ricerca full-text,
 KWIC, frequenze, co-occorrenze, collocazioni e amministrazione dell'indice
 Lucene sono ora pubblicati in Swagger con il tag separato `Text Search`. Gli
@@ -11,10 +17,9 @@ errori o test saltati; restano i warning ambientali Maven/Lucene già noti.
 
 Aggiornato al 2 ottobre 2026 dopo il refactoring completo NIF + Apache Lucene
 standalone dei servizi `Text Corpus NIF`. Il lavoro è sul branch dedicato
-`lucene`, allineato a `origin/lucene` e un commit avanti a `origin/master` prima
-delle modifiche locali; `master` non è stato modificato. La consegna completa è
-consolidata in un commit dedicato sul branch `lucene` e pubblicata sul branch
-remoto corrispondente; non sono stati eseguiti merge o deploy.
+`lucene`, dal quale è stato successivamente integrato in `master`. La consegna
+completa è consolidata nel commit `9eac18f`, inizialmente pubblicato su
+`origin/lucene`; non è stato eseguito alcun deploy.
 
 TXT e contenuti JSON sono ora decodificati in UTF-8 stretto, privati di un BOM
 iniziale, normalizzati CRLF/CR → LF e NFC. La segmentazione unica applica
