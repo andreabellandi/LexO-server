@@ -45,6 +45,19 @@ class GraphDbRuntimeConfigurationTest {
         assertThat(properties.getProperty("TextGraphDb.repository"))
                 .isEqualTo("LexOTexts");
         assertThat(properties.getProperty("TextGraphDb.size")).isEqualTo("5");
+        assertThat(properties.getProperty("TextGraphDb.organizationNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/text-organization");
+        assertThat(properties.getProperty("TextGraphDb.organizationSchemaNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/text-organization/schema");
+        assertThat(properties.getProperty("TextGraphDb.organizationSchemaNamedGraph"))
+                .isNotEqualTo(properties.getProperty(
+                        "TextGraphDb.organizationNamedGraph"));
+        assertThat(properties.getProperty("lexo.text.organization.namespace"))
+                .isEqualTo("https://lexo.ilc.cnr.it/vocabulary/text-organization#");
+        assertThat(properties.getProperty("lexo.text.organization.folderBaseUri"))
+                .isEqualTo("https://lexo.ilc.cnr.it/resources/text-folders/");
+        assertThat(properties.getProperty("Bootstrap.textOrganization.resource"))
+                .isEqualTo("bootstrap/text-organization/textOrganization.rdf");
         assertThat(properties.getProperty("Bootstrap.enabled")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.required")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.startup.maxAttempts"))

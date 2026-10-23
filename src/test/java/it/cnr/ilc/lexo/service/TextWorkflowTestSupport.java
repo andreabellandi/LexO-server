@@ -43,6 +43,7 @@ final class TextWorkflowTestSupport implements AutoCloseable {
     final String graphdbRepository;
     final String graphdbAuthorization;
     final String namedGraphBase;
+    final String organizationGraph;
     final Path storageRoot;
     private final Client client;
 
@@ -54,6 +55,8 @@ final class TextWorkflowTestSupport implements AutoCloseable {
         graphdbAuthorization = property("lexo.test.graphdbAuthorization");
         namedGraphBase = trailingSlash(System.getProperty("lexo.test.namedGraphBase",
                 "https://lexo.ilc.cnr.it/graphs/nif/"));
+        organizationGraph = System.getProperty("lexo.test.organizationNamedGraph",
+                "https://lexo.ilc.cnr.it/graphs/text-organization");
         String storage = property("lexo.test.storageDir");
         storageRoot = storage.isEmpty() ? null : Paths.get(storage).toAbsolutePath().normalize();
         client = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
@@ -138,6 +141,20 @@ final class TextWorkflowTestSupport implements AutoCloseable {
 
     JsonNode getJson(String path, int expectedStatus) throws Exception {
         return readJson(serviceRequest(path).get(), expectedStatus);
+    }
+
+    JsonNode postJson(String path, Object body, int expectedStatus) throws Exception {
+        return readJson(serviceRequest(path).post(Entity.entity(
+                JSON.writeValueAsString(body), MediaType.APPLICATION_JSON_TYPE)),
+                expectedStatus);
+    }
+
+    JsonNode put(String path, int expectedStatus) throws Exception {
+        return readJson(serviceRequest(path).put(Entity.text("")), expectedStatus);
+    }
+
+    JsonNode deleteJson(String path, int expectedStatus) throws Exception {
+        return readJson(serviceRequest(path).delete(), expectedStatus);
     }
 
     byte[] download(String path) {
@@ -254,6 +271,17 @@ final class TextWorkflowTestSupport implements AutoCloseable {
         }
         try {
             deleteCorpus(corpusId);
+        } catch (Exception ignored) {
+            // Best effort cleanup must not hide the original scenario failure.
+        }
+    }
+
+    void deleteFolderQuietly(String folderId) {
+        if (folderId == null) {
+            return;
+        }
+        try {
+            deleteJson("text-folders/" + folderId, 200);
         } catch (Exception ignored) {
             // Best effort cleanup must not hide the original scenario failure.
         }

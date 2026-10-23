@@ -20,6 +20,8 @@ ready.
   texts use `empty`.
 - `schema/schema-imports.json`: ordered list of RDF/XML resources imported into
   `https://lexo.ilc.cnr.it/graphs/lexical/schema` in the lexical repository.
+- `text-organization/textOrganization.rdf`: RDF/XML vocabulary imported into
+  the configured text-organization schema graph in `LexOTexts`.
 - `indexes/indexes.json`: ordered list of GraphDB Lucene connector definitions.
 
 The connector definitions in this manifest are lexical bootstrap indexes only.
@@ -37,6 +39,13 @@ to resolve relative IRIs in resources that do not declare their own XML base.
 Schema and index checksums are stored in
 `https://lexo.ilc.cnr.it/graphs/bootstrap`. A resource change causes the related
 bootstrap phase to run again; unchanged resources are skipped.
+
+The text-organization vocabulary has its own checksum marker in the same
+bootstrap metadata graph. Startup reads it through `TextGraphDb.url` and
+`TextGraphDb.repository`, validates the `txo:Folder` declaration, and replaces
+only `TextGraphDb.organizationSchemaNamedGraph` when the resource changes. It
+never clears `TextGraphDb.organizationNamedGraph`, so ontology upgrades cannot
+remove user folders or memberships.
 
 ## Application named graphs
 
@@ -72,6 +81,18 @@ that graph is recalculated or removed when no typed attestations remain.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.
+
+It also keeps the optional text-folder overlay in two independent graphs:
+
+- `https://lexo.ilc.cnr.it/graphs/text-organization` contains folder instances,
+  direct `txo:parentFolder` relations, and `txo:containsText` links to existing
+  NIF context IRIs;
+- `https://lexo.ilc.cnr.it/graphs/text-organization/schema` contains only the
+  bootstrapped ontology.
+
+The runtime never materializes inverse predicates, a synthetic “unfiled”
+folder, or folder data in document/corpus graphs or the default graph. Folder
+operations do not alter corpus membership or the standalone Lucene index.
 
 Text and corpus graphs may also contain `frac:total` frequency objects. Each
 object has an `xsd:int` `rdf:value` and one of `lexo:tokens`, `lexo:types`,

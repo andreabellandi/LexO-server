@@ -1,5 +1,36 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 23 ottobre 2026 con l'organizzazione gerarchica opzionale dei
+testi. Il branch `master` espone ora dieci operazioni sotto `/text-folders` per
+creare, leggere, aggiornare, spostare ed eliminare cartelle vuote, assegnare o
+rimuovere testi, eseguire move bulk atomici e calcolare i testi unfiled. Le
+cartelle hanno UUID server-side, profondità non limitata e cicli vietati; ogni
+testo può appartenere a una sola cartella. Il servizio Swagger usa il gruppo
+`Text Organization` e gli errori di validazione hanno codici macchina stabili.
+
+Il vocabolario allegato è stato conservato semanticamente ma convertito dalla
+sintassi Turtle ricevuta a RDF/XML valido, come richiesto dal contratto di
+bootstrap. `GraphDbBootstrap` lo importa idempotentemente nel graph schema
+`https://lexo.ilc.cnr.it/graphs/text-organization/schema` del repository
+`LexOTexts`, con checksum e validazione di `txo:Folder`; le istanze restano nel
+graph separato `https://lexo.ilc.cnr.it/graphs/text-organization`, che non viene
+mai cancellato dal bootstrap. Il runtime persiste soltanto
+`txo:parentFolder` e `txo:containsText`, mai inverse, default graph o triple nei
+graph NIF/corpus. NIF, corpora e indice Lucene restano invariati.
+
+La cancellazione di un testo rimuove ora anche la membership organizzativa. Se
+una fase successiva del delete coordinato fallisce, la compensazione ripristina
+sia il graph/record NIF sia la precedente membership; il bulk delete eredita lo
+stesso comportamento. Sono stati aggiunti test bootstrap, repository RDF,
+manager e contratto REST/Swagger, oltre al workflow remoto UC-05 con cleanup in
+`finally`. La suite completa `mvn -o test` ha superato 280 test senza failure,
+errori o test saltati. `mvn -o verify` ha inoltre prodotto correttamente
+`target/LexO-server.war`; i 16 end-to-end sono risultati skipped perché non era
+configurato un deployment Tomcat/GraphDB con directory Lucene/filesystem
+dedicate. Il passo successivo raccomandato è ridistribuire il WAR in
+quell'ambiente ed eseguire il nuovo UC-05 con le proprietà descritte in
+`docs/text-services-tests.md`. Non è stato eseguito alcun deploy.
+
 Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
 è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
 sono verificati conflitti e non è stata riscritta la storia. Dopo

@@ -9,6 +9,13 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Hierarchical text folders now provide an independent RDF organization layer
+  in `LexOTexts`, with arbitrary-depth trees, atomic folder and text moves,
+  virtual unfiled listing, non-recursive safe deletion, stable REST errors, and
+  Swagger documentation under `Text Organization`. The ontology is imported
+  idempotently into a separate schema graph, while text deletion removes and,
+  on rollback, restores folder membership without changing NIF, corpus, or
+  Lucene data.
 - Standalone Apache Lucene corpus indexing now provides occurrence-level
   full-text search, phrase and multi-term queries, positional KWIC resizing,
   frequencies, co-occurrences and collocate extraction without GraphDB-specific

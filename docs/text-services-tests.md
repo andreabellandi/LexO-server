@@ -24,6 +24,10 @@ un LexO-server realmente avviato con GraphDB Free e una directory Lucene dedicat
 | `TextBulkJobManagerTest` | Unitario | Stati aggregati pending, running, completi, parziali, falliti e cancellati |
 | `TextBulkDeletionManagerTest` | Unitario | Avvio asincrono, validazione preventiva, ordine ed esiti indipendenti `DELETED`, `NOT_FOUND` e `FAILED` |
 | `TextCatalogManagerTest` | Unitario repository | Elenco testi, filtro corpus, dimensione canonica, metadati e conteggio attestazioni FRAC |
+| `TextOrganizationBootstrapTest` | Unitario bootstrap RDF | Parsing RDF/XML, import idempotente nel graph schema di `LexOTexts`, assenza nel default graph e conservazione dei dati cartella durante il reimport |
+| `TextOrganizationRepositoryTest` | Unitario repository | Gerarchia e membership nel solo graph organizzativo, move transazionali, snapshot/ripristino per delete e separazione dal graph schema |
+| `TextFolderManagerTest` | Unitario dominio | Tree multilivello, validazione, cicli, move, unfiled, bulk atomico, delete non ricorsivo e compensazione della membership |
+| `TextFoldersTest` | Contratto REST/Swagger | Rotte `text-folders`, metodi HTTP, documentazione dei parametri e tag `Text Organization` |
 | `TextTotalManagerTest` | Unitario repository | Creazione e sovrascrittura dei totali FRAC di testi/corpora, unità ammesse e named graph |
 | `LexicalTextGraphManagerTest` | Unitario repository | Cancellazione dei graph documentali e dei riferimenti alle attestazioni, ricalcolo/rimozione delle frequency cross-graph e isolamento degli altri testi |
 | `TextsTest` | Unitario API | Routing e documentazione Swagger degli endpoint testuali, di ricerca, collocazione e amministrazione dell'indice |
@@ -44,6 +48,14 @@ ricavato dal NIF e non viene duplicato in un file `canonical.txt`; analogamente
 non vengono creati file `metadata.json` locali. I record operativi sono isolati
 nel named graph interno `https://lexo.ilc.cnr.it/graphs/nif/records`, quindi non
 contaminano il Turtle NIF scaricato per un documento o un corpus.
+
+L'organizzazione gerarchica opzionale usa esclusivamente
+`https://lexo.ilc.cnr.it/graphs/text-organization` per istanze e membership e
+`https://lexo.ilc.cnr.it/graphs/text-organization/schema` per il vocabolario
+bootstrap. Le membership referenziano il vero context NIF e non duplicano il
+`fileId`; le operazioni cartella non modificano NIF, corpora o Lucene. La
+cancellazione di un testo rimuove la membership e la ripristina insieme al NIF
+se una fase successiva della cancellazione coordinata fallisce.
 
 L'upload di ogni TXT/CommonMark richiede il campo multipart `language`. Il
 valore è confrontato senza distinzione tra maiuscole e minuscole con le prime
@@ -117,6 +129,7 @@ mvn -Dtest=ConlluSegmenterTest test
 mvn -Dtest=CanonicalSegmentationServiceTest,AnnotatedSegmentationImporterTest,LuceneCorpusSearchServiceTest,CollocationStatisticsServiceTest,NifCanonicalSegmentationReaderTest test
 mvn -Dtest=CorpusPersistenceCoordinatorTest test
 mvn -Dtest=TextJsonImportParserTest,TextBulkImportValidatorTest,TextBulkJobManagerTest,TextBulkDeletionManagerTest,TextsTest test
+mvn -Dtest=TextOrganizationBootstrapTest,TextOrganizationRepositoryTest,TextFolderManagerTest,TextFoldersTest test
 ```
 
 Per un singolo caso:
@@ -179,7 +192,7 @@ test end-to-end risultano *skipped* anziché tentare accidentalmente una conness
 
 I workflow in `TextServiceUseCasesIT` richiedono anche l'accesso SPARQL diretto al
 repository GraphDB dei testi e l'accesso locale alla directory di persistenza. Se
-una di queste configurazioni manca, i quattro workflow vengono saltati: non vengono
+una di queste configurazioni manca, i cinque workflow vengono saltati: non vengono
 eseguiti con controlli parziali.
 
 ```bash
@@ -189,6 +202,7 @@ mvn verify \
   -Dlexo.test.graphdbUrl=http://localhost:7200 \
   -Dlexo.test.textRepository=LexOTexts \
   -Dlexo.test.namedGraphBase=https://lexo.ilc.cnr.it/graphs/nif/ \
+  -Dlexo.test.organizationNamedGraph=https://lexo.ilc.cnr.it/graphs/text-organization \
   -Dlexo.test.storageDir=/percorso/assoluto/data/texts
 ```
 
@@ -208,6 +222,7 @@ Proprietà dei workflow:
 | `lexo.test.graphdbUrl` | sì | URL della sola installazione GraphDB usata dai testi |
 | `lexo.test.textRepository` | sì | ID del repository GraphDB dei NIF testuali |
 | `lexo.test.namedGraphBase` | no | Base dei named graph NIF; usa il default LexO se omessa |
+| `lexo.test.organizationNamedGraph` | no | Named graph delle istanze cartella; usa il default LexO se omesso |
 | `lexo.test.storageDir` | sì | Directory configurata come `lexo.text.storage.dir` |
 | `lexo.test.graphdbAuthorization` | no | Header Authorization per GraphDB |
 
@@ -223,6 +238,24 @@ Proprietà dei workflow:
   download CoNLL-U e verifica SPARQL di lemma, autore letterale e autore URI;
 - **UC-04 — rollback:** CoNLL-U non allineato, stato `FAILED`, assenza del record,
   assenza del named graph e rimozione di upload, work directory e artefatti finali.
+- **UC-05 — organizzazione in cartelle:** due testi, gerarchia A/B, membership
+  RDF nel graph dedicato, move cartella/testo, tree REST, invarianza del conteggio
+  Lucene, cleanup membership su delete, unfiled virtuale e cancellazione delle
+  cartelle vuote.
+
+## Organizzazione gerarchica dei testi
+
+I test in-memory verificano soggetto, predicato, oggetto IRI e contesto RDF:
+`txo:parentFolder` e `txo:containsText` sono scritti soltanto nel graph dati;
+`txo:childFolder` e `txo:inFolder` non sono materializzati; schema, documenti,
+corpora e default graph restano invariati. Il manager copre inoltre nomi Unicode,
+parent esistenti, ciclo diretto o transitivo, appartenenza univoca, idempotenza,
+bulk all-or-nothing e conflitto su delete non vuoto.
+
+Lo scenario remoto UC-05 richiede, come gli altri workflow completi, un server
+ridistribuito e repository/filesystem/indice dedicati. Il cleanup è sempre in
+`finally`; una pura operazione cartella deve lasciare invariato il numero di
+documenti Lucene.
 
 ## Dati creati dai test end-to-end
 

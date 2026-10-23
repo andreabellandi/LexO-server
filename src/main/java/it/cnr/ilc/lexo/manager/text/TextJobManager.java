@@ -5,6 +5,8 @@ import it.cnr.ilc.lexo.LexOProperties;
 import it.cnr.ilc.lexo.manager.AttestationManager;
 import it.cnr.ilc.lexo.manager.ManagerException;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
+import it.cnr.ilc.lexo.manager.text.organization.TextFolderManager;
+import it.cnr.ilc.lexo.manager.text.organization.TextOrganizationRepository.MembershipSnapshot;
 import it.cnr.ilc.lexo.manager.text.model.JsonTextImport;
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
@@ -552,6 +554,11 @@ public final class TextJobManager {
         boolean indexExisted = previousIndex != null;
         final boolean[] rdfDeleted = new boolean[]{false};
         final boolean[] lexicalGraphsExisted = new boolean[]{false};
+        final MembershipSnapshot[] folderMembership =
+                new MembershipSnapshot[]{null};
+        final String deletionContext = record == null
+                ? writerDocumentUri(fileId) + "#context"
+                : record.documentUri + "#context";
         CorpusPersistenceCoordinator.delete(LuceneCorpusIndexService.get(), fileId,
                 previousIndex, new CorpusPersistenceCoordinator.CompensatingOperation() {
                     @Override
@@ -562,24 +569,40 @@ public final class TextJobManager {
                                     record.corpusUri);
                         } else if (graphExisted) {
                             TextNifRepository.get().deleteDocument(fileId,
-                                    writerDocumentUri(fileId) + "#context", null, null);
+                                    deletionContext, null, null);
                         }
                         rdfDeleted[0] = graphExisted;
+                        folderMembership[0] = TextFolderManager.get()
+                                .detachForTextDeletion(deletionContext);
                         lexicalGraphsExisted[0] = LexicalTextGraphManager.get()
                                 .deleteDocumentGraphs(fileId);
                     }
 
                     @Override
                     public void compensate() {
-                        if (!rdfDeleted[0] || previousModel == null) {
-                            return;
+                        RuntimeException compensationFailure = null;
+                        if (rdfDeleted[0] && previousModel != null) {
+                            try {
+                                TextNifRepository.get().saveDocument(fileId,
+                                        previousModel, deletionContext,
+                                        record == null ? null : record.corpusId,
+                                        record == null ? null : record.corpusUri,
+                                        record);
+                            } catch (RuntimeException e) {
+                                compensationFailure = e;
+                            }
                         }
-                        String context = record == null
-                                ? writerDocumentUri(fileId) + "#context"
-                                : record.documentUri + "#context";
-                        TextNifRepository.get().saveDocument(fileId, previousModel,
-                                context, record == null ? null : record.corpusId,
-                                record == null ? null : record.corpusUri, record);
+                        if (compensationFailure == null) {
+                            try {
+                                TextFolderManager.get().restoreAfterFailedTextDeletion(
+                                        folderMembership[0]);
+                            } catch (RuntimeException e) {
+                                compensationFailure = e;
+                            }
+                        }
+                        if (compensationFailure != null) {
+                            throw compensationFailure;
+                        }
                     }
                 });
         jobs.remove(fileId);
@@ -587,7 +610,8 @@ public final class TextJobManager {
         uploads.remove(fileId);
         boolean existed = Files.exists(documentRoot.resolve(fileId))
                 || Files.exists(uploadRoot.resolve(fileId)) || graphExisted
-                || lexicalGraphsExisted[0] || indexExisted;
+                || lexicalGraphsExisted[0] || folderMembership[0] != null
+                || indexExisted;
         deleteRecursively(documentRoot.resolve(fileId));
         deleteRecursively(uploadRoot.resolve(fileId));
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(workRoot, fileId + "-*")) {

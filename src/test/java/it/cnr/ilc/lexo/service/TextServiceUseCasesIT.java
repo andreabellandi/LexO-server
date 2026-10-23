@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -236,6 +238,83 @@ class TextServiceUseCasesIT {
         }
     }
 
+    @Test
+    @DisplayName("UC-05 Cartelle testuali: gerarchia, move, unfiled e cleanup su delete")
+    void textFolderOrganizationWorkflow() throws Exception {
+        workflow.assumeFullyConfigured();
+        String firstId = null;
+        String secondId = null;
+        String rootId = null;
+        String childId = null;
+        try {
+            firstId = convertIntoCorpus("uc05-first.txt", "Primo testo.", null);
+            secondId = convertIntoCorpus("uc05-second.txt", "Secondo testo.", null);
+            JsonNode first = workflow.getJson("texts/" + firstId, 200);
+            JsonNode second = workflow.getJson("texts/" + secondId, 200);
+            String firstContext = first.path("documentUri").asText() + "#context";
+            String secondContext = second.path("documentUri").asText() + "#context";
+            long indexedBefore = workflow.getJson("texts/index/status", 200)
+                    .path("documents").asLong();
+
+            Map<String, Object> rootRequest = new LinkedHashMap<String, Object>();
+            rootRequest.put("name", "UC-05 A");
+            JsonNode root = workflow.postJson("text-folders", rootRequest, 201);
+            rootId = root.path("folderId").asText();
+            String rootUri = root.path("uri").asText();
+
+            Map<String, Object> childRequest = new LinkedHashMap<String, Object>();
+            childRequest.put("name", "UC-05 B");
+            childRequest.put("parentFolderId", rootId);
+            JsonNode child = workflow.postJson("text-folders", childRequest, 201);
+            childId = child.path("folderId").asText();
+            String childUri = child.path("uri").asText();
+
+            workflow.put("text-folders/" + rootId + "/texts/" + firstId, 200);
+            workflow.put("text-folders/" + childId + "/texts/" + secondId, 200);
+            assertThat(workflow.ask(folderContains(workflow.organizationGraph,
+                    rootUri, firstContext))).isTrue();
+            assertThat(workflow.ask(folderContains(workflow.organizationGraph,
+                    childUri, secondContext))).isTrue();
+
+            Map<String, Object> moveToRoot = new LinkedHashMap<String, Object>();
+            moveToRoot.put("parentFolderId", null);
+            workflow.postJson("text-folders/" + childId + "/move",
+                    moveToRoot, 200);
+            workflow.put("text-folders/" + childId + "/texts/" + firstId, 200);
+            assertThat(workflow.ask(folderContains(workflow.organizationGraph,
+                    rootUri, firstContext))).isFalse();
+            assertThat(workflow.ask(folderContains(workflow.organizationGraph,
+                    childUri, firstContext))).isTrue();
+            assertThat(workflow.getJson("text-folders?includeTexts=true", 200)
+                    .toString()).contains(rootId, childId, firstId, secondId);
+            assertThat(workflow.getJson("texts/index/status", 200)
+                    .path("documents").asLong()).isEqualTo(indexedBefore);
+
+            assertThat(workflow.deleteText(firstId)).isTrue();
+            assertThat(workflow.ask(folderContains(workflow.organizationGraph,
+                    childUri, firstContext))).isFalse();
+            firstId = null;
+            workflow.deleteJson("text-folders/" + childId + "/texts/"
+                    + secondId, 200);
+            assertThat(workflow.getJson("text-folders/unfiled", 200)
+                    .toString()).contains(secondId);
+
+            assertThat(workflow.deleteJson("text-folders/" + childId, 200)
+                    .path("deleted").asBoolean()).isTrue();
+            childId = null;
+            assertThat(workflow.deleteJson("text-folders/" + rootId, 200)
+                    .path("deleted").asBoolean()).isTrue();
+            rootId = null;
+            assertThat(workflow.deleteText(secondId)).isTrue();
+            secondId = null;
+        } finally {
+            workflow.deleteTextQuietly(firstId);
+            workflow.deleteTextQuietly(secondId);
+            workflow.deleteFolderQuietly(childId);
+            workflow.deleteFolderQuietly(rootId);
+        }
+    }
+
     private String convertIntoCorpus(String name, String content, String corpusId) throws Exception {
         String uniqueName = UUID.randomUUID() + "-" + name;
         String fileId = workflow.upload(write(uniqueName, content));
@@ -265,5 +344,12 @@ class TextServiceUseCasesIT {
     private static String isPartOf(String graph, String contextUri, String corpusUri) {
         return "ASK WHERE { GRAPH <" + graph + "> { <" + contextUri + "> <"
                 + DCTERMS + "isPartOf> <" + corpusUri + "> } }";
+    }
+
+    private static String folderContains(String graph, String folderUri,
+                                         String contextUri) {
+        return "ASK WHERE { GRAPH <" + graph + "> { <"
+                + folderUri + "> <https://lexo.ilc.cnr.it/vocabulary/text-organization#containsText> <"
+                + contextUri + "> } }";
     }
 }

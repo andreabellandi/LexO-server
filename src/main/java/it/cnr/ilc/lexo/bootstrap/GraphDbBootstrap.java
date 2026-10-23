@@ -23,6 +23,8 @@ import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.OWL;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.query.TupleQueryResult;
@@ -119,6 +121,19 @@ public final class GraphDbBootstrap {
             applyIndexes(repository, false);
         } finally {
             manager.shutDown();
+        }
+
+        RemoteRepositoryManager textManager = openManager(textUrl);
+        try {
+            Repository repository = textManager.getRepository(textRepository);
+            if (repository == null) {
+                throw new IllegalStateException(
+                        "GraphDB repository unavailable after creation: "
+                        + textRepository);
+            }
+            importTextOrganizationVocabulary(repository);
+        } finally {
+            textManager.shutDown();
         }
     }
 
@@ -220,6 +235,70 @@ public final class GraphDbBootstrap {
                 connection.rollback();
                 throw new IllegalStateException("Unable to import schema resources", ex);
             }
+        }
+    }
+
+    static void importTextOrganizationVocabulary(Repository repository) {
+        String resource = LexOProperties.getProperty(
+                "Bootstrap.textOrganization.resource",
+                "bootstrap/text-organization/textOrganization.rdf");
+        String schemaGraphValue = requiredProperty(
+                "TextGraphDb.organizationSchemaNamedGraph");
+        String namespace = requiredProperty("lexo.text.organization.namespace");
+        IRI schemaGraph = VF.createIRI(schemaGraphValue);
+        IRI dataGraph = VF.createIRI(requiredProperty(
+                "TextGraphDb.organizationNamedGraph"));
+        if (schemaGraph.equals(dataGraph)) {
+            throw new IllegalStateException(
+                    "Text organization schema and data graphs must be different");
+        }
+        IRI metadataGraph = metadataGraph();
+        IRI marker = VF.createIRI(metadataGraph.stringValue()
+                + "/text-organization-schema");
+        IRI folderClass = VF.createIRI(namespace + "Folder");
+        List<String> resources = new ArrayList<String>();
+        resources.add(resource);
+        String checksum = checksum(resources);
+
+        try (RepositoryConnection connection = repository.getConnection()) {
+            boolean unchanged = checksum.equals(readChecksum(connection, marker,
+                    metadataGraph))
+                    && connection.hasStatement(null, null, null, false,
+                            schemaGraph);
+            if (!unchanged) {
+                connection.begin();
+                try {
+                    connection.clear(schemaGraph);
+                    byte[] bytes = BootstrapResources.readBytes(resource);
+                    try (InputStream input = new ByteArrayInputStream(bytes)) {
+                        connection.add(input, schemaBaseIri(resource),
+                                RDFFormat.RDFXML, schemaGraph);
+                    }
+                    validateTextOrganizationVocabulary(connection, folderClass,
+                            schemaGraph);
+                    writeChecksum(connection, marker, checksum, metadataGraph);
+                    connection.commit();
+                    LOGGER.info("Imported text organization vocabulary into {}",
+                            schemaGraphValue);
+                } catch (RuntimeException | IOException ex) {
+                    connection.rollback();
+                    throw new IllegalStateException(
+                            "Unable to import text organization vocabulary", ex);
+                }
+            } else {
+                validateTextOrganizationVocabulary(connection, folderClass,
+                        schemaGraph);
+                LOGGER.info("Text organization vocabulary unchanged; import skipped");
+            }
+        }
+    }
+
+    private static void validateTextOrganizationVocabulary(
+            RepositoryConnection connection, IRI folderClass, IRI schemaGraph) {
+        if (!connection.hasStatement(folderClass, RDF.TYPE, OWL.CLASS, false,
+                schemaGraph)) {
+            throw new IllegalStateException(
+                    "Text organization vocabulary does not declare txo:Folder as owl:Class");
         }
     }
 
