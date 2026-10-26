@@ -29,8 +29,10 @@ Corpus full-text search does not use a GraphDB connector or a vendor SPARQL
 extension: it uses the standalone Apache Lucene filesystem index configured by
 `lexo.lucene.index.path` and `lexo.lucene.rebuild.temp.dir`. That index is
 populated from the same canonical segmentation as `nif:Word` and
-`nif:Sentence`, is not part of GraphDB bootstrap, and is checked or rebuilt
-through the `/texts/index` administration endpoints.
+`nif:Sentence`, including positional `nif:lemma` fields where available, is not
+part of GraphDB bootstrap, and is checked or rebuilt through the `/texts/index`
+administration endpoints. Index schema version 2 adds lemma fields; deployments
+upgrading an existing index must run verify, rebuild, and deep verify.
 
 Schema resources are parsed with the absolute base IRI configured by
 `Bootstrap.schema.baseIri`. RDF4J 4 requires an absolute base; it is only used

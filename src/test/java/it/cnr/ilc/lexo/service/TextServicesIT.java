@@ -109,6 +109,9 @@ class TextServicesIT {
             assertThat(catalogItem.path("sizeBytes").asLong()).isPositive();
             assertThat(catalogItem.path("sentenceCount").asInt()).isPositive();
             assertThat(catalogItem.path("tokenCount").asInt()).isPositive();
+            assertThat(catalogItem.path("lemmaSearchAvailable").asBoolean()).isFalse();
+            assertThat(catalogItem.path("lemmaTokenCount").asInt()).isZero();
+            assertThat(catalogItem.path("lemmaCoverage").asDouble()).isZero();
             assertThat(catalogItem.path("attestationCount").asLong()).isNotNegative();
             assertThat(catalogItem.path("annotationCount").asLong()).isNotNegative();
 
@@ -127,6 +130,17 @@ class TextServicesIT {
             assertThat(search.path("totalOccurrences").asLong()).isEqualTo(1L);
             assertThat(search.path("occurrences").get(0).path("match")
                     .path("text").asText()).isEqualTo("Prima");
+
+            com.fasterxml.jackson.databind.node.ObjectNode validationRequest =
+                    JSON.createObjectNode()
+                    .put("query", "\"Prima riga\" OR second*")
+                    .put("queryType", "BOOLEAN")
+                    .put("searchField", "TOKEN");
+            JsonNode validation = json(postJson(
+                    "texts/search/fulltext/validate", validationRequest));
+            assertThat(validation.path("valid").asBoolean()).isTrue();
+            assertThat(validation.path("normalizedQuery").asText())
+                    .isEqualTo(validationRequest.path("query").asText());
 
             JsonNode deletion = json(delete("texts/" + fileId));
             assertThat(deletion.path("deleted").asBoolean()).isTrue();

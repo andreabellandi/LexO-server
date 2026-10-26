@@ -107,5 +107,8 @@ class NifCanonicalSegmentationReaderTest {
         assertThat(rebuilt.tokens).extracting(token -> token.beginChar)
                 .containsExactlyElementsOf(original.tokens.stream()
                         .map(token -> token.beginChar).collect(Collectors.toList()));
+        assertThat(rebuilt.tokens).extracting(token -> token.lemma)
+                .containsExactlyElementsOf(original.tokens.stream()
+                        .map(token -> token.lemma).collect(Collectors.toList()));
     }
 }

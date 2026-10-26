@@ -1,6 +1,7 @@
 package it.cnr.ilc.lexo.manager.text;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
 import it.cnr.ilc.lexo.service.data.text.input.CooccurrenceRequest;
@@ -9,6 +10,7 @@ import it.cnr.ilc.lexo.service.data.text.input.FullTextSearchRequest;
 import it.cnr.ilc.lexo.service.data.text.input.KwicResizeRequest;
 import it.cnr.ilc.lexo.service.data.text.output.CooccurrenceResult;
 import it.cnr.ilc.lexo.service.data.text.output.FullTextSearchResult;
+import it.cnr.ilc.lexo.service.data.text.output.FullTextQueryValidationResult;
 import it.cnr.ilc.lexo.service.data.text.output.TextOccurrence;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -119,9 +121,118 @@ class LuceneCorpusSearchServiceTest {
         assertThat(search.fullText(request("virtus", "FUZZY")).occurrences)
                 .extracting(hit -> hit.match.text)
                 .containsExactly("virtus", "virtue");
+        index.index(document("only-humanitas", "humanitas sola", "corpus-a"));
         assertThat(search.fullText(request("humanitas AND virtus", "BOOLEAN"))
                 .occurrences).extracting(hit -> hit.match.text)
                 .containsExactly("humanitas", "virtus");
+    }
+
+    @Test
+    @DisplayName("Lemma search returns inflected surface forms with canonical offsets and every query syntax")
+    void searchesLemmaPositionsWithoutChangingSurfaceOccurrences() throws Exception {
+        CorpusIndexDocument inflected = lemmaDocument("lemmas",
+                "Corro nei mercati del lavoro.", "corpus-a",
+                "Correre", "in", "mercato", "di", "lavoro");
+        CorpusIndexDocument distractor = lemmaDocument("distractor",
+                "Corro velocemente.", "corpus-a",
+                "Correre", "velocemente");
+        index.index(inflected);
+        index.index(distractor);
+
+        FullTextSearchRequest term = lemmaRequest("correre", "TERM");
+        term.contextIRIs.add(inflected.contextIRI);
+        FullTextSearchResult termResult = search.fullText(term);
+        assertThat(termResult.occurrences).singleElement().satisfies(hit -> {
+            assertThat(hit.match.text).isEqualTo("Corro");
+            assertThat(hit.match.beginIndex).isZero();
+            assertThat(hit.match.endIndex).isEqualTo(5);
+            assertThat(hit.rightContext).contains("nei mercati");
+        });
+        assertThat(termResult.lemmaCoverage.searchedContextIRIs)
+                .containsExactly(inflected.contextIRI);
+        assertThat(termResult.lemmaCoverage.lemmaTokenCount).isEqualTo(5L);
+
+        FullTextSearchRequest token = request("correre", "TERM");
+        token.contextIRIs.add(inflected.contextIRI);
+        assertThat(search.fullText(token).totalOccurrences).isZero();
+
+        FullTextSearchRequest phrase = lemmaRequest("mercato di lavoro", "PHRASE");
+        phrase.contextIRIs.add(inflected.contextIRI);
+        assertThat(search.fullText(phrase).occurrences).singleElement()
+                .extracting(hit -> hit.match.text)
+                .isEqualTo("mercati del lavoro");
+
+        FullTextSearchRequest wildcard = lemmaRequest("merc*", "WILDCARD");
+        wildcard.contextIRIs.add(inflected.contextIRI);
+        assertThat(search.fullText(wildcard).occurrences).singleElement()
+                .extracting(hit -> hit.match.text).isEqualTo("mercati");
+
+        FullTextSearchRequest fuzzy = lemmaRequest("corere", "FUZZY");
+        fuzzy.contextIRIs.add(inflected.contextIRI);
+        assertThat(search.fullText(fuzzy).occurrences).singleElement()
+                .extracting(hit -> hit.match.text).isEqualTo("Corro");
+
+        FullTextSearchRequest bool = lemmaRequest(
+                "correre AND (\"mercato di lavoro\" OR lavor~)", "BOOLEAN");
+        assertThat(search.fullText(bool).occurrences).extracting(hit -> hit.contextIRI)
+                .containsOnly(inflected.contextIRI);
+
+        FullTextSearchRequest exactCase = lemmaRequest("Correre", "TERM");
+        exactCase.caseSensitive = true;
+        assertThat(search.fullText(exactCase).totalOccurrences).isEqualTo(2L);
+        exactCase.query = "correre";
+        assertThat(search.fullText(exactCase).totalOccurrences).isZero();
+    }
+
+    @Test
+    @DisplayName("Lemma coverage rejects or explicitly reports texts without usable lemmas")
+    void neverReturnsSilentPartialLemmaResults() throws Exception {
+        CorpusIndexDocument annotated = lemmaDocument("annotated", "Case belle.",
+                "corpus-a", "casa", "bello");
+        CorpusIndexDocument plain = document("plain", "Altre case.", "corpus-a");
+        index.index(annotated);
+        index.index(plain);
+
+        FullTextSearchRequest strict = lemmaRequest("casa", "TERM");
+        assertThatThrownBy(() -> search.fullText(strict))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("INCOMPLETE_LEMMA_COVERAGE:");
+
+        strict.requireCompleteLemmaCoverage = Boolean.FALSE;
+        FullTextSearchResult partial = search.fullText(strict);
+        assertThat(partial.occurrences).singleElement()
+                .extracting(hit -> hit.match.text).isEqualTo("Case");
+        assertThat(partial.lemmaCoverage.requestedContextCount).isEqualTo(2);
+        assertThat(partial.lemmaCoverage.searchedContextIRIs)
+                .containsExactly(annotated.contextIRI);
+        assertThat(partial.lemmaCoverage.excludedContextIRIs)
+                .containsExactly(plain.contextIRI);
+
+        FullTextSearchRequest unavailable = lemmaRequest("casa", "TERM");
+        unavailable.contextIRIs.add(plain.contextIRI);
+        assertThatThrownBy(() -> search.fullText(unavailable))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("LEMMA_SEARCH_UNAVAILABLE:");
+    }
+
+    @Test
+    @DisplayName("Validation uses the search parser and limits without executing a query")
+    void validatesWithTheExactFullTextParser() throws Exception {
+        FullTextSearchRequest valid = lemmaRequest(
+                "\"mercato del lavoro\" OR lavor*", "BOOLEAN");
+        FullTextQueryValidationResult accepted = search.validateFullText(valid);
+        assertThat(accepted.valid).isTrue();
+        assertThat(accepted.normalizedQuery).isEqualTo(valid.query);
+        assertThat(index.fileIds()).isEmpty();
+
+        FullTextSearchRequest invalid = lemmaRequest("(mercato AND", "BOOLEAN");
+        FullTextQueryValidationResult rejected = search.validateFullText(invalid);
+        assertThat(rejected.valid).isFalse();
+        assertThat(rejected.code).isEqualTo("MALFORMED_QUERY");
+        assertThat(rejected.message).isNotBlank();
+        assertThat(rejected.position).isPositive();
+        assertThatThrownBy(() -> search.fullText(invalid))
+                .hasMessageStartingWith("MALFORMED_QUERY:");
     }
 
     @Test
@@ -145,7 +256,8 @@ class LuceneCorpusSearchServiceTest {
     @Test
     @DisplayName("Safe rebuild preserves snapshots, hashes and search results")
     void rebuildsThroughAValidatedTemporaryIndex() throws Exception {
-        CorpusIndexDocument first = document("one", "uno due uno", "corpus-a");
+        CorpusIndexDocument first = lemmaDocument("one", "uno due uno", "corpus-a",
+                "uno", "due", "uno");
         CorpusIndexDocument second = document("two", "due tre", "corpus-b");
         index.index(first);
         index.index(second);
@@ -157,8 +269,12 @@ class LuceneCorpusSearchServiceTest {
         assertThat(index.get("one").contentHash).isEqualTo(first.contentHash);
         assertThat(index.get("one").segmentationHash)
                 .isEqualTo(first.segmentationHash);
+        assertThat(index.get("one").indexSchemaVersion).isEqualTo("2");
         assertThat(search.fullText(request("uno", "TERM")).totalOccurrences)
                 .isEqualTo(before);
+        FullTextSearchRequest lemma = lemmaRequest("uno", "TERM");
+        lemma.contextIRIs.add(first.contextIRI);
+        assertThat(search.fullText(lemma).totalOccurrences).isEqualTo(2L);
     }
 
     private static FullTextSearchRequest request(String query, String type) {
@@ -170,10 +286,34 @@ class LuceneCorpusSearchServiceTest {
         return result;
     }
 
+    private static FullTextSearchRequest lemmaRequest(String query, String type) {
+        FullTextSearchRequest result = request(query, type);
+        result.searchField = "LEMMA";
+        return result;
+    }
+
     private static CorpusIndexDocument document(String id, String content,
                                                  String corpus) throws Exception {
         ParsedTextDocument parsed = new ControlledCommonMarkParser()
                 .parsePlainText(content);
+        parsed.metadata.put("language", "it");
+        return CorpusIndexDocument.from(id,
+                "https://example.org/texts/" + id + "#context",
+                "https://example.org/corpora/" + corpus,
+                "https://example.org/graphs/" + id, parsed);
+    }
+
+    private static CorpusIndexDocument lemmaDocument(String id, String content,
+                                                      String corpus,
+                                                      String... lemmas)
+            throws Exception {
+        ParsedTextDocument parsed = new ControlledCommonMarkParser()
+                .parsePlainText(content);
+        assertThat(parsed.tokens).hasSize(lemmas.length);
+        for (int index = 0; index < lemmas.length; index++) {
+            parsed.tokens.get(index).lemma = lemmas[index];
+        }
+        SegmentationFingerprint.complete(parsed);
         parsed.metadata.put("language", "it");
         return CorpusIndexDocument.from(id,
                 "https://example.org/texts/" + id + "#context",

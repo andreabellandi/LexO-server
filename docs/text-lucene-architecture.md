@@ -78,12 +78,17 @@ Unicode. `UnicodeOffsetMapper` è l'unico punto di conversione e rifiuta offset
 che spezzano una surrogate pair. Le posizioni Lucene sono invece indici token
 zero-based: non sono offset carattere.
 
-Per il positional field il token stream custom imposta `CharTermAttribute`,
-`OffsetAttribute` e `PositionIncrementAttribute=1`. Questo vale anche per
-CoNLL-U e JSON annotato, che non passano da `StandardTokenizer`. I campi
-`content_surface` e `content_normalized` hanno positions, offsets e term vector;
-il secondo applica solo lowercase. La stoplist è un filtro dei risultati di
-collocazione e non cambia mai indice, `tokenCount`, posizioni o offset.
+Per i positional field il token stream custom imposta `CharTermAttribute`,
+`OffsetAttribute` e `PositionIncrementAttribute`. Questo vale anche per CoNLL-U
+e JSON annotato, che non passano da `StandardTokenizer`. I campi
+`content_surface` e `content_normalized` contengono tutti i token; i campi
+`lemma_surface` e `lemma_normalized` contengono soltanto lemmi non vuoti e
+diversi da `_`, conservando la posizione e gli offset del token di superficie.
+I campi normalizzati applicano soltanto lowercase. Tutti e quattro conservano
+positions, offsets e term vector. Un lemma mancante crea quindi un gap
+posizionale e non può produrre artificialmente una phrase contigua. La stoplist
+è un filtro dei risultati di collocazione e non cambia mai indice, `tokenCount`,
+posizioni o offset.
 
 ## Documento e ciclo di vita Lucene
 
@@ -105,13 +110,34 @@ l'apertura del nuovo indice fallisce.
 ## Ricerca, KWIC e co-occorrenze
 
 `POST /texts/search/fulltext` supporta `TERM`, `PHRASE`, `BOOLEAN`, `PREFIX`,
-`WILDCARD` e `FUZZY`. Lunghezza, clausole, espansioni multi-term e pagina sono
-limitati. Le risposte sono occurrence, non soli document hit, e includono
-anchor, code-point offsets, token/sentence index, score, KWIC e fingerprint.
+`WILDCARD` e `FUZZY`. `searchField=TOKEN` conserva il comportamento storico;
+`searchField=LEMMA` interroga i campi lemma ma restituisce sempre superficie,
+offset e KWIC del token originale. Lunghezza, clausole, espansioni multi-term e
+pagina sono limitati. Le risposte sono occurrence, non soli document hit, e
+includono anchor, code-point offsets, token/sentence index, score, KWIC e
+fingerprint.
 Le occurrence sono estratte tramite `MatchesIterator` dalle positions Lucene;
 la token map canonica converte poi le positions in offset NIF e contesto.
 I filtri context/corpus/graph sono keyword query Lucene validate come IRI.
 L'arricchimento opzionale usa batch SPARQL 1.1 `VALUES` su `LexOTexts`.
+
+Una lemma search calcola la copertura sull'intero subset selezionato prima di
+eseguire la query. Nessun context con lemmi produce
+`LEMMA_SEARCH_UNAVAILABLE`; un subset misto produce per default
+`INCOMPLETE_LEMMA_COVERAGE`. Con `requireCompleteLemmaCoverage=false` la ricerca
+prosegue soltanto sui context lemmatizzati e la risposta espone conteggi,
+copertura e liste `searchedContextIRIs`/`excludedContextIRIs`, evitando risultati
+parziali silenziosi. `GET /texts`, `GET /texts/{fileId}` e i testi inclusi nelle
+cartelle espongono `lemmaSearchAvailable`, `lemmaTokenCount` e `lemmaCoverage`,
+calcolati dai `nif:Word` e non dalla presenza del file CoNLL-U.
+
+`POST /texts/search/fulltext/validate` applica lo stesso parser, gli stessi campi
+e gli stessi limiti senza acquisire un searcher né eseguire la query. Restituisce
+sempre un risultato strutturato con `valid`; gli errori includono codice stabile,
+messaggio e la colonna one-based quando Lucene la rende disponibile. La modalità
+`BOOLEAN` conserva gli operatori `AND`, `OR` e `NOT`; il lowercase
+case-insensitive viene applicato ai termini e alle espansioni, non all'intera
+sintassi.
 
 `POST /texts/search/kwic/resize` è stateless: verifica entrambi gli hash,
 localizza la precedente occurrence tramite token o offset e ricalcola solo il
@@ -160,15 +186,19 @@ senza proprietà disponibile vengono rifiutate invece di inventare URI.
 
 - `GET /texts/index/status`: disponibilità, versione, schema, profilo, conteggio
   e ultimo commit senza esporre path.
-- `POST /texts/index/verify`: differenze RDF/Lucene per presenza e hash; con
-  `deep=true` anche token/sentence count.
+- `POST /texts/index/verify`: differenze RDF/Lucene per presenza, hash e versione
+  dello schema indice; con `deep=true` anche token/sentence count.
 - `POST /texts/index/reindex/{fileId}`: ricostruisce esattamente gli span
   `nif:Word`/`nif:Sentence` di un context.
 - `POST /texts/index/rebuild`: ricostruisce tutti i context con safe swap.
 
-Dopo il deploy, i documenti RDF preesistenti risultano inizialmente
-`missingInLucene`: eseguire `verify`, poi `rebuild`, infine `verify?deep=true`.
-I documenti legacy non vengono modificati e non serve un connector GraphDB.
+Dopo il deploy iniziale, i documenti RDF preesistenti risultano
+`missingInLucene`. L'aggiunta dei campi lemma porta lo schema indice alla
+versione `2`: gli indici versione `1` risultano `indexSchemaMismatch` e una
+lemma search restituisce `LEMMA_INDEX_OUTDATED` invece di un falso risultato
+vuoto. Eseguire `verify`, poi `rebuild`, infine `verify?deep=true`. I documenti
+legacy non vengono modificati e non serve un connector GraphDB; rebuild e
+reindex leggono `nif:lemma` dagli span persistiti.
 
 ## Configurazione e sicurezza
 
@@ -187,7 +217,7 @@ failure RDF/Lucene (500) e indice non disponibile (503).
 
 ## Audit endpoint `Text Corpus NIF`
 
-In Swagger i dieci endpoint di ricerca, collocazione e amministrazione
+In Swagger gli undici endpoint di ricerca, collocazione e amministrazione
 dell'indice sono raccolti nel gruppo `Text Search`; gli endpoint testuali
 preesistenti restano nel gruppo `Text Corpus NIF`. Il raggruppamento non cambia
 i path REST elencati di seguito.
@@ -217,6 +247,7 @@ i path REST elencati di seguito.
 | `GET /texts/{fileId}/conllu` | [OK] adapted to CoNLL-U autorevole preservato |
 | `DELETE /texts/{fileId}` | [OK] adapted to Lucene con compensazione RDF/Lucene |
 | `POST /texts/search/fulltext` | [OK] nuovo, adapted to Lucene |
+| `POST /texts/search/fulltext/validate` | [OK] validazione parser senza esecuzione |
 | `POST /texts/search/kwic/resize` | [OK] nuovo, hash-verified canonical segmentation |
 | `POST /texts/search/cooccurrences` | [OK] nuovo, Lucene positions e sentence/document boundary |
 | `POST /texts/search/frequency` | [OK] nuovo, frequenze Lucene |

@@ -24,6 +24,7 @@ public final class CorpusIndexDocument {
     public String tokenizerProfile;
     public String sentenceSplitterProfile;
     public String segmentationSchemaVersion;
+    public String indexSchemaVersion;
     public List<TokenData> tokens = new ArrayList<TokenData>();
     public List<SentenceData> sentences = new ArrayList<SentenceData>();
 
@@ -40,7 +41,7 @@ public final class CorpusIndexDocument {
         result.segmentationHash = document.segmentationHash;
         result.segmentationSource = document.segmentationSource.name();
         result.language = document.metadata.get("language");
-        result.analyzerProfile = "SURFACE_AND_LOWERCASE";
+        result.analyzerProfile = "SURFACE_LEMMA_AND_LOWERCASE";
         result.tokenizerProfile = document.tokenizerProfile;
         result.sentenceSplitterProfile = document.sentenceSplitterProfile;
         result.segmentationSchemaVersion = document.segmentationSchemaVersion;

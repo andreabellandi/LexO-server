@@ -154,6 +154,13 @@ public final class TextCatalogManager {
         item.sizeBytes = Long.valueOf(canonical.getBytes(StandardCharsets.UTF_8).length);
         item.sentenceCount = optionalCount(model, NIF + "Sentence");
         item.tokenCount = optionalCount(model, NIF + "Word");
+        int lemmaTokenCount = LemmaStatistics.count(model, iri(NIF + "Word"),
+                iri(NIF + "lemma"));
+        item.lemmaTokenCount = Integer.valueOf(lemmaTokenCount);
+        item.lemmaSearchAvailable = Boolean.valueOf(lemmaTokenCount > 0);
+        item.lemmaCoverage = Double.valueOf(LemmaStatistics.coverage(
+                item.tokenCount == null ? 0 : item.tokenCount.intValue(),
+                lemmaTokenCount));
         readMetadata(model, context, item);
         readCorpus(connection, model, context, item);
         return item;

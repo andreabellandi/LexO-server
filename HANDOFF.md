@@ -1,5 +1,49 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 26 ottobre 2026 con la ricerca full-text per lemma e la
+validazione preventiva delle query. `POST /texts/search/fulltext` distingue ora
+`searchField=TOKEN` (default compatibile) da `LEMMA`; i lemma non vuoti e
+diversi da `_` sono indicizzati in campi Lucene surface/lowercase mantenendo
+posizione e offset del token originale, quindi le risposte lemma espongono forma
+flessa, offset NIF e KWIC canonici. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD e
+FUZZY condividono gli stessi parser e limiti; la modalità BOOLEAN
+case-insensitive conserva correttamente `AND`, `OR` e `NOT` e normalizza solo i
+termini.
+
+La copertura lemma è calcolata dai `nif:Word`/`nif:lemma`, non dalla presenza di
+un file CoNLL-U, ed è esposta come `lemmaSearchAvailable`, `lemmaTokenCount` e
+`lemmaCoverage` da `GET /texts`, `GET /texts/{fileId}` e dai membri inclusi in
+`GET /text-folders?includeTexts=true`. Una selezione senza lemmi fallisce con
+`LEMMA_SEARCH_UNAVAILABLE`; una selezione mista fallisce per default con
+`INCOMPLETE_LEMMA_COVERAGE`. Con
+`requireCompleteLemmaCoverage=false` la risposta include conteggi e liste dei
+context ricercati/esclusi, perciò il risultato parziale non è silenzioso.
+
+Il nuovo `POST /texts/search/fulltext/validate` usa lo stesso codice di parsing
+senza eseguire la query e restituisce `valid`, query normalizzata oppure codice,
+messaggio e posizione parser disponibile. Lo schema dell'indice è passato a
+`2`; ogni snapshot registra la versione e `verify` segnala
+`indexSchemaMismatch`. Una lemma search su un vecchio documento non restituisce
+un falso zero ma `LEMMA_INDEX_OUTDATED`. Reindex e rebuild recuperano i lemma
+dal NIF persistito e ricreano i quattro campi posizionali.
+
+Swagger, architettura, procedura test e `CHANGELOG.md` sono aggiornati;
+`README.md` è rimasto invariato. Il filtro opzionale `folderId` non è stato
+incluso in questa prima versione, come consentito dalla specifica non
+bloccante: il frontend può continuare a risolvere la cartella in `contextIRIs`.
+Prima del deploy su un indice esistente eseguire `POST /texts/index/verify`,
+`POST /texts/index/rebuild` e `POST /texts/index/verify?deep=true`.
+
+La suite mirata ha superato 20 test. `mvn -o test` e `mvn -o verify` hanno
+superato 283 test unitari/repository senza failure, errori o skip e prodotto
+`target/LexO-server.war`; i 16 end-to-end sono compilati ma skipped perché non
+era configurato un deployment Tomcat/GraphDB con filesystem e indice dedicati.
+Restano i warning ambientali noti sui metadata Maven e su `MMapDirectory` con il
+JDK moderno. Non è stato eseguito alcun deploy; le modifiche sono raccolte in un
+commit dedicato su `master`. Il prossimo passo raccomandato è ridistribuire il
+WAR in un ambiente isolato, ricostruire l'indice e lanciare i workflow E2E,
+incluso UC-03 CoNLL-U ora esteso alla ricerca lemma.
+
 Aggiornato al 23 ottobre 2026 con l'organizzazione gerarchica opzionale dei
 testi. Il branch `master` espone ora dieci operazioni sotto `/text-folders` per
 creare, leggere, aggiornare, spostare ed eliminare cartelle vuote, assegnare o

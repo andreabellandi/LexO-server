@@ -9,6 +9,7 @@ public class CorpusIndexConsistency {
     public List<String> missingInRdf = new ArrayList<String>();
     public List<String> contentHashMismatch = new ArrayList<String>();
     public List<String> segmentationHashMismatch = new ArrayList<String>();
+    public List<String> indexSchemaMismatch = new ArrayList<String>();
     public List<String> tokenCountMismatch = new ArrayList<String>();
     public List<String> sentenceCountMismatch = new ArrayList<String>();
 }

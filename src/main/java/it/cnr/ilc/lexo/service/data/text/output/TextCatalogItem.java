@@ -20,6 +20,12 @@ public class TextCatalogItem implements Data {
     public Integer sentenceCount;
     @ApiModelProperty(value = "number of NIF tokens, omitted when unavailable")
     public Integer tokenCount;
+    @ApiModelProperty(value = "true when at least one token has a usable lemma")
+    public Boolean lemmaSearchAvailable;
+    @ApiModelProperty(value = "number of tokens with a non-empty lemma different from underscore")
+    public Integer lemmaTokenCount;
+    @ApiModelProperty(value = "lemmaTokenCount divided by tokenCount")
+    public Double lemmaCoverage;
     @ApiModelProperty(value = "number of distinct FRAC attestations whose locus points to this text")
     public Long attestationCount = Long.valueOf(0L);
     @ApiModelProperty(value = "number of distinct Web Annotations stored for this text")

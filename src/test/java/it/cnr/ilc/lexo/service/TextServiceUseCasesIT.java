@@ -201,6 +201,23 @@ class TextServiceUseCasesIT {
                     + "FILTER(STR(?lemma) = \"correre\") } }"))
                     .isTrue();
 
+            JsonNode record = workflow.getJson("texts/" + fileId, 200);
+            assertThat(record.path("lemmaSearchAvailable").asBoolean()).isTrue();
+            assertThat(record.path("lemmaTokenCount").asInt()).isEqualTo(3);
+            assertThat(record.path("lemmaCoverage").asDouble()).isEqualTo(1.0d);
+
+            Map<String, Object> lemmaQuery = new LinkedHashMap<String, Object>();
+            lemmaQuery.put("query", "correre");
+            lemmaQuery.put("queryType", "TERM");
+            lemmaQuery.put("searchField", "LEMMA");
+            lemmaQuery.put("contextIRI", record.path("documentUri").asText()
+                    + "#context");
+            JsonNode lemmaSearch = workflow.postJson("texts/search/fulltext",
+                    lemmaQuery, 200);
+            assertThat(lemmaSearch.path("totalOccurrences").asLong()).isEqualTo(1L);
+            assertThat(lemmaSearch.path("occurrences").get(0).path("match")
+                    .path("text").asText()).isEqualTo("corre");
+
             assertThat(workflow.deleteText(fileId)).isTrue();
             assertThat(workflow.graphExists(graph)).isFalse();
             workflow.assertNoDocumentArtifacts(fileId);

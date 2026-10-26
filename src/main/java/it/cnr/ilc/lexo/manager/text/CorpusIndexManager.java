@@ -74,6 +74,9 @@ public final class CorpusIndexManager {
             if (!persisted.document.segmentationHash.equals(indexed.segmentationHash)) {
                 result.segmentationHashMismatch.add(fileId);
             }
+            if (!index.schemaVersion().equals(indexed.indexSchemaVersion)) {
+                result.indexSchemaMismatch.add(fileId);
+            }
             if (deep && persisted.document.tokens.size() != indexed.tokens.size()) {
                 result.tokenCountMismatch.add(fileId);
             }
@@ -90,6 +93,7 @@ public final class CorpusIndexManager {
                 && result.missingInRdf.isEmpty()
                 && result.contentHashMismatch.isEmpty()
                 && result.segmentationHashMismatch.isEmpty()
+                && result.indexSchemaMismatch.isEmpty()
                 && result.tokenCountMismatch.isEmpty()
                 && result.sentenceCountMismatch.isEmpty();
         return result;

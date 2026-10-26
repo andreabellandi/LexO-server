@@ -101,6 +101,12 @@ class TextFolderManagerTest {
         assertThat(manager.unfiled().total).isZero();
         assertThat(manager.get(root.folderId, false, true).texts)
                 .extracting(item -> item.fileId).containsExactly("one", "two");
+        assertThat(manager.get(root.folderId, false, true).texts.get(0))
+                .satisfies(item -> {
+                    assertThat(item.lemmaSearchAvailable).isTrue();
+                    assertThat(item.lemmaTokenCount).isEqualTo(2);
+                    assertThat(item.lemmaCoverage).isEqualTo(1.0d);
+                });
 
         assertThatThrownBy(() -> manager.delete(root.folderId))
                 .isInstanceOf(TextOrganizationException.class)
@@ -154,6 +160,11 @@ class TextFolderManagerTest {
             record.fileId = fileId;
             record.documentUri = "https://lexo.test/resources/texts/" + fileId;
             record.originalFileName = name;
+            if ("one".equals(fileId)) {
+                record.lemmaSearchAvailable = Boolean.TRUE;
+                record.lemmaTokenCount = Integer.valueOf(2);
+                record.lemmaCoverage = Double.valueOf(1.0d);
+            }
             records.put(fileId, record);
         }
 

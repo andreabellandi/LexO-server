@@ -56,6 +56,8 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     public static final String CONTENT = "content";
     public static final String CONTENT_SURFACE = "content_surface";
     public static final String CONTENT_NORMALIZED = "content_normalized";
+    public static final String LEMMA_SURFACE = "lemma_surface";
+    public static final String LEMMA_NORMALIZED = "lemma_normalized";
     public static final String CONTENT_HASH = "contentHash";
     public static final String SEGMENTATION_HASH = "segmentationHash";
     public static final String SEGMENTATION_SOURCE = "segmentationSource";
@@ -65,7 +67,9 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     public static final String SENTENCE_PROFILE = "sentenceSplitterProfile";
     public static final String SEGMENTATION_SCHEMA = "segmentationSchemaVersion";
     public static final String TOKEN_COUNT = "tokenCount";
+    public static final String LEMMA_TOKEN_COUNT = "lemmaTokenCount";
     public static final String SENTENCE_COUNT = "sentenceCount";
+    public static final String INDEX_SCHEMA_VERSION = "indexSchemaVersion";
     public static final String SNAPSHOT = "canonicalSegmentation";
 
     private static final FieldType POSITIONAL_FIELD;
@@ -124,6 +128,7 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     public synchronized void index(CorpusIndexDocument source) throws IOException {
         requireAvailable();
         validate(source);
+        source.indexSchemaVersion = schemaVersion();
         Document document = new Document();
         document.add(new StringField(FILE_ID, source.fileId, Field.Store.YES));
         document.add(new StringField(CONTEXT_IRI, source.contextIRI, Field.Store.YES));
@@ -139,8 +144,12 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
         optionalKeyword(document, TOKENIZER_PROFILE, source.tokenizerProfile);
         optionalKeyword(document, SENTENCE_PROFILE, source.sentenceSplitterProfile);
         optionalKeyword(document, SEGMENTATION_SCHEMA, source.segmentationSchemaVersion);
+        optionalKeyword(document, INDEX_SCHEMA_VERSION, source.indexSchemaVersion);
         document.add(new IntPoint(TOKEN_COUNT, source.tokens.size()));
         document.add(new StoredField(TOKEN_COUNT, source.tokens.size()));
+        int lemmaTokenCount = lemmaTokenCount(source.tokens);
+        document.add(new IntPoint(LEMMA_TOKEN_COUNT, lemmaTokenCount));
+        document.add(new StoredField(LEMMA_TOKEN_COUNT, lemmaTokenCount));
         document.add(new IntPoint(SENTENCE_COUNT, source.sentences.size()));
         document.add(new StoredField(SENTENCE_COUNT, source.sentences.size()));
         document.add(new StoredField(SNAPSHOT, JSON.writeValueAsString(source)));
@@ -148,6 +157,10 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
                 new CanonicalTokenStream(source.tokens, false), POSITIONAL_FIELD));
         document.add(new Field(CONTENT_NORMALIZED,
                 new CanonicalTokenStream(source.tokens, true), POSITIONAL_FIELD));
+        document.add(new Field(LEMMA_SURFACE,
+                new LemmaTokenStream(source.tokens, false), POSITIONAL_FIELD));
+        document.add(new Field(LEMMA_NORMALIZED,
+                new LemmaTokenStream(source.tokens, true), POSITIONAL_FIELD));
         writer.updateDocument(new Term(FILE_ID, source.fileId), document);
         commitAndRefresh();
     }
@@ -252,7 +265,7 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     }
 
     public String schemaVersion() {
-        return configured("lexo.lucene.indexSchemaVersion", "1");
+        return configured("lexo.lucene.indexSchemaVersion", "2");
     }
 
     /** Builds and validates a temporary index before swapping it into service. */
@@ -401,6 +414,16 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
         }
     }
 
+    private static int lemmaTokenCount(List<CorpusIndexDocument.TokenData> tokens) {
+        int result = 0;
+        for (CorpusIndexDocument.TokenData token : tokens) {
+            if (LemmaStatistics.usable(token.lemma)) {
+                result++;
+            }
+        }
+        return result;
+    }
+
     private static boolean blank(String value) {
         return value == null || value.trim().isEmpty();
     }
@@ -458,6 +481,49 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
         @Override
         public void reset() {
             cursor = 0;
+        }
+    }
+
+    /** Emits only usable lemmas while retaining their canonical token positions. */
+    private static final class LemmaTokenStream extends TokenStream {
+        private final List<CorpusIndexDocument.TokenData> tokens;
+        private final boolean normalized;
+        private final CharTermAttribute term = addAttribute(CharTermAttribute.class);
+        private final OffsetAttribute offset = addAttribute(OffsetAttribute.class);
+        private final PositionIncrementAttribute position =
+                addAttribute(PositionIncrementAttribute.class);
+        private int cursor;
+        private int previousPosition = -1;
+
+        LemmaTokenStream(List<CorpusIndexDocument.TokenData> tokens,
+                         boolean normalized) {
+            this.tokens = tokens;
+            this.normalized = normalized;
+        }
+
+        @Override
+        public boolean incrementToken() {
+            while (cursor < tokens.size()) {
+                CorpusIndexDocument.TokenData token = tokens.get(cursor++);
+                if (!LemmaStatistics.usable(token.lemma)) {
+                    continue;
+                }
+                clearAttributes();
+                String value = token.lemma.trim();
+                term.append(normalized ? value.toLowerCase(Locale.ROOT) : value);
+                offset.setOffset(token.startUtf16, token.endUtf16);
+                position.setPositionIncrement(previousPosition < 0
+                        ? token.position + 1 : token.position - previousPosition);
+                previousPosition = token.position;
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void reset() {
+            cursor = 0;
+            previousPosition = -1;
         }
     }
 

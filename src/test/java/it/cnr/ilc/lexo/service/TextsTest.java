@@ -43,6 +43,7 @@ class TextsTest {
     void documentsEveryNewLuceneCorpusEndpointAndParameter() {
         Map<String, String> expected = new LinkedHashMap<String, String>();
         expected.put("fullTextSearch", "/search/fulltext");
+        expected.put("validateFullTextSearch", "/search/fulltext/validate");
         expected.put("resizeKwic", "/search/kwic/resize");
         expected.put("cooccurrences", "/search/cooccurrences");
         expected.put("frequency", "/search/frequency");

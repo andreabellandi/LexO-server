@@ -15,7 +15,9 @@ import it.cnr.ilc.lexo.service.data.text.output.CooccurrenceResult;
 import it.cnr.ilc.lexo.service.data.text.output.CooccurrenceResult.Pair;
 import it.cnr.ilc.lexo.service.data.text.output.CooccurrenceResult.PositionedTerm;
 import it.cnr.ilc.lexo.service.data.text.output.FrequencyResult;
+import it.cnr.ilc.lexo.service.data.text.output.FullTextQueryValidationResult;
 import it.cnr.ilc.lexo.service.data.text.output.FullTextSearchResult;
+import it.cnr.ilc.lexo.service.data.text.output.LemmaSearchCoverage;
 import it.cnr.ilc.lexo.service.data.text.output.MetricValue;
 import it.cnr.ilc.lexo.service.data.text.output.TextOccurrence;
 import java.io.IOException;
@@ -32,6 +34,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
@@ -71,6 +75,8 @@ import org.apache.lucene.util.BytesRef;
 public final class LuceneCorpusSearchService implements CorpusSearchService {
 
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Pattern PARSER_COLUMN = Pattern.compile(
+            "(?i)\\bcolumn\\s+(\\d+)");
     private static final LuceneCorpusSearchService INSTANCE =
             new LuceneCorpusSearchService(LuceneCorpusIndexService.get());
 
@@ -109,23 +115,19 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
 
     @Override
     public FullTextSearchResult fullText(FullTextSearchRequest request) throws IOException {
-        require(request != null, "MISSING_SEARCH_REQUEST", "request body is required");
-        String text = required(request.query, "MISSING_QUERY");
-        require(text.length() <= maxQueryLength, "QUERY_TOO_LONG",
-                "query exceeds " + maxQueryLength + " characters");
-        String type = upper(request.queryType, "TERM");
+        PreparedQuery prepared = prepareQuery(request);
         int left = bounded(request.leftContext, defaultLeft, maxContext, "leftContext");
         int right = bounded(request.rightContext, defaultRight, maxContext, "rightContext");
         int pageSize = boundedPositive(request.pageSize, defaultPageSize,
                 maxPageSize, "pageSize");
         int cursor = cursor(request.cursor);
-        String field = request.caseSensitive
-                ? LuceneCorpusIndexService.CONTENT_SURFACE
-                : LuceneCorpusIndexService.CONTENT_NORMALIZED;
-        Query contentQuery = query(type, text, field, request.caseSensitive);
+        String field = prepared.field;
+        Query contentQuery = prepared.query;
         Query query = selected(contentQuery, request);
         IndexSearcher searcher = index.acquire();
         try {
+            LemmaSearchCoverage lemmaCoverage = "LEMMA".equals(prepared.searchField)
+                    ? lemmaCoverage(searcher, request, field) : null;
             TopDocs documents = searcher.search(query,
                     Math.max(1, searcher.getIndexReader().numDocs()));
             Weight occurrenceWeight = searcher.createWeight(
@@ -143,6 +145,7 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
                 }
             }
             FullTextSearchResult result = new FullTextSearchResult();
+            result.lemmaCoverage = lemmaCoverage;
             result.totalOccurrences = all.size();
             int end = Math.min(all.size(), cursor + pageSize);
             if (cursor < all.size()) {
@@ -158,6 +161,31 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         } finally {
             index.release(searcher);
         }
+    }
+
+    @Override
+    public FullTextQueryValidationResult validateFullText(
+            FullTextSearchRequest request) {
+        FullTextQueryValidationResult result = new FullTextQueryValidationResult();
+        try {
+            PreparedQuery prepared = prepareQuery(request);
+            result.valid = true;
+            result.normalizedQuery = prepared.text;
+        } catch (IllegalArgumentException error) {
+            String detail = error.getMessage() == null
+                    ? error.getClass().getSimpleName() : error.getMessage();
+            int separator = detail.indexOf(':');
+            result.valid = false;
+            result.code = separator < 0 ? "INVALID_QUERY"
+                    : detail.substring(0, separator).trim();
+            result.message = separator < 0 ? detail
+                    : detail.substring(separator + 1).trim();
+            Matcher column = PARSER_COLUMN.matcher(detail);
+            if (column.find()) {
+                result.position = Integer.valueOf(column.group(1));
+            }
+        }
+        return result;
     }
 
     @Override
@@ -419,6 +447,75 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         }
     }
 
+    private PreparedQuery prepareQuery(FullTextSearchRequest request) {
+        require(request != null, "MISSING_SEARCH_REQUEST", "request body is required");
+        String text = required(request.query, "MISSING_QUERY");
+        require(text.length() <= maxQueryLength, "QUERY_TOO_LONG",
+                "query exceeds " + maxQueryLength + " characters");
+        String type = upper(request.queryType, "TERM");
+        String searchField = upper(request.searchField, "TOKEN");
+        require("TOKEN".equals(searchField) || "LEMMA".equals(searchField),
+                "INVALID_SEARCH_FIELD", "searchField must be TOKEN or LEMMA");
+        String field;
+        if ("LEMMA".equals(searchField)) {
+            field = request.caseSensitive ? LuceneCorpusIndexService.LEMMA_SURFACE
+                    : LuceneCorpusIndexService.LEMMA_NORMALIZED;
+        } else {
+            field = request.caseSensitive ? LuceneCorpusIndexService.CONTENT_SURFACE
+                    : LuceneCorpusIndexService.CONTENT_NORMALIZED;
+        }
+        PreparedQuery result = new PreparedQuery();
+        result.text = text;
+        result.searchField = searchField;
+        result.field = field;
+        result.query = query(type, text, field, request.caseSensitive);
+        return result;
+    }
+
+    private LemmaSearchCoverage lemmaCoverage(IndexSearcher searcher,
+                                                FullTextSearchRequest request,
+                                                String field) throws IOException {
+        TopDocs selectedDocuments = searcher.search(
+                selected(new MatchAllDocsQuery(), request),
+                Math.max(1, searcher.getIndexReader().numDocs()));
+        LemmaSearchCoverage result = new LemmaSearchCoverage();
+        result.requestedContextCount = selectedDocuments.scoreDocs.length;
+        for (ScoreDoc selectedDocument : selectedDocuments.scoreDocs) {
+            CorpusIndexDocument document = snapshot(searcher.doc(selectedDocument.doc));
+            int lemmaCount = 0;
+            for (CorpusIndexDocument.TokenData token : document.tokens) {
+                if (LemmaStatistics.usable(token.lemma)) {
+                    lemmaCount++;
+                }
+            }
+            result.tokenCount += document.tokens.size();
+            result.lemmaTokenCount += lemmaCount;
+            if (lemmaCount == 0) {
+                result.excludedContextIRIs.add(document.contextIRI);
+            } else {
+                require(searcher.getIndexReader().getTermVector(
+                        selectedDocument.doc, field) != null,
+                        "LEMMA_INDEX_OUTDATED",
+                        "lemma fields are missing for " + document.contextIRI
+                                + "; rebuild the corpus index");
+                result.searchedContextIRIs.add(document.contextIRI);
+            }
+        }
+        result.searchedContextCount = result.searchedContextIRIs.size();
+        result.excludedContextCount = result.excludedContextIRIs.size();
+        result.lemmaCoverage = LemmaStatistics.coverage(result.tokenCount,
+                result.lemmaTokenCount);
+        require(result.searchedContextCount > 0, "LEMMA_SEARCH_UNAVAILABLE",
+                "none of the selected contexts contains usable lemmas");
+        boolean requireComplete = request.requireCompleteLemmaCoverage == null
+                || request.requireCompleteLemmaCoverage.booleanValue();
+        require(!requireComplete || result.excludedContextCount == 0,
+                "INCOMPLETE_LEMMA_COVERAGE",
+                result.excludedContextCount + " of " + result.requestedContextCount
+                        + " selected contexts contain no usable lemmas");
+        return result;
+    }
+
     private CorpusIndexDocument byContext(String contextIRI) throws IOException {
         IndexSearcher searcher = index.acquire();
         try {
@@ -492,15 +589,53 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         }
         if ("BOOLEAN".equals(type)) {
             try (Analyzer analyzer = queryAnalyzer(caseSensitive)) {
-                QueryParser parser = new QueryParser(field, analyzer);
+                QueryParser parser = queryParser(field, analyzer, caseSensitive);
                 parser.setAllowLeadingWildcard(false);
                 parser.setMultiTermRewriteMethod(rewrite());
-                return parser.parse(caseSensitive ? text : text.toLowerCase(Locale.ROOT));
+                return parser.parse(text);
             } catch (ParseException error) {
                 throw new IllegalArgumentException("MALFORMED_QUERY: " + error.getMessage());
             }
         }
         throw new IllegalArgumentException("INVALID_QUERY_TYPE: " + type);
+    }
+
+    private QueryParser queryParser(String field, Analyzer analyzer,
+                                    final boolean caseSensitive) {
+        return new QueryParser(field, analyzer) {
+            @Override
+            protected Query getWildcardQuery(String selectedField, String term)
+                    throws ParseException {
+                return super.getWildcardQuery(selectedField,
+                        multiTerm(term, caseSensitive));
+            }
+
+            @Override
+            protected Query getPrefixQuery(String selectedField, String term)
+                    throws ParseException {
+                return super.getPrefixQuery(selectedField,
+                        multiTerm(term, caseSensitive));
+            }
+
+            @Override
+            protected Query getFuzzyQuery(String selectedField, String term,
+                                          float minimumSimilarity)
+                    throws ParseException {
+                return super.getFuzzyQuery(selectedField,
+                        multiTerm(term, caseSensitive), minimumSimilarity);
+            }
+
+            @Override
+            protected Query getRegexpQuery(String selectedField, String term)
+                    throws ParseException {
+                return super.getRegexpQuery(selectedField,
+                        multiTerm(term, caseSensitive));
+            }
+        };
+    }
+
+    private static String multiTerm(String value, boolean caseSensitive) {
+        return caseSensitive ? value : value.toLowerCase(Locale.ROOT);
     }
 
     private Query selected(Query content, CorpusSelection selection) {
@@ -969,6 +1104,13 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         } catch (NumberFormatException error) {
             return fallback;
         }
+    }
+
+    private static final class PreparedQuery {
+        String text;
+        String searchField;
+        String field;
+        Query query;
     }
 
     private static final class CandidateCounts {

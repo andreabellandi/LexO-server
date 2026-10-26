@@ -73,6 +73,10 @@ class TextCatalogManagerTest {
                     "Una frase.".getBytes(StandardCharsets.UTF_8).length));
             assertThat(interview.sentenceCount).isEqualTo(1);
             assertThat(interview.tokenCount).isPositive();
+            assertThat(interview.lemmaSearchAvailable).isTrue();
+            assertThat(interview.lemmaTokenCount).isEqualTo(1);
+            assertThat(interview.lemmaCoverage)
+                    .isEqualTo(1.0d / interview.tokenCount.intValue());
             assertThat(interview.attestationCount).isEqualTo(2L);
             assertThat(interview.annotationCount).isEqualTo(1L);
             assertThat(interview.corpusId).isEqualTo("corpus-one");
@@ -84,6 +88,8 @@ class TextCatalogManagerTest {
                     .containsExactly("Conversazione di prova");
             assertThat(result.texts.get(1).attestationCount).isZero();
             assertThat(result.texts.get(1).annotationCount).isZero();
+            assertThat(result.texts.get(1).lemmaSearchAvailable).isFalse();
+            assertThat(result.texts.get(1).lemmaTokenCount).isZero();
         }
     }
 
@@ -126,6 +132,9 @@ class TextCatalogManagerTest {
         ParsedTextDocument interview = parser.parsePlainText(
                 "---\ntitle: Intervista di prova\nauthor: Mario Rossi\n"
                         + "description: Conversazione di prova\n---\nUna frase.");
+        interview.tokens.get(0).lemma = "uno";
+        interview.tokens.get(1).lemma = "_";
+        SegmentationFingerprint.complete(interview);
         ParsedTextDocument second = parser.parsePlainText("Secondo documento.");
 
         try (RepositoryConnection connection = textRepository.getConnection()) {

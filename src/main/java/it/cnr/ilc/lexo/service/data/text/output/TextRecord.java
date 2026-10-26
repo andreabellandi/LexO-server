@@ -1,6 +1,7 @@
 package it.cnr.ilc.lexo.service.data.text.output;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.annotations.ApiModelProperty;
 import it.cnr.ilc.lexo.manager.text.model.ValidationIssue;
 import it.cnr.ilc.lexo.service.data.Data;
 import java.util.ArrayList;
@@ -33,6 +34,12 @@ public class TextRecord implements Data {
     public Integer paragraphCount;
     public Integer sentenceCount;
     public Integer tokenCount;
+    @ApiModelProperty(value = "true when at least one token has a usable lemma")
+    public Boolean lemmaSearchAvailable;
+    @ApiModelProperty(value = "number of tokens with a non-empty lemma different from underscore")
+    public Integer lemmaTokenCount;
+    @ApiModelProperty(value = "lemmaTokenCount divided by tokenCount")
+    public Double lemmaCoverage;
     public Map<String, String> metadata = new LinkedHashMap<String, String>();
     public Map<String, List<String>> metadataValues =
             new LinkedHashMap<String, List<String>>();

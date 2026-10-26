@@ -8,5 +8,6 @@ import java.util.List;
 public class FullTextSearchResult {
     public long totalOccurrences;
     public String nextCursor;
+    public LemmaSearchCoverage lemmaCoverage;
     public List<TextOccurrence> occurrences = new ArrayList<TextOccurrence>();
 }

@@ -165,6 +165,7 @@ public final class TextNifRepository {
         if (record == null) {
             record = deriveDocumentRecord(fileId, model, context);
         }
+        refreshDocumentStatistics(record, model);
         refreshDocumentMembership(record, model, context);
         return record;
     }
@@ -338,6 +339,17 @@ public final class TextNifRepository {
         record.tokenCount = Integer.valueOf(countType(model, NIF + "Word"));
         readMetadata(model, context, record.metadata, record.metadataValues);
         return record;
+    }
+
+    private void refreshDocumentStatistics(TextRecord record, Model model) {
+        int tokenCount = countType(model, NIF + "Word");
+        int lemmaTokenCount = LemmaStatistics.count(model, iri(NIF + "Word"),
+                iri(NIF + "lemma"));
+        record.tokenCount = Integer.valueOf(tokenCount);
+        record.lemmaTokenCount = Integer.valueOf(lemmaTokenCount);
+        record.lemmaSearchAvailable = Boolean.valueOf(lemmaTokenCount > 0);
+        record.lemmaCoverage = Double.valueOf(LemmaStatistics.coverage(
+                tokenCount, lemmaTokenCount));
     }
 
     private CorpusRecord deriveCorpusRecord(String corpusId, Model model, Resource corpus) {

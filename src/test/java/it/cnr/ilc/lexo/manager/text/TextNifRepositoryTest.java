@@ -34,6 +34,13 @@ class TextNifRepositoryTest {
             model.add(context,
                     vf.createIRI("http://purl.org/dc/terms/description"),
                     vf.createLiteral("Descrizione del testo"));
+            org.eclipse.rdf4j.model.IRI word =
+                    vf.createIRI("https://lexo.test/doc#char=0,5");
+            model.add(word, RDF.TYPE, vf.createIRI(
+                    "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#Word"));
+            model.add(word, vf.createIRI(
+                    "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#lemma"),
+                    vf.createLiteral("testo"));
 
             TextRecord saved = new TextRecord();
             saved.fileId = "initialization-test";
@@ -59,6 +66,12 @@ class TextNifRepositoryTest {
                             record -> record.originalPath)
                     .containsExactly("initialization-test", "original.txt",
                             "documents/initialization-test/original/original.txt");
+            assertThat(repository.getDocumentRecord("initialization-test"))
+                    .satisfies(record -> {
+                        assertThat(record.lemmaSearchAvailable).isTrue();
+                        assertThat(record.lemmaTokenCount).isEqualTo(1);
+                        assertThat(record.lemmaCoverage).isEqualTo(1.0d);
+                    });
             ByteArrayOutputStream exported = new ByteArrayOutputStream();
             repository.writeDocument("initialization-test", exported);
             assertThat(new String(exported.toByteArray(), StandardCharsets.UTF_8))

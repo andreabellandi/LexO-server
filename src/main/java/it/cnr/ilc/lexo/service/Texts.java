@@ -7,6 +7,8 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import it.cnr.ilc.lexo.manager.text.CorpusManager;
 import it.cnr.ilc.lexo.manager.text.CollocationPersistenceManager;
 import it.cnr.ilc.lexo.manager.text.CorpusIndexDocument;
@@ -92,7 +94,7 @@ public class Texts extends Service {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text catalog",
-            notes = "This method returns all texts stored in LexOTexts, optionally filtered by corpus, with their size, linguistic counts, attestation and annotation counts, and available metadata")
+            notes = "This method returns all texts stored in LexOTexts, optionally filtered by corpus, with their size, linguistic counts, lemma-search availability and coverage, attestation and annotation counts, and available metadata")
     public Response catalog(
             @HeaderParam("Authorization") String key,
             @ApiParam(
@@ -797,7 +799,7 @@ public class Texts extends Service {
     @javax.ws.rs.Path("/{fileId}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Text metadata retrieval",
-            notes = "This method returns the persisted record and metadata for a converted text")
+            notes = "This method returns the persisted record, metadata, and lemma-search availability and coverage for a converted text")
     public Response record(
             @HeaderParam("Authorization") String key,
             @ApiParam(
@@ -948,8 +950,13 @@ public class Texts extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Full-text occurrence search",
-            notes = "Searches the standalone Lucene corpus index and returns every matched occurrence with NIF code-point offsets, canonical token positions and KWIC. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD and FUZZY are supported within configured limits; no GraphDB full-text extension is used",
+            notes = "Searches TOKEN (default) or LEMMA fields in the standalone Lucene corpus index and returns surface-token occurrences with NIF code-point offsets, canonical token positions and KWIC. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD and FUZZY are supported within configured limits. LEMMA_SEARCH_UNAVAILABLE reports selections without lemmas; INCOMPLETE_LEMMA_COVERAGE prevents silent partial results unless requireCompleteLemmaCoverage is false",
             tags = {"Text Search"})
+    @ApiResponses({
+        @ApiResponse(code = 200, message = "Occurrence page; LEMMA searches include an explicit coverage report"),
+        @ApiResponse(code = 400, message = "Invalid query/field or LEMMA_SEARCH_UNAVAILABLE, INCOMPLETE_LEMMA_COVERAGE, or LEMMA_INDEX_OUTDATED"),
+        @ApiResponse(code = 503, message = "Standalone Lucene corpus index unavailable")
+    })
     public Response fullTextSearch(
             @ApiParam(name = "Authorization", value = "optional authorization header",
                     required = false)
@@ -967,6 +974,32 @@ public class Texts extends Service {
             return luceneFailure(e);
         } catch (AuthorizationException | ServiceException e) {
             return unauthorized("POST /texts/search/fulltext");
+        }
+    }
+
+    @POST
+    @javax.ws.rs.Path("/search/fulltext/validate")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Validate a full-text query",
+            notes = "Parses a TOKEN or LEMMA query with exactly the same Lucene parser, query types and configured limits used by POST /texts/search/fulltext, but never executes it. Invalid input returns valid=false with a stable code and, when Lucene provides it, the one-based error position",
+            tags = {"Text Search"})
+    @ApiResponses({
+        @ApiResponse(code = 200, message = "Structured valid or invalid parsing result; no query is executed")
+    })
+    public Response validateFullTextSearch(
+            @ApiParam(name = "Authorization", value = "optional authorization header",
+                    required = false)
+            @HeaderParam("Authorization") String key,
+            @ApiParam(name = "request",
+                    value = "query, queryType, searchField and case mode to parse without execution",
+                    required = true)
+            FullTextSearchRequest request) {
+        try {
+            checkKey(key);
+            return json(LuceneCorpusSearchService.get().validateFullText(request));
+        } catch (AuthorizationException | ServiceException e) {
+            return unauthorized("POST /texts/search/fulltext/validate");
         }
     }
 

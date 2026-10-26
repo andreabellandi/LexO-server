@@ -397,6 +397,16 @@ public final class TextJobManager {
         record.paragraphCount = Integer.valueOf(doc.paragraphs.size());
         record.sentenceCount = Integer.valueOf(doc.sentences.size());
         record.tokenCount = Integer.valueOf(doc.tokens.size());
+        int lemmaTokenCount = 0;
+        for (it.cnr.ilc.lexo.manager.text.model.Token token : doc.tokens) {
+            if (LemmaStatistics.usable(token.lemma)) {
+                lemmaTokenCount++;
+            }
+        }
+        record.lemmaTokenCount = Integer.valueOf(lemmaTokenCount);
+        record.lemmaSearchAvailable = Boolean.valueOf(lemmaTokenCount > 0);
+        record.lemmaCoverage = Double.valueOf(LemmaStatistics.coverage(
+                doc.tokens.size(), lemmaTokenCount));
         record.metadata.putAll(doc.metadata);
         for (Map.Entry<String, List<String>> entry : doc.metadataValues.entrySet()) {
             record.metadataValues.put(entry.getKey(),

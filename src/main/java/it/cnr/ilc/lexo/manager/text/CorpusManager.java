@@ -198,6 +198,7 @@ public final class CorpusManager {
         result.tokenizerProfile = source.tokenizerProfile;
         result.sentenceSplitterProfile = source.sentenceSplitterProfile;
         result.segmentationSchemaVersion = source.segmentationSchemaVersion;
+        result.indexSchemaVersion = source.indexSchemaVersion;
         result.tokens.addAll(source.tokens);
         result.sentences.addAll(source.sentences);
         return result;

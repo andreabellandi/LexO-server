@@ -507,6 +507,9 @@ public final class TextFolderManager {
         item.fileId = record.fileId;
         item.contextUri = context;
         item.name = record.originalFileName;
+        item.lemmaSearchAvailable = record.lemmaSearchAvailable;
+        item.lemmaTokenCount = record.lemmaTokenCount;
+        item.lemmaCoverage = record.lemmaCoverage;
         return item;
     }
 

@@ -16,7 +16,7 @@ un LexO-server realmente avviato con GraphDB Free e una directory Lucene dedicat
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, provenienza e fingerprint della segmentazione, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U autorevole, multiword/empty node, `SpaceAfter=No`, offset obbligatori e corrispondenza tra FORM e testo canonico |
 | `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto canonicalizzato, segmentazione esplicita, attestazioni e tipi JSON obbligatori |
-| `LuceneCorpusSearchServiceTest` | Unitario Lucene | Indicizzazione persistente, case sensitivity, phrase boundary, occurrence/KWIC, co-occorrenze, overlap, rebuild verificato e conservazione dei fingerprint |
+| `LuceneCorpusSearchServiceTest` | Unitario Lucene | Indicizzazione persistente TOKEN/LEMMA, TERM/PHRASE/BOOLEAN, prefix/wildcard/fuzzy, case sensitivity, filtri, copertura lemma esplicita, validazione senza esecuzione, occurrence/KWIC, co-occorrenze, overlap, rebuild verificato e conservazione dei fingerprint |
 | `CollocationStatisticsServiceTest` | Unitario | Frequenze, PMI/PMI2/PMI3/NPMI, Dice/logDice, t/z-score, log-likelihood, chi-quadro e association-rule metrics con valori indefiniti espliciti |
 | `NifCanonicalSegmentationReaderTest` | Unitario repository | Reindex esatto da `nif:Word`/`nif:Sentence` persistiti, inclusi documenti CoNLL-U e JSON annotati |
 | `CorpusPersistenceCoordinatorTest` | Unitario | Simulazione di errori RDF e Lucene su import/delete, ordine delle operazioni e ripristino dello snapshot precedente |
@@ -81,6 +81,21 @@ LUCENE_STANDARD`. La stessa struttura alimenta `nif:Word`, `nif:Sentence`,
 posizioni e offset Lucene; contenuto e segmentazione sono legati da fingerprint
 SHA-256 salvati in entrambi gli store. Reindex e rebuild dei documenti legacy
 riusano gli span NIF persistiti senza ritokenizzare.
+
+I quattro campi posizionali Lucene distinguono superficie/lemma e
+case-sensitive/lowercase. I lemma token mantengono posizione e offset della
+superficie; `_`, valori nulli e vuoti non sono indicizzati. `searchField=TOKEN`
+è il default compatibile, mentre `LEMMA` restituisce sempre la superficie nel
+match e nel KWIC. Il subset senza lemmi fallisce con
+`LEMMA_SEARCH_UNAVAILABLE`; un subset misto fallisce per default con
+`INCOMPLETE_LEMMA_COVERAGE` oppure, se esplicitamente autorizzato, elenca i
+context esclusi nella risposta. Catalogo, dettaglio testo e cartelle calcolano
+la disponibilità direttamente dalle triple `nif:lemma`.
+
+La validazione `POST /texts/search/fulltext/validate` usa lo stesso parser e gli
+stessi limiti della ricerca ma non la esegue. I test verificano query valide,
+codice `MALFORMED_QUERY`, posizione disponibile e assenza di documenti letti o
+scritti. Lo schema indice `2` richiede rebuild degli indici precedenti.
 
 Il bulk usa un solo campo `language` per tutti i file e accetta parti `file` con
 estensione `.txt`, `.md`, `.markdown` o `.json`, anche miste. Per un batch di soli
@@ -304,6 +319,8 @@ cleanup del test.
 - conservazione di lemma e identificativo frase;
 - obbligatorietà di `TokenRange` o `start_char`/`end_char`;
 - errore quando `FORM` non coincide con la sottostringa indicata dagli offset.
+- ricerca lemma delle forme flesse con restituzione di superficie, offset e KWIC;
+- disponibilità falsa quando tutti i valori della colonna `LEMMA` sono `_`.
 
 ### Ciclo REST e rollback
 

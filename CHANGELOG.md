@@ -9,6 +9,14 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Full-text search now supports positional `LEMMA` fields sourced from persisted
+  CoNLL-U/annotated token lemmas while preserving surface-token offsets and
+  KWIC. Text catalogs, records, and folder members expose lemma counts and
+  coverage; mixed subsets are rejected by default or explicitly reported when
+  partial coverage is allowed. A side-effect-free validation endpoint uses the
+  same Lucene parser and limits, and index schema version 2 makes rebuild needs
+  explicit.
+
 - Hierarchical text folders now provide an independent RDF organization layer
   in `LexOTexts`, with arbitrary-depth trees, atomic folder and text moves,
   virtual unfiled listing, non-recursive safe deletion, stable REST errors, and
@@ -236,6 +244,10 @@ starts from the ongoing `Unreleased` work.
 - SKOS API documentation now treats authorization parameters as optional.
 
 ### Fixed
+
+- Case-insensitive `BOOLEAN` full-text queries now preserve Lucene `AND`, `OR`,
+  and `NOT` operators while normalizing only searchable terms and multi-term
+  expansions.
 
 - Container configuration overrides are now applied to the effective runtime
   properties, so Compose connects LexO to the internal `graphdb` service and
