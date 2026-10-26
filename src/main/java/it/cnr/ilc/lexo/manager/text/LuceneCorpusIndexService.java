@@ -14,10 +14,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
+import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
@@ -154,13 +154,17 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
         document.add(new StoredField(SENTENCE_COUNT, source.sentences.size()));
         document.add(new StoredField(SNAPSHOT, JSON.writeValueAsString(source)));
         document.add(new Field(CONTENT_SURFACE,
-                new CanonicalTokenStream(source.tokens, false), POSITIONAL_FIELD));
+                new NfcTokenFilter(new CanonicalTokenStream(source.tokens)),
+                POSITIONAL_FIELD));
         document.add(new Field(CONTENT_NORMALIZED,
-                new CanonicalTokenStream(source.tokens, true), POSITIONAL_FIELD));
+                new LowerCaseFilter(new NfcTokenFilter(
+                        new CanonicalTokenStream(source.tokens))), POSITIONAL_FIELD));
         document.add(new Field(LEMMA_SURFACE,
-                new LemmaTokenStream(source.tokens, false), POSITIONAL_FIELD));
+                new NfcTokenFilter(new LemmaTokenStream(source.tokens)),
+                POSITIONAL_FIELD));
         document.add(new Field(LEMMA_NORMALIZED,
-                new LemmaTokenStream(source.tokens, true), POSITIONAL_FIELD));
+                new LowerCaseFilter(new NfcTokenFilter(
+                        new LemmaTokenStream(source.tokens))), POSITIONAL_FIELD));
         writer.updateDocument(new Term(FILE_ID, source.fileId), document);
         commitAndRefresh();
     }
@@ -265,7 +269,7 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     }
 
     public String schemaVersion() {
-        return configured("lexo.lucene.indexSchemaVersion", "2");
+        return configured("lexo.lucene.indexSchemaVersion", "3");
     }
 
     /** Builds and validates a temporary index before swapping it into service. */
@@ -451,17 +455,14 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
 
     private static final class CanonicalTokenStream extends TokenStream {
         private final List<CorpusIndexDocument.TokenData> tokens;
-        private final boolean normalized;
         private final CharTermAttribute term = addAttribute(CharTermAttribute.class);
         private final OffsetAttribute offset = addAttribute(OffsetAttribute.class);
         private final PositionIncrementAttribute position =
                 addAttribute(PositionIncrementAttribute.class);
         private int cursor;
 
-        CanonicalTokenStream(List<CorpusIndexDocument.TokenData> tokens,
-                             boolean normalized) {
+        CanonicalTokenStream(List<CorpusIndexDocument.TokenData> tokens) {
             this.tokens = tokens;
-            this.normalized = normalized;
         }
 
         @Override
@@ -472,7 +473,7 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
             clearAttributes();
             CorpusIndexDocument.TokenData token = tokens.get(cursor++);
             String value = token.indexedTerm == null ? token.surface : token.indexedTerm;
-            term.append(normalized ? value.toLowerCase(Locale.ROOT) : value);
+            term.append(value);
             offset.setOffset(token.startUtf16, token.endUtf16);
             position.setPositionIncrement(1);
             return true;
@@ -487,7 +488,6 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
     /** Emits only usable lemmas while retaining their canonical token positions. */
     private static final class LemmaTokenStream extends TokenStream {
         private final List<CorpusIndexDocument.TokenData> tokens;
-        private final boolean normalized;
         private final CharTermAttribute term = addAttribute(CharTermAttribute.class);
         private final OffsetAttribute offset = addAttribute(OffsetAttribute.class);
         private final PositionIncrementAttribute position =
@@ -495,10 +495,8 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
         private int cursor;
         private int previousPosition = -1;
 
-        LemmaTokenStream(List<CorpusIndexDocument.TokenData> tokens,
-                         boolean normalized) {
+        LemmaTokenStream(List<CorpusIndexDocument.TokenData> tokens) {
             this.tokens = tokens;
-            this.normalized = normalized;
         }
 
         @Override
@@ -510,7 +508,7 @@ public final class LuceneCorpusIndexService implements CorpusIndexService {
                 }
                 clearAttributes();
                 String value = token.lemma.trim();
-                term.append(normalized ? value.toLowerCase(Locale.ROOT) : value);
+                term.append(value);
                 offset.setOffset(token.startUtf16, token.endUtf16);
                 position.setPositionIncrement(previousPosition < 0
                         ? token.position + 1 : token.position - previousPosition);

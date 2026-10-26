@@ -31,8 +31,10 @@ extension: it uses the standalone Apache Lucene filesystem index configured by
 populated from the same canonical segmentation as `nif:Word` and
 `nif:Sentence`, including positional `nif:lemma` fields where available, is not
 part of GraphDB bootstrap, and is checked or rebuilt through the `/texts/index`
-administration endpoints. Index schema version 2 adds lemma fields; deployments
-upgrading an existing index must run verify, rebuild, and deep verify.
+administration endpoints. Index schema version 2 added lemma fields. Version 3
+applies the same NFC normalization to all positional fields and uses Lucene
+`LowerCaseFilter` only for their case-insensitive variants; deployments
+upgrading any older index must run verify, rebuild, and deep verify.
 
 Schema resources are parsed with the absolute base IRI configured by
 `Bootstrap.schema.baseIri`. RDF4J 4 requires an absolute base; it is only used

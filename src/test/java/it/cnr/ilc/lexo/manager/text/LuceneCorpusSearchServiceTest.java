@@ -112,19 +112,114 @@ class LuceneCorpusSearchServiceTest {
     void extractsMultiTermAndBooleanOccurrencesFromLucenePositions() throws Exception {
         index.index(document("queries", "humanitas humane virtus virtue", "corpus-a"));
 
-        assertThat(search.fullText(request("hum", "PREFIX")).occurrences)
+        assertThat(search.fullText(request("HUM", "PREFIX")).occurrences)
                 .extracting(hit -> hit.match.text)
                 .containsExactly("humanitas", "humane");
-        assertThat(search.fullText(request("virt*", "WILDCARD")).occurrences)
+        assertThat(search.fullText(request("VIRT*", "WILDCARD")).occurrences)
                 .extracting(hit -> hit.match.text)
                 .containsExactly("virtus", "virtue");
-        assertThat(search.fullText(request("virtus", "FUZZY")).occurrences)
+        assertThat(search.fullText(request("VIRTUS", "FUZZY")).occurrences)
                 .extracting(hit -> hit.match.text)
                 .containsExactly("virtus", "virtue");
         index.index(document("only-humanitas", "humanitas sola", "corpus-a"));
         assertThat(search.fullText(request("humanitas AND virtus", "BOOLEAN"))
                 .occurrences).extracting(hit -> hit.match.text)
                 .containsExactly("humanitas", "virtus");
+    }
+
+    @Test
+    @DisplayName("Case-insensitive Lucene syntax preserves operators and normalizes only terms")
+    void preservesRawBooleanSyntaxAndNormalizesEveryMultiTermQuery() throws Exception {
+        CorpusIndexDocument main = document("syntax-main",
+                "Abraam giudeo. Melchisedech giudeo. rock and roll. Abramo Àbramo.",
+                "corpus-a");
+        CorpusIndexDocument orWord = document("syntax-or", "Or comune.", "corpus-a");
+        CorpusIndexDocument onlyAbraam = document("syntax-only",
+                "Abraam solitario.", "corpus-a");
+        CorpusIndexDocument lower = document("syntax-lower",
+                "abraam giudeo.", "corpus-a");
+        index.index(main);
+        index.index(orWord);
+        index.index(onlyAbraam);
+        index.index(lower);
+
+        FullTextSearchResult disjunction = search.fullText(request(
+                "Abraam OR inesistente", "BOOLEAN"));
+        assertThat(disjunction.occurrences).extracting(hit -> hit.match.text)
+                .containsExactlyInAnyOrder("Abraam", "Abraam", "abraam")
+                .doesNotContain("Or");
+
+        FullTextSearchResult conjunction = search.fullText(request(
+                "Abraam AND giudeo", "BOOLEAN"));
+        assertThat(conjunction.occurrences).extracting(hit -> hit.contextIRI)
+                .contains(main.contextIRI, lower.contextIRI)
+                .doesNotContain(onlyAbraam.contextIRI, orWord.contextIRI);
+
+        assertThat(search.fullText(request("\"rock and roll\"", "BOOLEAN"))
+                .occurrences).singleElement().satisfies(hit -> {
+            assertThat(hit.contextIRI).isEqualTo(main.contextIRI);
+            assertThat(hit.match.text).isEqualTo("rock and roll");
+        });
+
+        assertThat(search.fullText(request("Abraam NOT giudeo", "BOOLEAN"))
+                .occurrences).extracting(hit -> hit.contextIRI)
+                .containsOnly(onlyAbraam.contextIRI);
+        assertThat(search.fullText(request(
+                "(Abraam OR Melchisedech) AND giudeo", "BOOLEAN"))
+                .occurrences).extracting(hit -> hit.contextIRI)
+                .contains(main.contextIRI, lower.contextIRI)
+                .doesNotContain(onlyAbraam.contextIRI, orWord.contextIRI);
+
+        assertThat(search.fullText(request("Abr*", "BOOLEAN")).occurrences)
+                .extracting(hit -> hit.match.text)
+                .contains("Abraam", "Abramo", "abraam");
+        assertThat(search.fullText(request("Abr?am", "BOOLEAN")).occurrences)
+                .extracting(hit -> hit.match.text)
+                .containsExactlyInAnyOrder("Abraam", "Abraam", "abraam");
+        assertThat(search.fullText(request("Abram~1", "BOOLEAN")).occurrences)
+                .extracting(hit -> hit.match.text)
+                .contains("Abraam", "Abramo", "abraam");
+        assertThat(search.fullText(request("A\u0300BR*", "BOOLEAN")).occurrences)
+                .extracting(hit -> hit.match.text)
+                .containsExactly("Àbramo");
+
+        FullTextSearchRequest exactUpper = request("Abraam", "TERM");
+        exactUpper.caseSensitive = true;
+        assertThat(search.fullText(exactUpper).occurrences)
+                .extracting(hit -> hit.match.text)
+                .containsExactlyInAnyOrder("Abraam", "Abraam")
+                .doesNotContain("abraam");
+        exactUpper.query = "abraam";
+        assertThat(search.fullText(exactUpper).occurrences)
+                .extracting(hit -> hit.match.text)
+                .containsExactly("abraam");
+
+        FullTextSearchRequest exactWildcard = request("Abr*", "BOOLEAN");
+        exactWildcard.caseSensitive = true;
+        assertThat(search.fullText(exactWildcard).occurrences)
+                .extracting(hit -> hit.match.text)
+                .contains("Abraam", "Abramo")
+                .doesNotContain("abraam");
+
+        assertThat(search.fullText(request("or", "BOOLEAN")).occurrences)
+                .extracting(hit -> hit.match.text)
+                .containsExactly("Or");
+    }
+
+    @Test
+    @DisplayName("Malformed Boolean diagnostics retain the original expression")
+    void reportsMalformedOriginalQueryWithoutLowercasingIt() {
+        String raw = "Abraam AND (giudeo";
+        FullTextSearchRequest request = request(raw, "BOOLEAN");
+
+        FullTextQueryValidationResult validation = search.validateFullText(request);
+        assertThat(validation.valid).isFalse();
+        assertThat(validation.code).isEqualTo("MALFORMED_QUERY");
+        assertThat(validation.message).contains(raw);
+        assertThatThrownBy(() -> search.fullText(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("MALFORMED_QUERY:")
+                .hasMessageContaining(raw);
     }
 
     @Test
@@ -269,7 +364,7 @@ class LuceneCorpusSearchServiceTest {
         assertThat(index.get("one").contentHash).isEqualTo(first.contentHash);
         assertThat(index.get("one").segmentationHash)
                 .isEqualTo(first.segmentationHash);
-        assertThat(index.get("one").indexSchemaVersion).isEqualTo("2");
+        assertThat(index.get("one").indexSchemaVersion).isEqualTo("3");
         assertThat(search.fullText(request("uno", "TERM")).totalOccurrences)
                 .isEqualTo(before);
         FullTextSearchRequest lemma = lemmaRequest("uno", "TERM");

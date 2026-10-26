@@ -4,7 +4,7 @@ import io.swagger.annotations.ApiModelProperty;
 
 public class FullTextSearchRequest extends CorpusSelection {
     @ApiModelProperty(required = true,
-            value = "query text; BOOLEAN uses the Lucene query syntax",
+            value = "query text; BOOLEAN uses the original Lucene syntax with case-sensitive uppercase AND, OR and NOT operators",
             example = "\"mercato del lavoro\" OR lavor*")
     public String query;
     @ApiModelProperty(value = "query syntax",
@@ -17,6 +17,8 @@ public class FullTextSearchRequest extends CorpusSelection {
     @ApiModelProperty(value = "when LEMMA is selected, reject a corpus subset containing texts without usable lemmas instead of returning partial results",
             example = "true")
     public Boolean requireCompleteLemmaCoverage = Boolean.TRUE;
+    @ApiModelProperty(value = "selects the case-preserving fields when true; when false only query terms are normalized and Lucene operators remain case-sensitive",
+            example = "false")
     public boolean caseSensitive;
     public Integer leftContext;
     public Integer rightContext;

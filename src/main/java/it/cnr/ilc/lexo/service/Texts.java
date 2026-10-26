@@ -950,7 +950,7 @@ public class Texts extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Full-text occurrence search",
-            notes = "Searches TOKEN (default) or LEMMA fields in the standalone Lucene corpus index and returns surface-token occurrences with NIF code-point offsets, canonical token positions and KWIC. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD and FUZZY are supported within configured limits. LEMMA_SEARCH_UNAVAILABLE reports selections without lemmas; INCOMPLETE_LEMMA_COVERAGE prevents silent partial results unless requireCompleteLemmaCoverage is false",
+            notes = "Searches TOKEN (default) or LEMMA fields in the standalone Lucene corpus index and returns surface-token occurrences with NIF code-point offsets, canonical token positions and KWIC. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD and FUZZY are supported within configured limits. BOOLEAN receives the original expression unchanged: official Lucene operators AND, OR and NOT are uppercase and case-sensitive, while lowercase words remain searchable terms. caseSensitive=false normalizes only terms, including prefix, wildcard and fuzzy terms. LEMMA_SEARCH_UNAVAILABLE reports selections without lemmas; INCOMPLETE_LEMMA_COVERAGE prevents silent partial results unless requireCompleteLemmaCoverage is false",
             tags = {"Text Search"})
     @ApiResponses({
         @ApiResponse(code = 200, message = "Occurrence page; LEMMA searches include an explicit coverage report"),

@@ -14,8 +14,8 @@ starts from the ongoing `Unreleased` work.
   KWIC. Text catalogs, records, and folder members expose lemma counts and
   coverage; mixed subsets are rejected by default or explicitly reported when
   partial coverage is allowed. A side-effect-free validation endpoint uses the
-  same Lucene parser and limits, and index schema version 2 makes rebuild needs
-  explicit.
+  same Lucene parser and limits. The current index schema version 3 makes lemma
+  fields and analyzer-driven case normalization rebuild requirements explicit.
 
 - Hierarchical text folders now provide an independent RDF organization layer
   in `LexOTexts`, with arbitrary-depth trees, atomic folder and text moves,
@@ -245,9 +245,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Fixed
 
-- Case-insensitive `BOOLEAN` full-text queries now preserve Lucene `AND`, `OR`,
-  and `NOT` operators while normalizing only searchable terms and multi-term
-  expansions.
+- Case-insensitive full-text queries now pass the original Lucene expression to
+  the parser, preserving uppercase `AND`, `OR`, and `NOT`, quoted lowercase
+  words, parentheses, and escapes. NFC and case normalization are applied by
+  the field Analyzer, including prefix, wildcard, fuzzy, and regex terms;
+  case-sensitive searches use the corresponding case-preserving fields.
 
 - Container configuration overrides are now applied to the effective runtime
   properties, so Compose connects LexO to the internal `graphdb` service and

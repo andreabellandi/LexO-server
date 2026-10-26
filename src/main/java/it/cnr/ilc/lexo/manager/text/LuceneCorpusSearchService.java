@@ -68,7 +68,6 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.util.BytesRef;
 
 /** Occurrence-oriented corpus analytics backed exclusively by standalone Lucene. */
@@ -449,7 +448,8 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
 
     private PreparedQuery prepareQuery(FullTextSearchRequest request) {
         require(request != null, "MISSING_SEARCH_REQUEST", "request body is required");
-        String text = required(request.query, "MISSING_QUERY");
+        require(!blank(request.query), "MISSING_QUERY", "value is required");
+        String text = request.query;
         require(text.length() <= maxQueryLength, "QUERY_TOO_LONG",
                 "query exceeds " + maxQueryLength + " characters");
         String type = upper(request.queryType, "TERM");
@@ -568,74 +568,57 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         if ("PREFIX".equals(type)) {
             require(terms.size() == 1, "INVALID_PREFIX_QUERY",
                     "PREFIX requires exactly one token");
-            PrefixQuery query = new PrefixQuery(new Term(field, terms.get(0)));
+            PrefixQuery query = new PrefixQuery(new Term(field,
+                    normalizedMultiTerm(field, terms.get(0), caseSensitive)));
             query.setRewriteMethod(rewrite());
             return query;
         }
         if ("WILDCARD".equals(type)) {
             require(!text.startsWith("*") && !text.startsWith("?"),
                     "LEADING_WILDCARD_NOT_ALLOWED", "leading wildcard is not allowed");
-            WildcardQuery query = new WildcardQuery(new Term(field,
-                    caseSensitive ? text : text.toLowerCase(Locale.ROOT)));
-            query.setRewriteMethod(rewrite());
-            return query;
+            try (Analyzer analyzer = queryAnalyzer(caseSensitive)) {
+                CorpusQueryParser parser = queryParser(field, analyzer);
+                parser.setAllowLeadingWildcard(false);
+                parser.setMultiTermRewriteMethod(rewrite());
+                return parser.wildcard(text);
+            } catch (ParseException error) {
+                throw malformed(error);
+            }
         }
         if ("FUZZY".equals(type)) {
             require(terms.size() == 1, "INVALID_FUZZY_QUERY",
                     "FUZZY requires exactly one token");
-            FuzzyQuery query = new FuzzyQuery(new Term(field, terms.get(0)), 2);
+            FuzzyQuery query = new FuzzyQuery(new Term(field,
+                    normalizedMultiTerm(field, terms.get(0), caseSensitive)), 2);
             query.setRewriteMethod(rewrite());
             return query;
         }
         if ("BOOLEAN".equals(type)) {
             try (Analyzer analyzer = queryAnalyzer(caseSensitive)) {
-                QueryParser parser = queryParser(field, analyzer, caseSensitive);
+                QueryParser parser = queryParser(field, analyzer);
                 parser.setAllowLeadingWildcard(false);
                 parser.setMultiTermRewriteMethod(rewrite());
                 return parser.parse(text);
             } catch (ParseException error) {
-                throw new IllegalArgumentException("MALFORMED_QUERY: " + error.getMessage());
+                throw malformed(error);
             }
         }
         throw new IllegalArgumentException("INVALID_QUERY_TYPE: " + type);
     }
 
-    private QueryParser queryParser(String field, Analyzer analyzer,
-                                    final boolean caseSensitive) {
-        return new QueryParser(field, analyzer) {
-            @Override
-            protected Query getWildcardQuery(String selectedField, String term)
-                    throws ParseException {
-                return super.getWildcardQuery(selectedField,
-                        multiTerm(term, caseSensitive));
-            }
-
-            @Override
-            protected Query getPrefixQuery(String selectedField, String term)
-                    throws ParseException {
-                return super.getPrefixQuery(selectedField,
-                        multiTerm(term, caseSensitive));
-            }
-
-            @Override
-            protected Query getFuzzyQuery(String selectedField, String term,
-                                          float minimumSimilarity)
-                    throws ParseException {
-                return super.getFuzzyQuery(selectedField,
-                        multiTerm(term, caseSensitive), minimumSimilarity);
-            }
-
-            @Override
-            protected Query getRegexpQuery(String selectedField, String term)
-                    throws ParseException {
-                return super.getRegexpQuery(selectedField,
-                        multiTerm(term, caseSensitive));
-            }
-        };
+    private CorpusQueryParser queryParser(String field, Analyzer analyzer) {
+        return new CorpusQueryParser(field, analyzer);
     }
 
-    private static String multiTerm(String value, boolean caseSensitive) {
-        return caseSensitive ? value : value.toLowerCase(Locale.ROOT);
+    private static String normalizedMultiTerm(String field, String value,
+                                              boolean caseSensitive) {
+        try (Analyzer analyzer = queryAnalyzer(caseSensitive)) {
+            return analyzer.normalize(field, value).utf8ToString();
+        }
+    }
+
+    private static IllegalArgumentException malformed(ParseException error) {
+        return new IllegalArgumentException("MALFORMED_QUERY: " + error.getMessage());
     }
 
     private Query selected(Query content, CorpusSelection selection) {
@@ -863,8 +846,7 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
             CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
             stream.reset();
             while (stream.incrementToken()) {
-                String current = term.toString();
-                result.add(sensitive ? current : current.toLowerCase(Locale.ROOT));
+                result.add(term.toString());
             }
             stream.end();
         } catch (IOException impossible) {
@@ -887,11 +869,31 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
             @Override
             protected TokenStreamComponents createComponents(String fieldName) {
                 Tokenizer tokenizer = new StandardTokenizer();
-                TokenStream stream = sensitive ? tokenizer
-                        : new LowerCaseFilter(tokenizer);
+                TokenStream stream = new NfcTokenFilter(tokenizer);
+                if (!sensitive) {
+                    stream = new LowerCaseFilter(stream);
+                }
                 return new TokenStreamComponents(tokenizer, stream);
             }
+
+            @Override
+            protected TokenStream normalize(String fieldName, TokenStream input) {
+                TokenStream stream = new NfcTokenFilter(input);
+                return sensitive ? stream : new LowerCaseFilter(stream);
+            }
         };
+    }
+
+    /** Exposes Lucene's wildcard normalization without parsing extra syntax. */
+    private static final class CorpusQueryParser extends QueryParser {
+
+        CorpusQueryParser(String field, Analyzer analyzer) {
+            super(field, analyzer);
+        }
+
+        Query wildcard(String value) throws ParseException {
+            return getWildcardQuery(getField(), value);
+        }
     }
 
     private MultiTermQuery.RewriteMethod rewrite() {

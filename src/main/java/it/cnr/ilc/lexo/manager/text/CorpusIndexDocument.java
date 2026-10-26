@@ -41,7 +41,7 @@ public final class CorpusIndexDocument {
         result.segmentationHash = document.segmentationHash;
         result.segmentationSource = document.segmentationSource.name();
         result.language = document.metadata.get("language");
-        result.analyzerProfile = "SURFACE_LEMMA_AND_LOWERCASE";
+        result.analyzerProfile = "SURFACE_LEMMA_NFC_AND_LOWERCASE_FILTER";
         result.tokenizerProfile = document.tokenizerProfile;
         result.sentenceSplitterProfile = document.sentenceSplitterProfile;
         result.segmentationSchemaVersion = document.segmentationSchemaVersion;

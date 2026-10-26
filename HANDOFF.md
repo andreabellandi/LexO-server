@@ -1,14 +1,21 @@
 # LexO-server — handoff per attività Codex
 
-Aggiornato al 26 ottobre 2026 con la ricerca full-text per lemma e la
-validazione preventiva delle query. `POST /texts/search/fulltext` distingue ora
-`searchField=TOKEN` (default compatibile) da `LEMMA`; i lemma non vuoti e
-diversi da `_` sono indicizzati in campi Lucene surface/lowercase mantenendo
+Aggiornato al 26 ottobre 2026 con la ricerca full-text per lemma, la validazione
+preventiva e la correzione completa del case-insensitive Lucene.
+`POST /texts/search/fulltext` distingue `searchField=TOKEN` (default compatibile)
+da `LEMMA`; i lemma non vuoti e diversi da `_` sono indicizzati mantenendo
 posizione e offset del token originale, quindi le risposte lemma espongono forma
-flessa, offset NIF e KWIC canonici. TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD e
-FUZZY condividono gli stessi parser e limiti; la modalità BOOLEAN
-case-insensitive conserva correttamente `AND`, `OR` e `NOT` e normalizza solo i
-termini.
+flessa, offset NIF e KWIC canonici. I quattro campi TOKEN/LEMMA applicano NFC;
+le varianti surface preservano il case e le varianti normalized usano il
+`LowerCaseFilter` di Lucene.
+
+TERM, PHRASE, BOOLEAN, PREFIX, WILDCARD e FUZZY condividono gli stessi parser e
+limiti. La query BOOLEAN grezza è passata al parser senza lowercase o regex
+globali: `AND`, `OR` e `NOT` restano operatori ufficiali maiuscoli, mentre
+`and`, `or` e `not` minuscoli sono termini ordinari. Prefix, wildcard, fuzzy e
+regex usano `Analyzer.normalize`; frasi, parentesi, escape e diagnostici
+mantengono la query originale. `caseSensitive=true` seleziona realmente i campi
+case-preserving.
 
 La copertura lemma è calcolata dai `nif:Word`/`nif:lemma`, non dalla presenza di
 un file CoNLL-U, ed è esposta come `lemmaSearchAvailable`, `lemmaTokenCount` e
@@ -22,7 +29,7 @@ context ricercati/esclusi, perciò il risultato parziale non è silenzioso.
 Il nuovo `POST /texts/search/fulltext/validate` usa lo stesso codice di parsing
 senza eseguire la query e restituisce `valid`, query normalizzata oppure codice,
 messaggio e posizione parser disponibile. Lo schema dell'indice è passato a
-`2`; ogni snapshot registra la versione e `verify` segnala
+`3`; ogni snapshot registra la versione e `verify` segnala
 `indexSchemaMismatch`. Una lemma search su un vecchio documento non restituisce
 un falso zero ma `LEMMA_INDEX_OUTDATED`. Reindex e rebuild recuperano i lemma
 dal NIF persistito e ricreano i quattro campi posizionali.
@@ -34,15 +41,16 @@ bloccante: il frontend può continuare a risolvere la cartella in `contextIRIs`.
 Prima del deploy su un indice esistente eseguire `POST /texts/index/verify`,
 `POST /texts/index/rebuild` e `POST /texts/index/verify?deep=true`.
 
-La suite mirata ha superato 20 test. `mvn -o test` e `mvn -o verify` hanno
-superato 283 test unitari/repository senza failure, errori o skip e prodotto
-`target/LexO-server.war`; i 16 end-to-end sono compilati ma skipped perché non
-era configurato un deployment Tomcat/GraphDB con filesystem e indice dedicati.
-Restano i warning ambientali noti sui metadata Maven e su `MMapDirectory` con il
-JDK moderno. Non è stato eseguito alcun deploy; le modifiche sono raccolte in un
-commit dedicato su `master`. Il prossimo passo raccomandato è ridistribuire il
-WAR in un ambiente isolato, ricostruire l'indice e lanciare i workflow E2E,
-incluso UC-03 CoNLL-U ora esteso alla ricerca lemma.
+La suite Lucene mirata ha superato 10 test. `mvn -o test` e `mvn -o verify`
+hanno superato 285 test unitari/repository senza failure, errori o skip e
+prodotto `target/LexO-server.war`; i 16 end-to-end sono compilati ma skipped
+perché non era configurato un deployment Tomcat/GraphDB con filesystem e indice
+dedicati. Restano i warning ambientali noti sui metadata Maven e su
+`MMapDirectory` con il JDK moderno; gli stack trace dei percorsi d'errore sono
+attesi dai relativi test. Non è stato eseguito alcun deploy; le modifiche
+case-insensitive sono raccolte in un commit dedicato su `master`. Il prossimo
+passo raccomandato è ridistribuire il WAR in un ambiente isolato,
+ricostruire l'indice schema 3 e lanciare i workflow E2E, incluso UC-03 CoNLL-U.
 
 Aggiornato al 23 ottobre 2026 con l'organizzazione gerarchica opzionale dei
 testi. Il branch `master` espone ora dieci operazioni sotto `/text-folders` per

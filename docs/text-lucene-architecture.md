@@ -84,11 +84,12 @@ e JSON annotato, che non passano da `StandardTokenizer`. I campi
 `content_surface` e `content_normalized` contengono tutti i token; i campi
 `lemma_surface` e `lemma_normalized` contengono soltanto lemmi non vuoti e
 diversi da `_`, conservando la posizione e gli offset del token di superficie.
-I campi normalizzati applicano soltanto lowercase. Tutti e quattro conservano
-positions, offsets e term vector. Un lemma mancante crea quindi un gap
-posizionale e non può produrre artificialmente una phrase contigua. La stoplist
-è un filtro dei risultati di collocazione e non cambia mai indice, `tokenCount`,
-posizioni o offset.
+Tutti i campi applicano NFC; i campi `surface` preservano il case, mentre i
+campi `normalized` applicano il `LowerCaseFilter` di Lucene. Tutti e quattro
+conservano positions, offsets e term vector. Un lemma mancante crea quindi un
+gap posizionale e non può produrre artificialmente una phrase contigua. La
+stoplist è un filtro dei risultati di collocazione e non cambia mai indice,
+`tokenCount`, posizioni o offset.
 
 ## Documento e ciclo di vita Lucene
 
@@ -135,9 +136,15 @@ calcolati dai `nif:Word` e non dalla presenza del file CoNLL-U.
 e gli stessi limiti senza acquisire un searcher né eseguire la query. Restituisce
 sempre un risultato strutturato con `valid`; gli errori includono codice stabile,
 messaggio e la colonna one-based quando Lucene la rende disponibile. La modalità
-`BOOLEAN` conserva gli operatori `AND`, `OR` e `NOT`; il lowercase
-case-insensitive viene applicato ai termini e alle espansioni, non all'intera
-sintassi.
+`BOOLEAN` passa al parser l'espressione originale senza lowercase o sostituzioni
+globali. Gli operatori Lucene ufficiali `AND`, `OR` e `NOT` restano maiuscoli e
+case-sensitive; `and`, `or` e `not` minuscoli sono normali termini, anche dentro
+le frasi. In modalità case-insensitive l'Analyzer applica NFC e
+`LowerCaseFilter` soltanto ai termini. Prefix, wildcard, fuzzy e regex usano
+`Analyzer.normalize`, preservando metacaratteri, escape e struttura della query.
+La modalità case-sensitive seleziona invece i campi `surface` e non applica il
+lowercase. Lo schema indice `3` rende questa coppia analyzer-driven obbligatoria:
+gli indici di versione precedente devono essere ricostruiti.
 
 `POST /texts/search/kwic/resize` è stateless: verifica entrambi gli hash,
 localizza la precedente occurrence tramite token o offset e ricalcola solo il
