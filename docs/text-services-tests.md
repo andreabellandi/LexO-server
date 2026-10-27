@@ -16,7 +16,7 @@ un LexO-server realmente avviato con GraphDB Free e una directory Lucene dedicat
 | `NifModelWriterTest` | Unitario RDF | Mapping dcterms, provenienza e fingerprint della segmentazione, formato sorgente JSON, letterali/IRI, liste miste, corpus senza testo, appartenenza e offset Unicode |
 | `ConlluSegmenterTest` | Unitario | Segmentazione CoNLL-U autorevole, multiword/empty node, `SpaceAfter=No`, offset obbligatori e corrispondenza tra FORM e testo canonico |
 | `TextJsonImportParserTest` | Unitario | Schema JSON chiuso, metadati testuali, contenuto canonicalizzato, segmentazione esplicita, attestazioni e tipi JSON obbligatori |
-| `LuceneCorpusSearchServiceTest` | Unitario Lucene | Indicizzazione persistente TOKEN/LEMMA, TERM/PHRASE/BOOLEAN, operatori Lucene case-sensitive, frasi con parole `and/or/not`, prefix/wildcard/fuzzy normalizzati dall'Analyzer, case sensitivity, filtri, copertura lemma esplicita, validazione senza esecuzione, occurrence/KWIC, co-occorrenze, overlap, rebuild verificato e conservazione dei fingerprint |
+| `LuceneCorpusSearchServiceTest` | Unitario Lucene | Indicizzazione persistente TOKEN/LEMMA, TERM/PHRASE/BOOLEAN, operatori Lucene case-sensitive, frasi con parole `and/or/not`, prefix/wildcard/fuzzy normalizzati dall'Analyzer, case sensitivity, filtri, copertura lemma esplicita, validazione senza esecuzione, occurrence/KWIC, co-occorrenze ed estrazione collocati per TOKEN/LEMMA/POS, annotazioni restituite, overlap, rebuild verificato e conservazione dei fingerprint |
 | `CollocationStatisticsServiceTest` | Unitario | Frequenze, PMI/PMI2/PMI3/NPMI, Dice/logDice, t/z-score, log-likelihood, chi-quadro e association-rule metrics con valori indefiniti espliciti |
 | `NifCanonicalSegmentationReaderTest` | Unitario repository | Reindex esatto da `nif:Word`/`nif:Sentence` persistiti, inclusi documenti CoNLL-U e JSON annotati |
 | `CorpusPersistenceCoordinatorTest` | Unitario | Simulazione di errori RDF e Lucene su import/delete, ordine delle operazioni e ripristino dello snapshot precedente |
@@ -99,6 +99,14 @@ e assenza di documenti letti o scritti. Le query BOOLEAN sono passate grezze al
 parser: `AND`, `OR` e `NOT` sono operatori soltanto in maiuscolo; i termini e le
 multi-term query sono normalizzati dall'Analyzer, non con trasformazioni globali.
 Lo schema indice `3` richiede rebuild degli indici precedenti.
+
+Co-occorrenze ed estrazione collocati accettano `nodeField` e
+`collocateField` con valori `TOKEN`, `LEMMA` o `POS`; l'omissione conserva il
+default `TOKEN`. I test verificano combinazioni eterogenee (nodo per lemma e
+collocato per POS), confronto case-insensitive, forme superficiali e annotazioni
+restituite, raggruppamento/frequenze sull'attributo scelto e codice stabile
+`INVALID_NODE_FIELD` per attributi non supportati. Lemma o POS assenti non sono
+sostituiti con la superficie e quindi non producono corrispondenze spurie.
 
 Il bulk usa un solo campo `language` per tutti i file e accetta parti `file` con
 estensione `.txt`, `.md`, `.markdown` o `.json`, anche miste. Per un batch di soli

@@ -6,6 +6,8 @@ import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CooccurrenceResult {
+    public String nodeField;
+    public String collocateField;
     public long totalPairs;
     public String nextCursor;
     public List<Pair> occurrences = new ArrayList<Pair>();
@@ -20,8 +22,11 @@ public class CooccurrenceResult {
         public String direction;
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class PositionedTerm {
         public String text;
+        public String lemma;
+        public String pos;
         public int tokenPosition;
         public int sentenceIndex;
         public int beginIndex;

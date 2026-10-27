@@ -1,5 +1,34 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 27 ottobre 2026 con il supporto `TOKEN`/`LEMMA`/`POS` nei servizi
+di co-occorrenza ed estrazione collocati. Sul branch `master`, allineato a
+`origin/master` prima delle modifiche, `POST /texts/search/cooccurrences` e
+`POST /texts/collocations/extract` accettano ora `nodeField` e
+`collocateField` indipendenti; entrambi mantengono `TOKEN` come default
+retrocompatibile. Il primo endpoint può quindi cercare, per esempio, un nodo
+per lemma e un collocato per POS, e restituisce per ogni posizione la forma
+superficiale più lemma/POS disponibili. Il secondo seleziona il nodo e
+raggruppa/calcola frequenze e metriche sull'attributo scelto; ogni gruppo espone
+anche le varianti ordinate di superficie, lemma e POS e valorizza i campi
+singolari soltanto quando non sono ambigui. I token privi dell'annotazione
+selezionata non generano corrispondenze o gruppi artificiali.
+
+L'implementazione riusa i campi lemma e la token map canonica già presenti
+nello snapshot Lucene; perciò non modifica lo schema indice 3 e non richiede un
+nuovo rebuild oltre a quello già necessario per indici anteriori. I field non
+ammessi producono codici macchina `INVALID_NODE_FIELD` o
+`INVALID_COLLOCATE_FIELD`. Swagger, architettura, procedura test e
+`CHANGELOG.md` sono aggiornati; `README.md` è rimasto invariato. Tre nuovi test
+coprono combinazione lemma→POS, estrazione e metriche raggruppate per POS,
+annotazioni restituite e validazione. I test mirati
+`LuceneCorpusSearchServiceTest,TextsTest` hanno superato 15 casi; `mvn -o test`
+ha superato tutti i 288 test unitari/repository senza failure, errori o skip.
+Gli stack trace dei percorsi d'errore simulati e il warning `MMapDirectory` del
+JDK moderno restano attesi. Non sono stati eseguiti deploy o end-to-end; il
+prossimo passo raccomandato è provare entrambi i payload su un corpus CoNLL-U o
+JSON annotato in un deployment isolato e verificare anche le combinazioni con
+annotazioni parziali.
+
 Aggiornato al 26 ottobre 2026 con la ricerca full-text per lemma, la validazione
 preventiva e la correzione completa del case-insensitive Lucene.
 `POST /texts/search/fulltext` distingue `searchField=TOKEN` (default compatibile)

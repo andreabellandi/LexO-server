@@ -9,6 +9,11 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- Co-occurrence search and collocate extraction now select node and collocate
+  attributes independently as surface `TOKEN`, `LEMMA`, or `POS`, while
+  preserving `TOKEN` defaults. Positional results expose available lemma/POS,
+  and extracted groups report their observed surface, lemma, and POS variants.
+
 - Full-text search now supports positional `LEMMA` fields sourced from persisted
   CoNLL-U/annotated token lemmas while preserving surface-token offsets and
   KWIC. Text catalogs, records, and folder members expose lemma counts and

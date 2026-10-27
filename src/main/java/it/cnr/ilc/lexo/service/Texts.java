@@ -1035,14 +1035,14 @@ public class Texts extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Token co-occurrence search",
-            notes = "Returns positional node/collocate pairs. leftWindow=5 means positions p-5 through p-1; rightWindow=5 means p+1 through p+5. DOCUMENT and SENTENCE boundaries and LEFT, RIGHT or BOTH directions are supported",
+            notes = "Returns positional node/collocate pairs selected independently by TOKEN surface form, LEMMA or POS. Occurrences expose the surface text plus available lemma and POS. leftWindow=5 means positions p-5 through p-1; rightWindow=5 means p+1 through p+5. DOCUMENT and SENTENCE boundaries and LEFT, RIGHT or BOTH directions are supported",
             tags = {"Text Search"})
     public Response cooccurrences(
             @ApiParam(name = "Authorization", value = "optional authorization header",
                     required = false)
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "request",
-                    value = "node, collocate, asymmetric positional window, boundary, direction and corpus subset",
+                    value = "node and collocate values and fields, asymmetric positional window, boundary, direction and corpus subset",
                     required = true)
             CooccurrenceRequest request) {
         try {
@@ -1089,14 +1089,14 @@ public class Texts extends Service {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Collocate extraction and statistics",
-            notes = "Extracts all collocates of a node from canonical positions and computes raw/relative frequency, PMI family, Dice/logDice, minimum sensitivity, t/z scores, log-likelihood, chi-square, support, confidence, lift and conviction. Contingency metrics explicitly use PAIR_SPACE",
+            notes = "Extracts collocates from canonical positions with independent TOKEN surface form, LEMMA or POS attributes for the node and collocate grouping, and computes raw/relative frequency, PMI family, Dice/logDice, minimum sensitivity, t/z scores, log-likelihood, chi-square, support, confidence, lift and conviction. Contingency metrics explicitly use PAIR_SPACE",
             tags = {"Text Search"})
     public Response extractCollocates(
             @ApiParam(name = "Authorization", value = "optional authorization header",
                     required = false)
             @HeaderParam("Authorization") String key,
             @ApiParam(name = "request",
-                    value = "node, asymmetric window, boundary, direction, metrics, stoplist, filters, sort and limit",
+                    value = "node value and field, collocate grouping field, asymmetric window, boundary, direction, metrics, stoplist, filters, sort and limit",
                     required = true)
             CollocateExtractionRequest request) {
         try {

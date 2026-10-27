@@ -154,11 +154,16 @@ e destra indipendenti.
 `POST /texts/search/cooccurrences` considera tutte le coppie ordinate. Per un
 node in posizione `p`, `leftWindow=5` significa `p-5..p-1` e
 `rightWindow=5` significa `p+1..p+5`; `p` non conta. Non vengono deduplicate
-occorrenze sovrapposte o ripetute. Le candidate positions e le frequenze sono
-lette dai term vector Lucene, senza rileggere i testi da RDF. La risposta espone
-distanza signed/absolute, gap e direzione. `boundary=DOCUMENT` può attraversare
-sentence; `SENTENCE` richiede lo stesso canonical sentence. `direction` accetta
-`LEFT`, `RIGHT` o `BOTH`.
+occorrenze sovrapposte o ripetute. `nodeField` e `collocateField` selezionano
+indipendentemente `TOKEN` (default retrocompatibile), `LEMMA` o `POS`; il
+confronto segue `caseSensitive`. Le candidate positions TOKEN/LEMMA sono lette
+dai term vector Lucene, mentre POS usa la token map canonica conservata nello
+snapshot Lucene, senza rileggere i testi da RDF. I token privi del lemma o POS
+richiesto non corrispondono. La risposta dichiara entrambi i field e per ogni
+termine posizionato conserva sempre `text` superficiale, aggiungendo `lemma` e
+`pos` quando disponibili, oltre a distanza signed/absolute, gap e direzione.
+`boundary=DOCUMENT` può attraversare sentence; `SENTENCE` richiede lo stesso
+canonical sentence. `direction` accetta `LEFT`, `RIGHT` o `BOTH`.
 
 ## Frequenze, collocati e metriche
 
@@ -166,7 +171,15 @@ sentence; `SENTENCE` richiede lo stesso canonical sentence. `direction` accetta
 frequency, totale token, frequenza relativa e per milione. L'estrazione
 collocati supporta subset, case, finestre asimmetriche, boundary, direction,
 `excludeTerms`/`stoplist`, frequenze minime, score minimo, ordinamento e limite.
-I tie sono deterministici: score, frequenza, termine.
+Anche qui `nodeField` e `collocateField` accettano indipendentemente `TOKEN`,
+`LEMMA` o `POS`: il primo controlla la selezione del nodo, il secondo la chiave
+con cui i collocati sono raggruppati e su cui vengono calcolati `fy`, `fxy` e le
+metriche. I token senza l'attributo scelto sono ignorati per quella selezione o
+quel gruppo. Ogni riga restituisce inoltre gli insiemi ordinati
+`surfaceForms`, `lemmas` e `partsOfSpeech` osservati per il gruppo; i campi
+singolari `surface`, `lemma` e `pos` sono valorizzati soltanto quando il valore
+è univoco. `excludeTerms` e `stoplist` si applicano al `collocateField`. I tie
+sono deterministici: score, frequenza, termine.
 
 `CollocationStatisticsService` espone:
 

@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.cnr.ilc.lexo.manager.text.model.ParsedTextDocument;
+import it.cnr.ilc.lexo.service.data.text.input.CollocateExtractionRequest;
 import it.cnr.ilc.lexo.service.data.text.input.CooccurrenceRequest;
 import it.cnr.ilc.lexo.service.data.text.input.FrequencyRequest;
 import it.cnr.ilc.lexo.service.data.text.input.FullTextSearchRequest;
 import it.cnr.ilc.lexo.service.data.text.input.KwicResizeRequest;
+import it.cnr.ilc.lexo.service.data.text.output.CollocateExtractionResult;
 import it.cnr.ilc.lexo.service.data.text.output.CooccurrenceResult;
 import it.cnr.ilc.lexo.service.data.text.output.FullTextSearchResult;
 import it.cnr.ilc.lexo.service.data.text.output.FullTextQueryValidationResult;
@@ -105,6 +107,88 @@ class LuceneCorpusSearchServiceTest {
         assertThat(right.totalPairs).isEqualTo(3L);
         assertThat(right.occurrences)
                 .allMatch(pair -> "RIGHT".equals(pair.direction));
+    }
+
+    @Test
+    @DisplayName("Co-occurrence matches lemma and POS while returning surface annotations")
+    void matchesCooccurrencesByLemmaAndPartOfSpeech() throws Exception {
+        index.index(annotatedDocument("annotated-pairs",
+                "Corro velocemente e corre piano.", "corpus-a",
+                new String[]{"correre", "velocemente", "e", "correre", "piano"},
+                new String[]{"VERB", "ADV", "CCONJ", "VERB", "ADV"}));
+
+        CooccurrenceRequest request = new CooccurrenceRequest();
+        request.node = "correre";
+        request.nodeField = "LEMMA";
+        request.collocate = "adv";
+        request.collocateField = "POS";
+        request.leftWindow = Integer.valueOf(1);
+        request.rightWindow = Integer.valueOf(1);
+
+        CooccurrenceResult result = search.cooccurrences(request);
+
+        assertThat(result.nodeField).isEqualTo("LEMMA");
+        assertThat(result.collocateField).isEqualTo("POS");
+        assertThat(result.totalPairs).isEqualTo(2L);
+        assertThat(result.occurrences).extracting(pair -> pair.node.text)
+                .containsExactly("Corro", "corre");
+        assertThat(result.occurrences).extracting(pair -> pair.node.lemma)
+                .containsOnly("correre");
+        assertThat(result.occurrences).extracting(pair -> pair.node.pos)
+                .containsOnly("VERB");
+        assertThat(result.occurrences).extracting(pair -> pair.collocate.text)
+                .containsExactly("velocemente", "piano");
+        assertThat(result.occurrences).extracting(pair -> pair.collocate.pos)
+                .containsOnly("ADV");
+    }
+
+    @Test
+    @DisplayName("Collocate extraction groups and scores the selected lemma or POS attribute")
+    void extractsCollocatesBySelectedTokenAttribute() throws Exception {
+        index.index(annotatedDocument("annotated-collocates",
+                "Corro velocemente e corre piano.", "corpus-a",
+                new String[]{"correre", "velocemente", "e", "correre", "piano"},
+                new String[]{"VERB", "ADV", "CCONJ", "VERB", "ADV"}));
+
+        CollocateExtractionRequest request = new CollocateExtractionRequest();
+        request.node = "CORRERE";
+        request.nodeField = "LEMMA";
+        request.collocateField = "POS";
+        request.leftWindow = Integer.valueOf(1);
+        request.rightWindow = Integer.valueOf(1);
+        request.minCooccurrenceFrequency = Integer.valueOf(1);
+
+        CollocateExtractionResult result = search.extract(request);
+
+        assertThat(result.nodeField).isEqualTo("LEMMA");
+        assertThat(result.collocateField).isEqualTo("POS");
+        assertThat(result.nodeFrequency).isEqualTo(2L);
+        assertThat(result.collocates).filteredOn(value -> "ADV".equals(value.term))
+                .singleElement().satisfies(value -> {
+                    assertThat(value.fy).isEqualTo(2L);
+                    assertThat(value.fxy).isEqualTo(2L);
+                    assertThat(value.pos).isEqualTo("ADV");
+                    assertThat(value.surface).isNull();
+                    assertThat(value.lemma).isNull();
+                    assertThat(value.surfaceForms)
+                            .containsExactly("piano", "velocemente");
+                    assertThat(value.lemmas)
+                            .containsExactly("piano", "velocemente");
+                    assertThat(value.partsOfSpeech).containsExactly("ADV");
+                });
+    }
+
+    @Test
+    @DisplayName("Corpus analytics reject unsupported node and collocate attributes")
+    void rejectsUnsupportedCooccurrenceFields() {
+        CooccurrenceRequest request = new CooccurrenceRequest();
+        request.node = "casa";
+        request.collocate = "bella";
+        request.nodeField = "MORPHOLOGY";
+
+        assertThatThrownBy(() -> search.cooccurrences(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("INVALID_NODE_FIELD:");
     }
 
     @Test
@@ -407,6 +491,27 @@ class LuceneCorpusSearchServiceTest {
         assertThat(parsed.tokens).hasSize(lemmas.length);
         for (int index = 0; index < lemmas.length; index++) {
             parsed.tokens.get(index).lemma = lemmas[index];
+        }
+        SegmentationFingerprint.complete(parsed);
+        parsed.metadata.put("language", "it");
+        return CorpusIndexDocument.from(id,
+                "https://example.org/texts/" + id + "#context",
+                "https://example.org/corpora/" + corpus,
+                "https://example.org/graphs/" + id, parsed);
+    }
+
+    private static CorpusIndexDocument annotatedDocument(String id, String content,
+                                                          String corpus,
+                                                          String[] lemmas,
+                                                          String[] partsOfSpeech)
+            throws Exception {
+        ParsedTextDocument parsed = new ControlledCommonMarkParser()
+                .parsePlainText(content);
+        assertThat(parsed.tokens).hasSize(lemmas.length)
+                .hasSize(partsOfSpeech.length);
+        for (int index = 0; index < lemmas.length; index++) {
+            parsed.tokens.get(index).lemma = lemmas[index];
+            parsed.tokens.get(index).upos = partsOfSpeech[index];
         }
         SegmentationFingerprint.complete(parsed);
         parsed.metadata.put("language", "it");

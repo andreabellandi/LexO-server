@@ -23,6 +23,7 @@ import it.cnr.ilc.lexo.service.data.text.output.TextOccurrence;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -223,6 +224,8 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         require(request != null, "MISSING_COOCCURRENCE_REQUEST", "request body is required");
         String node = required(request.node, "MISSING_NODE");
         String collocate = required(request.collocate, "MISSING_COLLOCATE");
+        String nodeField = termField(request.nodeField, "nodeField");
+        String collocateField = termField(request.collocateField, "collocateField");
         int left = bounded(request.leftWindow, 5, maxWindow, "leftWindow");
         int right = bounded(request.rightWindow, 5, maxWindow, "rightWindow");
         int pageSize = boundedPositive(request.pageSize, defaultPageSize,
@@ -230,30 +233,43 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         int cursor = cursor(request.cursor);
         String boundary = boundary(request.boundary);
         String direction = direction(request.direction);
-        String field = request.caseSensitive
-                ? LuceneCorpusIndexService.CONTENT_SURFACE
-                : LuceneCorpusIndexService.CONTENT_NORMALIZED;
-        String nodeTerm = singleTerm(node, request.caseSensitive, "node");
-        String collocateTerm = singleTerm(collocate, request.caseSensitive,
-                "collocate");
+        String nodeIndexField = indexField(nodeField, request.caseSensitive);
+        String collocateIndexField = indexField(collocateField,
+                request.caseSensitive);
+        String nodeTerm = requestedTerm(node, nodeField, request.caseSensitive,
+                "node");
+        String collocateTerm = requestedTerm(collocate, collocateField,
+                request.caseSensitive, "collocate");
         List<Pair> pairs = new ArrayList<Pair>();
         BooleanQuery.Builder requiredTerms = new BooleanQuery.Builder();
-        requiredTerms.add(new TermQuery(new Term(field, nodeTerm)),
-                BooleanClause.Occur.MUST);
-        if (!nodeTerm.equals(collocateTerm)) {
-            requiredTerms.add(new TermQuery(new Term(field, collocateTerm)),
+        boolean hasIndexedTerm = false;
+        if (nodeIndexField != null) {
+            requiredTerms.add(new TermQuery(new Term(nodeIndexField, nodeTerm)),
                     BooleanClause.Occur.MUST);
+            hasIndexedTerm = true;
         }
+        if (collocateIndexField != null
+                && (!collocateIndexField.equals(nodeIndexField)
+                    || !collocateTerm.equals(nodeTerm))) {
+            requiredTerms.add(new TermQuery(new Term(collocateIndexField,
+                    collocateTerm)), BooleanClause.Occur.MUST);
+            hasIndexedTerm = true;
+        }
+        Query contentQuery = hasIndexedTerm ? requiredTerms.build()
+                : new MatchAllDocsQuery();
         IndexSearcher searcher = index.acquire();
         try {
-            TopDocs hits = searcher.search(selected(requiredTerms.build(), request),
+            TopDocs hits = searcher.search(selected(contentQuery, request),
                     Math.max(1, searcher.getIndexReader().numDocs()));
             for (ScoreDoc hit : hits.scoreDocs) {
                 CorpusIndexDocument document = snapshot(searcher.doc(hit.doc));
-                List<Integer> nodes = positions(searcher.getIndexReader(), hit.doc,
-                        field, nodeTerm);
-                List<Integer> collocates = positions(searcher.getIndexReader(), hit.doc,
-                        field, collocateTerm);
+                List<Integer> nodes = matchingPositions(searcher.getIndexReader(),
+                        hit.doc, document, nodeField, nodeIndexField, nodeTerm,
+                        request.caseSensitive);
+                List<Integer> collocates = matchingPositions(
+                        searcher.getIndexReader(), hit.doc, document,
+                        collocateField, collocateIndexField, collocateTerm,
+                        request.caseSensitive);
                 for (Integer nodePosition : nodes) {
                     CorpusIndexDocument.TokenData head =
                             document.tokens.get(nodePosition.intValue());
@@ -278,6 +294,8 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
             index.release(searcher);
         }
         CooccurrenceResult result = new CooccurrenceResult();
+        result.nodeField = nodeField;
+        result.collocateField = collocateField;
         result.totalPairs = pairs.size();
         if (request.includeOccurrences) {
             int end = Math.min(pairs.size(), cursor + pageSize);
@@ -329,6 +347,9 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
             throws IOException {
         require(request != null, "MISSING_COLLOCATION_REQUEST", "request body is required");
         String node = required(request.node, "MISSING_NODE");
+        String nodeField = termField(request.nodeField, "nodeField");
+        String collocateField = termField(request.collocateField,
+                "collocateField");
         int left = bounded(request.leftWindow, 5, maxWindow, "leftWindow");
         int right = bounded(request.rightWindow, 5, maxWindow, "rightWindow");
         int minimum = boundedPositive(request.minCooccurrenceFrequency, 2,
@@ -347,23 +368,31 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         Map<String, CandidateCounts> candidates = new LinkedHashMap<String, CandidateCounts>();
         CollocateExtractionResult result = new CollocateExtractionResult();
         result.node = node;
+        result.nodeField = nodeField;
+        result.collocateField = collocateField;
         String sortMetric = sortableMetric(request.sortBy);
         Set<String> nodeDocuments = new HashSet<String>();
         for (CorpusIndexDocument document : documents) {
             result.totalTokens += document.tokens.size();
             Set<String> documentTerms = new HashSet<String>();
             for (CorpusIndexDocument.TokenData token : document.tokens) {
-                String canonical = canonical(token.surface, request.caseSensitive);
+                String value = termValue(token, collocateField);
+                if (value == null) {
+                    continue;
+                }
+                String canonical = canonical(value, request.caseSensitive);
                 documentTerms.add(canonical);
                 CandidateCounts count = candidates.computeIfAbsent(canonical,
-                        key -> new CandidateCounts(token.surface));
+                        key -> new CandidateCounts(value));
+                count.observe(token);
                 count.fy++;
             }
             for (String term : documentTerms) {
                 candidates.get(term).documentsY.add(document.fileId);
             }
             for (CorpusIndexDocument.TokenData head : document.tokens) {
-                if (!termEquals(head.surface, node, request.caseSensitive)) {
+                if (!termEquals(termValue(head, nodeField), node,
+                        request.caseSensitive)) {
                     continue;
                 }
                 result.nodeFrequency++;
@@ -381,9 +410,14 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
                                 && token.sentenceIndex != head.sentenceIndex)) {
                         continue;
                     }
-                    String canonical = canonical(token.surface, request.caseSensitive);
+                    String value = termValue(token, collocateField);
+                    if (value == null) {
+                        continue;
+                    }
+                    String canonical = canonical(value, request.caseSensitive);
                     CandidateCounts count = candidates.computeIfAbsent(canonical,
-                            key -> new CandidateCounts(token.surface));
+                            key -> new CandidateCounts(value));
+                    count.observe(token);
                     count.fxy++;
                     count.documentsXY.add(document.fileId);
                 }
@@ -399,14 +433,21 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
             }
             Collocate output = new Collocate();
             output.term = candidate.term;
+            output.surfaceForms.addAll(sorted(candidate.surfaceForms));
+            output.lemmas.addAll(sorted(candidate.lemmas));
+            output.partsOfSpeech.addAll(sorted(candidate.partsOfSpeech));
+            output.surface = single(output.surfaceForms);
+            output.lemma = single(output.lemmas);
+            output.pos = single(output.partsOfSpeech);
             output.fx = result.nodeFrequency;
             output.fy = candidate.fy;
             output.fxy = candidate.fxy;
             output.documentFrequencyX = nodeDocuments.size();
             output.documentFrequencyY = candidate.documentsY.size();
             output.documentsWithCooccurrence = candidate.documentsXY.size();
-            Counts counts = pairCounts(documents, node, candidate.term, left, right,
-                    direction, boundary, request.caseSensitive);
+            Counts counts = pairCounts(documents, node, nodeField, candidate.term,
+                    collocateField, left, right, direction, boundary,
+                    request.caseSensitive);
             counts.n = result.totalTokens;
             counts.fx = output.fx;
             counts.fy = output.fy;
@@ -546,6 +587,25 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         }
         for (int index = 0; index < postings.freq(); index++) {
             result.add(Integer.valueOf(postings.nextPosition()));
+        }
+        return result;
+    }
+
+    private static List<Integer> matchingPositions(IndexReader reader, int documentId,
+                                                   CorpusIndexDocument document,
+                                                   String termField,
+                                                   String indexField,
+                                                   String term,
+                                                   boolean sensitive)
+            throws IOException {
+        if (indexField != null) {
+            return positions(reader, documentId, indexField, term);
+        }
+        List<Integer> result = new ArrayList<Integer>();
+        for (CorpusIndexDocument.TokenData token : document.tokens) {
+            if (termEquals(termValue(token, termField), term, sensitive)) {
+                result.add(Integer.valueOf(token.position));
+            }
         }
         return result;
     }
@@ -754,9 +814,10 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         return result;
     }
 
-    private Counts pairCounts(List<CorpusIndexDocument> documents, String x, String y,
-                              int left, int right, String direction, String boundary,
-                              boolean sensitive) {
+    private Counts pairCounts(List<CorpusIndexDocument> documents, String x,
+                              String xField, String y, String yField,
+                              int left, int right, String direction,
+                              String boundary, boolean sensitive) {
         Counts result = new Counts();
         for (CorpusIndexDocument document : documents) {
             for (CorpusIndexDocument.TokenData head : document.tokens) {
@@ -774,8 +835,9 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
                         continue;
                     }
                     result.pairN++;
-                    boolean isX = termEquals(head.surface, x, sensitive);
-                    boolean isY = termEquals(candidate.surface, y, sensitive);
+                    boolean isX = termEquals(termValue(head, xField), x, sensitive);
+                    boolean isY = termEquals(termValue(candidate, yField), y,
+                            sensitive);
                     if (isX) {
                         result.pairFx++;
                     }
@@ -832,6 +894,8 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
     private static PositionedTerm positioned(CorpusIndexDocument.TokenData token) {
         PositionedTerm result = new PositionedTerm();
         result.text = token.surface;
+        result.lemma = usable(token.lemma);
+        result.pos = usable(token.pos);
         result.tokenPosition = token.position;
         result.sentenceIndex = token.sentenceIndex;
         result.beginIndex = token.beginIndex;
@@ -1003,12 +1067,70 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         return result;
     }
 
+    private static String termField(String value, String name) {
+        String result = upper(value, "TOKEN");
+        require("TOKEN".equals(result) || "LEMMA".equals(result)
+                || "POS".equals(result), "INVALID_"
+                        + name.replaceAll("([a-z])([A-Z])", "$1_$2")
+                                .toUpperCase(Locale.ROOT),
+                name + " must be TOKEN, LEMMA or POS");
+        return result;
+    }
+
+    private static String indexField(String termField, boolean sensitive) {
+        if ("TOKEN".equals(termField)) {
+            return sensitive ? LuceneCorpusIndexService.CONTENT_SURFACE
+                    : LuceneCorpusIndexService.CONTENT_NORMALIZED;
+        }
+        if ("LEMMA".equals(termField)) {
+            return sensitive ? LuceneCorpusIndexService.LEMMA_SURFACE
+                    : LuceneCorpusIndexService.LEMMA_NORMALIZED;
+        }
+        return null;
+    }
+
+    private static String requestedTerm(String value, String termField,
+                                        boolean sensitive, String name) {
+        if ("POS".equals(termField)) {
+            return canonical(required(value, "MISSING_"
+                    + name.toUpperCase(Locale.ROOT)), sensitive);
+        }
+        return singleTerm(value, sensitive, name);
+    }
+
+    private static String termValue(CorpusIndexDocument.TokenData token,
+                                    String termField) {
+        if ("LEMMA".equals(termField)) {
+            return LemmaStatistics.usable(token.lemma) ? token.lemma.trim() : null;
+        }
+        if ("POS".equals(termField)) {
+            return usable(token.pos);
+        }
+        return token.surface;
+    }
+
+    private static String usable(String value) {
+        return blank(value) || "_".equals(value.trim()) ? null : value.trim();
+    }
+
     private static boolean termEquals(String actual, String expected, boolean sensitive) {
-        return sensitive ? actual.equals(expected) : actual.equalsIgnoreCase(expected);
+        return actual != null && expected != null
+                && canonical(actual, sensitive).equals(canonical(expected, sensitive));
     }
 
     private static String canonical(String value, boolean sensitive) {
-        return sensitive ? value : value.toLowerCase(Locale.ROOT);
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFC);
+        return sensitive ? normalized : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private static List<String> sorted(Set<String> values) {
+        List<String> result = new ArrayList<String>(values);
+        Collections.sort(result);
+        return result;
+    }
+
+    private static String single(List<String> values) {
+        return values.size() == 1 ? values.get(0) : null;
     }
 
     private static int tokenAt(CorpusIndexDocument document, int codePoint, boolean begin) {
@@ -1121,9 +1243,24 @@ public final class LuceneCorpusSearchService implements CorpusSearchService {
         long fxy;
         final Set<String> documentsY = new HashSet<String>();
         final Set<String> documentsXY = new HashSet<String>();
+        final Set<String> surfaceForms = new LinkedHashSet<String>();
+        final Set<String> lemmas = new LinkedHashSet<String>();
+        final Set<String> partsOfSpeech = new LinkedHashSet<String>();
 
         CandidateCounts(String term) {
             this.term = term;
+        }
+
+        void observe(CorpusIndexDocument.TokenData token) {
+            surfaceForms.add(token.surface);
+            String lemma = usable(token.lemma);
+            if (lemma != null) {
+                lemmas.add(lemma);
+            }
+            String pos = usable(token.pos);
+            if (pos != null) {
+                partsOfSpeech.add(pos);
+            }
         }
     }
 }
