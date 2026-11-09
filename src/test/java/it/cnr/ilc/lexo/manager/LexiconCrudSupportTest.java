@@ -72,10 +72,13 @@ class LexiconCrudSupportTest {
                 .containsEntry("synsem", "http://www.w3.org/ns/lemon/synsem#")
                 .containsEntry("lexinfo", "http://www.lexinfo.net/ontology/3.0/lexinfo#")
                 .containsEntry("lime", "http://www.w3.org/ns/lemon/lime#")
-                .containsEntry("lexicog", "http://www.w3.org/ns/lemon/lexicog#");
+                .containsEntry("lexicog", "http://www.w3.org/ns/lemon/lexicog#")
+                .containsEntry("wn", "https://globalwordnet.github.io/schemas/wn#");
         assertThat(LexiconCrudSupport.expandLexicalIri("ontolex:LexicalEntry"))
                 .isEqualTo("http://www.w3.org/ns/lemon/ontolex#LexicalEntry");
         assertThat(LexiconCrudSupport.expandLexicalIri("lexinfo:noun"))
                 .isEqualTo("http://www.lexinfo.net/ontology/3.0/lexinfo#noun");
+        assertThat(LexiconCrudSupport.expandLexicalIri("wn:noun"))
+                .isEqualTo("https://globalwordnet.github.io/schemas/wn#noun");
     }
 }

@@ -22,7 +22,8 @@ public final class MetadataPolicy {
                     "http://www.w3.org/ns/lemon/vartrans#",
                     "http://www.w3.org/ns/lemon/synsem#",
                     "http://www.w3.org/2004/02/skos/core#",
-                    "http://www.w3.org/ns/lemon/decomp#"));
+                    "http://www.w3.org/ns/lemon/decomp#",
+                    "https://globalwordnet.github.io/schemas/wn#"));
 
     private static final Set<String> EXACT_PROTECTED_PROPERTIES =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
@@ -30,7 +31,9 @@ public final class MetadataPolicy {
                     RDF.VALUE.stringValue(),
                     DCTERMS.CREATOR.stringValue(),
                     DCTERMS.CREATED.stringValue(),
-                    DCTERMS.MODIFIED.stringValue())));
+                    DCTERMS.MODIFIED.stringValue(),
+                    "https://lexo.ilc.cnr.it#status",
+                    "https://lexo.ilc.cnr.it#statusChangedBy")));
 
     private MetadataPolicy() {
     }

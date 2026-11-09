@@ -18,7 +18,8 @@ class MetadataPolicyTest {
                 "http://www.w3.org/ns/lemon/vartrans#",
                 "http://www.w3.org/ns/lemon/synsem#",
                 "http://www.w3.org/2004/02/skos/core#",
-                "http://www.w3.org/ns/lemon/decomp#")) {
+                "http://www.w3.org/ns/lemon/decomp#",
+                "https://globalwordnet.github.io/schemas/wn#")) {
             assertThat(MetadataPolicy.isProtected(namespace + "anyProperty"))
                     .as(namespace)
                     .isTrue();
@@ -32,6 +33,10 @@ class MetadataPolicyTest {
         assertThat(MetadataPolicy.isProtected(DCTERMS.MODIFIED.stringValue())).isTrue();
         assertThat(MetadataPolicy.isProtected(RDF.TYPE.stringValue())).isTrue();
         assertThat(MetadataPolicy.isProtected(RDF.VALUE.stringValue())).isTrue();
+        assertThat(MetadataPolicy.isProtected(
+                "https://lexo.ilc.cnr.it#status")).isTrue();
+        assertThat(MetadataPolicy.isProtected(
+                "https://lexo.ilc.cnr.it#statusChangedBy")).isTrue();
         assertThat(MetadataPolicy.isProtected(DCTERMS.TITLE.stringValue())).isFalse();
         assertThat(MetadataPolicy.isProtected(
                 "http://www.w3.org/2000/01/rdf-schema#label")).isFalse();

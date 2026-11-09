@@ -142,6 +142,7 @@ public final class LexiconCrudSupport {
         prefixes.put("lime", "http://www.w3.org/ns/lemon/lime#");
         prefixes.put("lexicog", "http://www.w3.org/ns/lemon/lexicog#");
         prefixes.put("skos", "http://www.w3.org/2004/02/skos/core#");
+        prefixes.put("wn", "https://globalwordnet.github.io/schemas/wn#");
         return Collections.unmodifiableMap(prefixes);
     }
 

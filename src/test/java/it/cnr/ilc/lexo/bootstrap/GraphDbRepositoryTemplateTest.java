@@ -22,12 +22,14 @@ class GraphDbRepositoryTemplateTest {
     private static final String GRAPHDB = "http://www.ontotext.com/config/graphdb#";
 
     @Test
-    @DisplayName("Both repository templates use the GraphDB 10 configuration vocabulary")
+    @DisplayName("All repository templates use the GraphDB 10 configuration vocabulary")
     void templatesAreValidForGraphDb10() throws Exception {
         Map<String, String> templates = new LinkedHashMap<String, String>();
         templates.put("bootstrap/repositories/lexicon-repository.ttl",
                 "owl-horst-optimized");
         templates.put("bootstrap/repositories/text-repository.ttl", "empty");
+        templates.put("bootstrap/repositories/wordnet-repository.ttl",
+                "owl-horst-optimized");
 
         for (Map.Entry<String, String> template : templates.entrySet()) {
             String configured = BootstrapResources.readUtf8(template.getKey())

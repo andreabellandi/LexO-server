@@ -1,0 +1,11 @@
+{
+  "namedGraph": "https://lexo.ilc.cnr.it/graphs/wordnet/schema",
+  "files": [
+    "bootstrap/schema/lime.rdf",
+    "bootstrap/schema/ontolex.rdf",
+    "bootstrap/schema/skos.rdf",
+    "bootstrap/schema/synsem.rdf",
+    "bootstrap/schema/vartrans.rdf",
+    "bootstrap/schema/wn-lemon-1.4.rdf"
+  ]
+}

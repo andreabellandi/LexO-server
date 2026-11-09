@@ -13,13 +13,13 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The repository identifiers are runtime contracts, not build-profile
  * choices: every normal build ships deterministic local defaults and lets the
- * startup bootstrap create the two repositories when necessary. Deployments
+ * startup bootstrap create the three repositories when necessary. Deployments
  * may override connection values without Maven profiles.</p>
  */
 class GraphDbRuntimeConfigurationTest {
 
     @Test
-    @DisplayName("Packaged defaults use local GraphDB with LexOLexica and LexOTexts")
+    @DisplayName("Packaged defaults use local GraphDB with three isolated repositories")
     void usesFixedLocalRepositories() throws Exception {
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader()
@@ -52,12 +52,27 @@ class GraphDbRuntimeConfigurationTest {
         assertThat(properties.getProperty("TextGraphDb.organizationSchemaNamedGraph"))
                 .isNotEqualTo(properties.getProperty(
                         "TextGraphDb.organizationNamedGraph"));
+        assertThat(properties.getProperty("WordnetGraphDb.url"))
+                .isEqualTo("http://localhost:7200");
+        assertThat(properties.getProperty("WordnetGraphDb.repository"))
+                .isEqualTo("LexOWordnets");
+        assertThat(properties.getProperty("WordnetGraphDb.size")).isEqualTo("5");
+        assertThat(properties.getProperty("WordnetGraphDb.namedGraphBase"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/wordnet/");
+        assertThat(properties.getProperty("WordnetGraphDb.schemaNamedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/wordnet/schema");
+        assertThat(properties.getProperty("Bootstrap.wordnet.metadata.namedGraph"))
+                .isEqualTo("https://lexo.ilc.cnr.it/graphs/wordnet/bootstrap");
+        assertThat(properties.getProperty("Bootstrap.wordnet.schema.manifest"))
+                .isEqualTo("bootstrap/schema/wordnet-schema-imports.json");
         assertThat(properties.getProperty("lexo.text.organization.namespace"))
                 .isEqualTo("https://lexo.ilc.cnr.it/vocabulary/text-organization#");
         assertThat(properties.getProperty("lexo.text.organization.folderBaseUri"))
                 .isEqualTo("https://lexo.ilc.cnr.it/resources/text-folders/");
         assertThat(properties.getProperty("Bootstrap.textOrganization.resource"))
                 .isEqualTo("bootstrap/text-organization/textOrganization.rdf");
+        assertThat(properties.getProperty("Bootstrap.wordnet.repositoryConfig"))
+                .isEqualTo("bootstrap/repositories/wordnet-repository.ttl");
         assertThat(properties.getProperty("Bootstrap.enabled")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.required")).isEqualTo("true");
         assertThat(properties.getProperty("Bootstrap.startup.maxAttempts"))

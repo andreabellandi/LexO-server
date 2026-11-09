@@ -19,8 +19,8 @@ class HealthTest {
     }
 
     @Test
-    void readinessRequiresBootstrapAndBothRepositories() {
-        Health health = new Health(target -> target == RepositoryTarget.LEXICON,
+    void readinessRequiresBootstrapAndAllThreeRepositories() {
+        Health health = new Health(target -> target != RepositoryTarget.WORDNET,
                 () -> true);
 
         Response response = health.ready();
@@ -29,7 +29,8 @@ class HealthTest {
         assertThat(response.getEntity().toString())
                 .contains("\"status\":\"DOWN\"")
                 .contains("\"lexiconRepository\":true")
-                .contains("\"textRepository\":false");
+                .contains("\"textRepository\":true")
+                .contains("\"wordnetRepository\":false");
     }
 
     @Test
@@ -39,6 +40,8 @@ class HealthTest {
         Response response = health.ready();
 
         assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getEntity().toString()).contains("\"status\":\"UP\"");
+        assertThat(response.getEntity().toString())
+                .contains("\"status\":\"UP\"")
+                .contains("\"wordnetRepository\":true");
     }
 }

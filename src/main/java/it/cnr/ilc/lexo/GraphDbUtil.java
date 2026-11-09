@@ -103,12 +103,9 @@ public final class GraphDbUtil {
 
     /** Lightweight readiness probe that does not borrow from the application pool. */
     public static boolean isAvailable(RepositoryTarget target) {
-        String lexicalUrl = property("GraphDb.url", "http://localhost:7200");
-        String url = target == RepositoryTarget.TEXT
-                ? property("TextGraphDb.url", lexicalUrl) : lexicalUrl;
-        String repositoryId = target == RepositoryTarget.TEXT
-                ? property("TextGraphDb.repository", "LexOTexts")
-                : property("GraphDb.repository", "LexOLexica");
+        RepositorySettings settings = settings(target);
+        String url = settings.url;
+        String repositoryId = settings.repositoryId;
         RemoteRepositoryManager manager = null;
         try {
             manager = new RemoteRepositoryManager(url);
@@ -153,15 +150,10 @@ public final class GraphDbUtil {
     }
 
     private static RepositoryContext createContext(RepositoryTarget target) {
-        String lexicalUrl = property("GraphDb.url", "http://localhost:7200");
-        String url = target == RepositoryTarget.TEXT
-                ? property("TextGraphDb.url", lexicalUrl) : lexicalUrl;
-        String repositoryId = target == RepositoryTarget.TEXT
-                ? property("TextGraphDb.repository", "LexOTexts")
-                : property("GraphDb.repository", "LexOLexica");
-        String poolSetting = target == RepositoryTarget.TEXT
-                ? property("TextGraphDb.size", property("GraphDb.size", "5"))
-                : property("GraphDb.size", "5");
+        RepositorySettings settings = settings(target);
+        String url = settings.url;
+        String repositoryId = settings.repositoryId;
+        String poolSetting = settings.poolSize;
         try {
             int poolSize = Integer.parseInt(poolSetting);
             if (poolSize < 1) {
@@ -195,6 +187,31 @@ public final class GraphDbUtil {
         String value = LexOProperties.getProperty(key);
         return value == null || value.trim().isEmpty() || value.contains("${")
                 ? fallback : value.trim();
+    }
+
+    private static RepositorySettings settings(RepositoryTarget target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Repository target is required");
+        }
+        String lexicalUrl = property("GraphDb.url", "http://localhost:7200");
+        switch (target) {
+            case LEXICON:
+                return new RepositorySettings(lexicalUrl,
+                        property("GraphDb.repository", "LexOLexica"),
+                        property("GraphDb.size", "5"));
+            case TEXT:
+                return new RepositorySettings(
+                        property("TextGraphDb.url", lexicalUrl),
+                        property("TextGraphDb.repository", "LexOTexts"),
+                        property("TextGraphDb.size", property("GraphDb.size", "5")));
+            case WORDNET:
+                return new RepositorySettings(
+                        property("WordnetGraphDb.url", lexicalUrl),
+                        property("WordnetGraphDb.repository", "LexOWordnets"),
+                        property("WordnetGraphDb.size", "5"));
+            default:
+                throw new IllegalArgumentException("Unsupported repository target: " + target);
+        }
     }
 
     private static boolean testRdfServer(String url) {
@@ -241,6 +258,18 @@ public final class GraphDbUtil {
             this.repositoryId = repositoryId;
             this.manager = manager;
             this.repository = repository;
+        }
+    }
+
+    private static final class RepositorySettings {
+        final String url;
+        final String repositoryId;
+        final String poolSize;
+
+        RepositorySettings(String url, String repositoryId, String poolSize) {
+            this.url = url;
+            this.repositoryId = repositoryId;
+            this.poolSize = poolSize;
         }
     }
 }

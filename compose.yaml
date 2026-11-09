@@ -30,6 +30,7 @@ services:
     environment:
       LEXO_GRAPH_DB_URL: http://graphdb:7200
       LEXO_TEXT_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_WORDNET_GRAPH_DB_URL: http://graphdb:7200
       LEXO_TEXT_STORAGE_DIR: /var/lib/lexo/texts
       LEXO_LEGACY_STORAGE_DIR: /var/lib/lexo/legacy
       LEXO_BOOTSTRAP_STARTUP_MAX_ATTEMPTS: "60"

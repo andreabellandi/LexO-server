@@ -54,7 +54,7 @@ public final class Health {
     @Path("ready")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Application readiness",
-            notes = "Returns success only after bootstrap and both GraphDB repositories are available")
+            notes = "Returns success only after bootstrap and all three GraphDB repositories are available")
     public Response ready() {
         boolean bootstrapEnabled = Boolean.parseBoolean(
                 LexOProperties.getProperty("Bootstrap.enabled", "true"));
@@ -63,8 +63,9 @@ public final class Health {
         status.bootstrap = !bootstrapEnabled || bootstrapProbe.getAsBoolean();
         status.lexiconRepository = repositoryProbe.isAvailable(RepositoryTarget.LEXICON);
         status.textRepository = repositoryProbe.isAvailable(RepositoryTarget.TEXT);
+        status.wordnetRepository = repositoryProbe.isAvailable(RepositoryTarget.WORDNET);
         boolean ready = status.bootstrap && status.lexiconRepository
-                && status.textRepository;
+                && status.textRepository && status.wordnetRepository;
         status.status = ready ? "UP" : "DOWN";
         return response(ready ? Response.Status.OK
                 : Response.Status.SERVICE_UNAVAILABLE, status);
@@ -88,5 +89,6 @@ public final class Health {
         public boolean bootstrap;
         public boolean lexiconRepository;
         public boolean textRepository;
+        public boolean wordnetRepository;
     }
 }

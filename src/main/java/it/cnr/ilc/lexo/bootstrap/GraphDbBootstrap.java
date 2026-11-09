@@ -44,6 +44,12 @@ public final class GraphDbBootstrap {
     private static final ValueFactory VF = SimpleValueFactory.getInstance();
     private static final String DEFAULT_METADATA_GRAPH = "https://lexo.ilc.cnr.it/graphs/bootstrap";
     private static final String LEGACY_SCHEMA_GRAPH = "https://lexo.ilc.cnr.it/graphs/schema";
+    private static final String WORDNET_NAMESPACE =
+            "https://globalwordnet.github.io/schemas/wn#";
+    private static final String WORDNET_PROFILE =
+            "https://lexo.ilc.cnr.it/profiles/wordnet/1.4";
+    private static final String WORDNET_TURTLE_SHA256 =
+            "deecbb23eb84ff9f9a3d40adb6077810f2a0bd6ab9ccedd7d0b3b26af3f422bb";
     private static volatile boolean initialized;
 
     private GraphDbBootstrap() {
@@ -97,8 +103,32 @@ public final class GraphDbBootstrap {
         String lexiconUrl = LexOProperties.getProperty(
                 "GraphDb.url", "http://localhost:7200");
         String textUrl = LexOProperties.getProperty("TextGraphDb.url", lexiconUrl);
+        String wordnetUrl = LexOProperties.getProperty("WordnetGraphDb.url", lexiconUrl);
         String lexiconRepository = requiredProperty("GraphDb.repository");
         String textRepository = requiredProperty("TextGraphDb.repository");
+        String wordnetRepository = requiredProperty("WordnetGraphDb.repository");
+
+        // Complete the isolated WordNet bootstrap first. A WordNet-specific
+        // repository, checksum, RDF or schema failure must not mutate the
+        // lexical and text repositories during this startup attempt.
+        ensureRepository(wordnetUrl, wordnetRepository,
+                LexOProperties.getProperty("Bootstrap.wordnet.label", "LexO WordNets"),
+                LexOProperties.getProperty("repository.lexicon.namespace", "http://lexica/mylexicon#"),
+                LexOProperties.getProperty("Bootstrap.wordnet.repositoryConfig",
+                        "bootstrap/repositories/wordnet-repository.ttl"));
+
+        RemoteRepositoryManager wordnetManager = openManager(wordnetUrl);
+        try {
+            Repository repository = wordnetManager.getRepository(wordnetRepository);
+            if (repository == null) {
+                throw new IllegalStateException(
+                        "GraphDB repository unavailable after creation: "
+                        + wordnetRepository);
+            }
+            importWordnetSchema(repository);
+        } finally {
+            wordnetManager.shutDown();
+        }
 
         ensureRepository(lexiconUrl, lexiconRepository,
                 LexOProperties.getProperty("Bootstrap.lexicon.label", "LexO lexicon"),
@@ -135,6 +165,7 @@ public final class GraphDbBootstrap {
         } finally {
             textManager.shutDown();
         }
+
     }
 
     public static void rebuildIndexes() {
@@ -235,6 +266,151 @@ public final class GraphDbBootstrap {
                 connection.rollback();
                 throw new IllegalStateException("Unable to import schema resources", ex);
             }
+        }
+    }
+
+    static void importWordnetSchema(Repository repository) {
+        String manifestResource = LexOProperties.getProperty(
+                "Bootstrap.wordnet.schema.manifest",
+                "bootstrap/schema/wordnet-schema-imports.json");
+        JsonNode manifest = parseJson(manifestResource);
+        String namedGraph = LexOProperties.getProperty(
+                "WordnetGraphDb.schemaNamedGraph");
+        if (namedGraph == null || namedGraph.trim().isEmpty()
+                || namedGraph.contains("${")) {
+            namedGraph = manifest.path("namedGraph").asText();
+        } else {
+            namedGraph = namedGraph.trim();
+        }
+        if (namedGraph.isEmpty()) {
+            throw new IllegalStateException("Missing namedGraph in "
+                    + manifestResource);
+        }
+        String applicationBase = requiredProperty("WordnetGraphDb.namedGraphBase");
+        if (!applicationBase.endsWith("/")) {
+            applicationBase = applicationBase + "/";
+        }
+        String metadataGraphValue = requiredProperty(
+                "Bootstrap.wordnet.metadata.namedGraph");
+        if (namedGraph.equals(metadataGraphValue)
+                || isWordnetApplicationGraph(namedGraph, applicationBase)
+                || isWordnetApplicationGraph(metadataGraphValue,
+                        applicationBase)) {
+            throw new IllegalStateException(
+                    "WordNet schema, bootstrap and application graphs must be distinct");
+        }
+        List<String> resources = stringArray(manifest.path("files"),
+                manifestResource, "files");
+        if (!resources.contains("bootstrap/schema/wn-lemon-1.4.rdf")) {
+            throw new IllegalStateException(
+                    "WordNet schema manifest must contain wn-lemon-1.4.rdf");
+        }
+        verifyPinnedWordnetSource();
+        String checksum = checksum(resources);
+        IRI graph = VF.createIRI(namedGraph);
+        IRI metadataGraph = VF.createIRI(metadataGraphValue);
+        IRI marker = VF.createIRI(metadataGraph.stringValue()
+                + "/wordnet-schema");
+        IRI profile = VF.createIRI(WORDNET_PROFILE);
+        IRI version = VF.createIRI(
+                "https://lexo.ilc.cnr.it/vocabulary/wordnet/profileVersion");
+
+        try (RepositoryConnection connection = repository.getConnection()) {
+            boolean unchanged = checksum.equals(readChecksum(connection, marker,
+                    metadataGraph))
+                    && connection.hasStatement(null, null, null, false, graph)
+                    && connection.hasStatement(profile, version,
+                            VF.createLiteral("1.4"), false, graph);
+            if (!unchanged) {
+                connection.begin();
+                try {
+                    connection.clear(graph);
+                    for (String resource : resources) {
+                        byte[] bytes = BootstrapResources.readBytes(resource);
+                        try (InputStream input = new ByteArrayInputStream(bytes)) {
+                            connection.add(input, schemaBaseIri(resource),
+                                    RDFFormat.RDFXML, graph);
+                        }
+                    }
+                    addWordnetProfileProvenance(connection, graph, profile, version);
+                    validateWordnetSchema(connection, graph, profile, version);
+                    writeChecksum(connection, marker, checksum, metadataGraph);
+                    connection.commit();
+                    LOGGER.info("Imported {} WordNet schema resources into {}",
+                            Integer.valueOf(resources.size()), namedGraph);
+                } catch (RuntimeException | IOException ex) {
+                    connection.rollback();
+                    throw new IllegalStateException(
+                            "Unable to import WordNet schema resources", ex);
+                }
+            } else {
+                validateWordnetSchema(connection, graph, profile, version);
+                LOGGER.info("WordNet schema resources unchanged; import skipped");
+            }
+        }
+    }
+
+    private static void verifyPinnedWordnetSource() {
+        List<String> source = new ArrayList<String>();
+        source.add("bootstrap/schema/wn-lemon-1.4.ttl");
+        String actual = bytesChecksum(BootstrapResources.readBytes(source.get(0)));
+        if (!WORDNET_TURTLE_SHA256.equals(actual)) {
+            throw new IllegalStateException("Pinned WordNet ontology SHA-256 mismatch: "
+                    + actual);
+        }
+    }
+
+    private static boolean isWordnetApplicationGraph(String value,
+            String applicationBase) {
+        if (!value.startsWith(applicationBase)) {
+            return false;
+        }
+        String tail = value.substring(applicationBase.length());
+        int slash = tail.indexOf('/');
+        return slash > 0 && slash == tail.lastIndexOf('/')
+                && slash < tail.length() - 1;
+    }
+
+    private static void addWordnetProfileProvenance(RepositoryConnection connection,
+            IRI graph, IRI profile, IRI version) {
+        String vocabulary = "https://lexo.ilc.cnr.it/vocabulary/wordnet/";
+        connection.add(profile, RDF.TYPE, VF.createIRI(vocabulary + "ApiProfile"), graph);
+        connection.add(profile, version, VF.createLiteral("1.4"), graph);
+        connection.add(profile, VF.createIRI(vocabulary + "namespace"),
+                VF.createIRI(WORDNET_NAMESPACE), graph);
+        connection.add(profile, VF.createIRI(vocabulary + "turtleSource"),
+                VF.createLiteral("wn-lemon-1.4.ttl"), graph);
+        connection.add(profile, VF.createIRI(vocabulary + "turtleSha256"),
+                VF.createLiteral(WORDNET_TURTLE_SHA256), graph);
+        connection.add(profile, VF.createIRI(vocabulary + "runtimeArtifact"),
+                VF.createLiteral("wn-lemon-1.4.rdf"), graph);
+    }
+
+    private static void validateWordnetSchema(RepositoryConnection connection,
+            IRI graph, IRI profile, IRI version) {
+        if (!connection.hasStatement(profile, version, VF.createLiteral("1.4"),
+                false, graph)
+                || !connection.hasStatement(null, RDF.TYPE,
+                        VF.createIRI(WORDNET_NAMESPACE + "PartOfSpeech"), false, graph)
+                || !connection.hasStatement(null, RDF.TYPE,
+                        VF.createIRI(WORDNET_NAMESPACE + "SynsetRelType"), false, graph)
+                || !connection.hasStatement(null, RDF.TYPE,
+                        VF.createIRI(WORDNET_NAMESPACE + "SenseRelType"), false, graph)) {
+            throw new IllegalStateException(
+                    "WordNet schema is missing profile, PoS or relation categories");
+        }
+    }
+
+    private static String bytesChecksum(byte[] bytes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            StringBuilder hex = new StringBuilder();
+            for (byte value : digest.digest(bytes)) {
+                hex.append(String.format("%02x", value & 0xff));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is not available", ex);
         }
     }
 
