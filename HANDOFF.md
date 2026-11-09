@@ -2,8 +2,19 @@
 
 Aggiornato al 9 novembre 2026 con l'implementazione completa della nuova API
 WordNet. Il lavoro è sul branch `master`, che è stato aggiornato e verificato
-allineato a `origin/master` prima delle modifiche; non sono stati creati commit,
-push o deploy. `README.md` è rimasto invariato.
+allineato a `origin/master` prima delle modifiche. I nuovi E2E WordNet e la loro
+procedura sono nel commit `922e325` (`Add remote WordNet end-to-end coverage`).
+`README.md` è rimasto invariato e non è stato eseguito alcun deploy permanente.
+
+La verifica remota WordNet non è più un'attività pendente. È stata aggiunta la
+suite opt-in `WordnetServicesIT`, eseguita contro un Tomcat e tre repository
+GraphDB temporanei dedicati. I due scenari controllano la provenance dello
+schema e il lifecycle REST completo di root, Entry, Form, Synset, Sense,
+Relation e workflow; interrogano inoltre direttamente `LexOWordnets` per
+verificare named graph applicativo, schema invariato, default graph vuoto e
+rollback delle mutazioni rifiutate. La procedura e le proprietà Maven sono
+documentate in `docs/wordnet-services.md`; il cleanup REST e RDF viene sempre
+eseguito in `finally`.
 
 È stato aggiunto il terzo target `RepositoryTarget.WORDNET`, instradato da
 `GraphDbUtil` esclusivamente al repository configurabile `LexOWordnets` tramite
@@ -78,20 +89,17 @@ Verifica eseguita:
 - test mirati di health e routing WordNet: 5 test superati;
 - `mvn -o test`: 310 test unitari/repository superati, nessun failure, errore o
   skip;
-- `mvn -o verify`: 310 test superati, build e WAR riusciti; i 16 end-to-end testuali preesistenti
-  sono stati rilevati ma skipped perché non era configurato un deployment
-  Tomcat/GraphDB isolato;
+- E2E WordNet mirati: 2 test superati contro GraphDB remoto dedicato;
+- `mvn -o verify`: 310 test unitari/repository e 18 end-to-end superati,
+  nessun failure, errore o skip; build e WAR riusciti;
 - checksum del Turtle nel repository identico al file allegato; `git diff
   --check` senza errori.
 
 Gli stack trace dei percorsi d'errore simulati, i warning Maven sui metadata e
-il warning Lucene `MMapDirectory` con il JDK moderno restano attesi. Non è stato
-eseguito un end-to-end WordNet contro GraphDB remoto: il prossimo passo
-raccomandato è distribuire il WAR in un ambiente isolato con tre repository di
-test, avviare due volte il bootstrap, percorrere l'intero CRUD e controllare le
-quad direttamente in tutti e tre i repository. Le mutazioni WordNet assumono
-un solo writer LexO-server attivo per la creazione globalmente univoca del
-`wordnetId`, come documentato.
+il warning Lucene `MMapDirectory` con il JDK moderno restano attesi. I repository
+e il filesystem E2E temporanei sono stati eliminati dopo la verifica. Rimane
+valida l'assunzione di un solo writer LexO-server attivo per la creazione
+globalmente univoca del `wordnetId`, come documentato.
 
 Aggiornato al 27 ottobre 2026 con il supporto `TOKEN`/`LEMMA`/`POS` nei servizi
 di co-occorrenza ed estrazione collocati. Sul branch `master`, allineato a
