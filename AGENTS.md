@@ -137,6 +137,36 @@ servizio CRUD lessicale leggere anche `docs/lexicon-services.md`.
 - Chiudere o rilasciare sempre connessioni, risultati RDF4J e stream nel percorso
   positivo e in quello di errore.
 
+## Eccezione architetturale WordNet
+
+- Gli endpoint in `it.cnr.ilc.lexo.service.Wordnet` sono esposti sotto
+  `/wordnet` e raggruppati in Swagger come `Wordnet`. Diversamente dagli altri
+  CRUD lessicali, usano esclusivamente `RepositoryTarget.WORDNET`, il terzo
+  repository GraphDB `LexOWordnets` configurato tramite `WordnetGraphDb.*`.
+  Non possono leggere o scrivere dati applicativi in `LexOLexica`, `LexOTexts`
+  o nel default graph.
+- Ogni WordNet, identificato da `wordnetId` validato e lingua ISO validata,
+  possiede un solo application named graph in `LexOWordnets`. Il graph contiene
+  il root `lime:Lexicon` e tutte le entry, forme, sensi, synset, relazioni
+  VarTrans, risorse ausiliarie, liste RDF, metadati e triple di audit di quel
+  WordNet. Il resolver non accetta graph o repository scelti dal client.
+- Il bootstrap crea `LexOWordnets` in modo idempotente. L'ontologia GWA 1.4
+  fornita e le sue dipendenze sono importate esclusivamente nel graph
+  `WordnetGraphDb.schemaNamedGraph`, con manifest e checksum nel graph indicato
+  da `Bootstrap.wordnet.metadata.namedGraph`. Schema e bootstrap graph non
+  contengono dati applicativi e un reimport non deve cancellare application
+  graph. Non è ammesso alcun fallback silenzioso a `LexOLexica`.
+- WordNet e figli riusano DTO, codec e policy globali dei metadati RDF. Tutto il
+  namespace `wn:` è protetto dai metadati arbitrari; `wn:note`, `wn:status` e
+  `wn:confidenceScore` sono gestiti dai campi nativi WordNet.
+- Le entry WordNet usano inoltre il workflow controllato `lexo:status`, distinto
+  dal libero `wordnetStatus`/`wn:status`. Lettura e transizioni passano soltanto
+  dai servizi e dal manager di stato WordNet, senza delegare a
+  `/lexica/entries/status`.
+- Le regole dettagliate in `docs/wordnet-services.md` prevalgono soltanto per
+  gli endpoint WordNet. Repository, route, bootstrap, indici e contratti
+  lessicali/testuali esistenti restano invariati.
+
 ## Test e verifica
 
 - Per modifiche Java eseguire almeno `mvn test` prima del commit.

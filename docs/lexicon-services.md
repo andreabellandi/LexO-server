@@ -7,6 +7,10 @@ follows the shared lexical rules in this document plus the rules of the category
 specified by the user. Category-specific persistence rules take precedence over
 the general language-scoped graph rule.
 
+WordNet is an explicit architectural exception to these ordinary lexical CRUD
+rules. Its independent `/service/wordnet` API, third repository, graph model and
+workflow are documented in [wordnet-services.md](wordnet-services.md).
+
 ## Service class and route
 
 All new lexical CRUD endpoints belong to

@@ -9,6 +9,15 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- A complete `/service/wordnet` REST API now manages WordNet roots, entries,
+  forms, senses, synsets and explicit VarTrans relations, with selectable GET
+  projections, paginated filters, stable Base64URL resource IDs, common RDF
+  metadata, native WordNet annotations and a dedicated atomic Entry workflow.
+- WordNet data now has an isolated third GraphDB repository, `LexOWordnets`,
+  with one named graph per WordNet and independent schema/bootstrap graphs.
+  Startup creates it idempotently and imports the pinned GWA 1.4 ontology plus
+  local dependencies from verified, runtime-local resources.
+
 - Co-occurrence search and collocate extraction now select node and collocate
   attributes independently as surface `TOKEN`, `LEMMA`, or `POS`, while
   preserving `TOKEN` defaults. Positional results expose available lemma/POS,
@@ -140,6 +149,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- The global metadata policy now protects the complete GWA WordNet namespace
+  and the service-managed LexO workflow predicates, while retaining the
+  permanent `skos:note` exception.
+
 - Swagger now groups the ten corpus search, collocation, and Lucene index
   endpoints under `Text Search`, separately from the existing
   `Text Corpus NIF` services, without changing their REST paths.
@@ -249,6 +262,30 @@ starts from the ongoing `Unreleased` work.
 - SKOS API documentation now treats authorization parameters as optional.
 
 ### Fixed
+
+- WordNet detail projections now honor explicit `sections` without leaking
+  unrequested core/native fields, and Synset/Sense relation sections support
+  validated incoming/outgoing direction filtering.
+- WordNet integrity and concurrency checks now reject shared RDF-list cells,
+  extra Lexicon roots, malformed Sense/Synset ownership and stale workflow
+  transitions transactionally; the WordNet pool size also remains independent
+  from lexical repository configuration.
+- WordNet member-list rewrites now validate existing list ownership before
+  unlinking the head, so adding, moving, reordering or deleting multiple Senses
+  no longer misclassifies a valid `rdf:rest` chain as shared list storage.
+- WordNet repository and schema bootstrap now completes before lexical or text
+  bootstrap mutation, preventing WordNet-specific startup failures from
+  changing `LexOLexica` or `LexOTexts`.
+- The WordNet registry collection now applies the shared deterministic
+  ascending-IRI ordering before pagination.
+- WordNet mutations and relation filters now reject explicitly typed but
+  structurally orphaned Entry, Synset or Sense resources, and Sense PATCH no
+  longer treats a null `subcategorizationIds` value as an empty replacement.
+  Dedicated Entry workflow operations and Synset definition source references
+  now apply the same ownership validation.
+- Application readiness now requires the dedicated `LexOWordnets` repository
+  in addition to bootstrap, `LexOLexica`, and `LexOTexts`, and reports its
+  availability in the health response.
 
 - Case-insensitive full-text queries now pass the original Lucene expression to
   the parser, preserving uppercase `AND`, `OR`, and `NOT`, quoted lowercase

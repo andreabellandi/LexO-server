@@ -1,5 +1,98 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 9 novembre 2026 con l'implementazione completa della nuova API
+WordNet. Il lavoro è sul branch `master`, che è stato aggiornato e verificato
+allineato a `origin/master` prima delle modifiche; non sono stati creati commit,
+push o deploy. `README.md` è rimasto invariato.
+
+È stato aggiunto il terzo target `RepositoryTarget.WORDNET`, instradato da
+`GraphDbUtil` esclusivamente al repository configurabile `LexOWordnets` tramite
+`WordnetGraphDb.*`. Il bootstrap crea il repository dal nuovo template GraphDB
+10, importa in modo transazionale e idempotente lo schema nel graph WordNet
+dedicato e conserva il checksum in un bootstrap graph separato. Il Turtle GWA
+1.4 allegato è vendorizzato senza modifiche con SHA-256
+`deecbb23eb84ff9f9a3d40adb6077810f2a0bd6ab9ccedd7d0b3b26af3f422bb`;
+la conversione RDF/XML runtime è graph-isomorphic (646 statement). Le dipendenze
+LIME/OntoLex/SKOS/SynSem/VarTrans e la provenance del profilo API 1.4 sono
+incluse nel manifest locale. Il bootstrap WordNet non esegue gli indici
+lessicali e non cancella application graph.
+
+La classe `service/Wordnet.java`, con Swagger `Wordnet`, espone tutti e soli gli
+endpoint previsti per root, entry, form, sense, synset, relazioni, schema e i due
+servizi di stato Entry. I manager sotto `manager/wordnet` mantengono un solo
+application named graph per WordNet, ID Base64URL, audit, transazioni, filtri,
+paginazione, proiezioni `sections`, optimistic concurrency, liste
+`wn:memberList` di Sense IRI e vincoli di cancellazione/riferimento. Le
+relazioni VarTrans sono risorse nominate validate contro lo schema e non
+materializzano inverse. I PATCH dei figli sono piatti e presence-aware e
+modificano campi strutturali, annotazioni native e metadati nella stessa
+transazione.
+
+L'audit conclusivo rispetto alla specifica ha inoltre reso indipendente il
+fallback della dimensione del pool WordNet, corretto le proiezioni esplicite in
+modo che non includano campi `core`/nativi non richiesti e aggiunto
+`direction=in|out|both` alle sezioni relazioni di Sense e Synset. I controlli di
+concorrenza sono ora eseguiti nella transazione di mutazione; root, ownership,
+cardinalità di Sense/Synset e proprietà esclusiva delle celle RDF list vengono
+verificati prima delle modifiche. I DTO PATCH rilevano anche campi immutabili o
+workflow riservati forniti esplicitamente come `null`.
+
+L'ultimo ampliamento dei test obbligatori ha individuato e corretto l'ordine
+del controllo sulle liste membri: il collegamento `wn:memberList` non viene più
+rimosso prima di verificarne l'ownership. Aggiunta, spostamento, riordino e
+cancellazione di più Sense accettano quindi le normali catene `rdf:rest`, mentre
+le celle realmente condivise continuano a produrre un conflitto e rollback.
+La suite repository copre ora anche promozione e cancellazione delle Form,
+precondizioni stale, round-trip metadata e annotazioni native, mapping tipato
+dei figli ricchi, relazioni VarTrans Sense e lifecycle completo Sense/Synset.
+Il bootstrap esegue ora creazione e import dello schema `LexOWordnets` prima di
+qualsiasi mutazione di bootstrap lessicale o testuale: errori WordNet di
+repository, checksum, RDF/XML o validazione schema lasciano quindi invariati
+`LexOLexica` e `LexOTexts` nel tentativo di startup corrente.
+La collezione del registro WordNet viene inoltre ordinata per IRI crescente
+prima di applicare offset e limite, come le altre collezioni CRUD.
+Form, Sense e Relation verificano ora anche ownership e struttura completa
+degli endpoint, non soltanto `rdf:type`: risorse tipizzate ma orfane o Synset
+malformati vengono rifiutati senza scritture parziali. Nei Sense PATCH,
+`subcategorizationIds: []` resta l'unico modo per svuotare i link; `null` è
+respinto e l'omissione continua a lasciare il valore invariato.
+Lo stesso controllo strutturale è applicato dalla lettura e dal batch del
+workflow Entry e ai riferimenti `sourceSenseId` delle definizioni Synset: una
+risorsa soltanto tipizzata ma non posseduta non può essere letta o mutata da
+questi percorsi, e gli errori di creazione restano transazionali.
+La readiness `/service/health/ready` include ora anche il probe del repository
+`LexOWordnets`, lo espone come `wordnetRepository` e restituisce `UP` soltanto
+quando bootstrap e tutti e tre i repository sono disponibili.
+
+Il contratto comune dei metadati RDF è riusato per ogni risorsa principale e
+ausiliaria. `MetadataPolicy` protegge ora l'intero namespace GWA e i predicati
+del workflow LexO; `notes`, `wordnetStatus` e `confidenceScore` gestiscono
+direttamente le annotazioni WordNet. Il workflow `working`/`completed`/`revised`
+è indipendente da `wn:status` e usa soltanto il manager WordNet dedicato. La
+documentazione normativa è in `docs/wordnet-services.md`; `AGENTS.md`, la guida
+bootstrap, `docs/lexicon-services.md`, Compose e `CHANGELOG.md` sono aggiornati.
+
+Verifica eseguita:
+
+- suite WordNet mirata: 33 test superati;
+- test mirati di health e routing WordNet: 5 test superati;
+- `mvn -o test`: 310 test unitari/repository superati, nessun failure, errore o
+  skip;
+- `mvn -o verify`: 310 test superati, build e WAR riusciti; i 16 end-to-end testuali preesistenti
+  sono stati rilevati ma skipped perché non era configurato un deployment
+  Tomcat/GraphDB isolato;
+- checksum del Turtle nel repository identico al file allegato; `git diff
+  --check` senza errori.
+
+Gli stack trace dei percorsi d'errore simulati, i warning Maven sui metadata e
+il warning Lucene `MMapDirectory` con il JDK moderno restano attesi. Non è stato
+eseguito un end-to-end WordNet contro GraphDB remoto: il prossimo passo
+raccomandato è distribuire il WAR in un ambiente isolato con tre repository di
+test, avviare due volte il bootstrap, percorrere l'intero CRUD e controllare le
+quad direttamente in tutti e tre i repository. Le mutazioni WordNet assumono
+un solo writer LexO-server attivo per la creazione globalmente univoca del
+`wordnetId`, come documentato.
+
 Aggiornato al 27 ottobre 2026 con il supporto `TOKEN`/`LEMMA`/`POS` nei servizi
 di co-occorrenza ed estrazione collocati. Sul branch `master`, allineato a
 `origin/master` prima delle modifiche, `POST /texts/search/cooccurrences` e

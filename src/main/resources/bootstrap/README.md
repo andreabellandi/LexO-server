@@ -3,11 +3,11 @@
 LexO-server reads these classpath resources before its first GraphDB query.
 
 The packaged defaults in `lexo-server.properties` use
-`http://localhost:7200`, `LexOLexica`, and `LexOTexts`. Runtime values can be
+`http://localhost:7200`, `LexOLexica`, `LexOTexts`, and `LexOWordnets`. Runtime values can be
 overridden by an external configuration file, `LEXO_*` environment variables,
 or JVM system properties without introducing Maven environment profiles. The
 Docker topology uses the internal endpoint `http://graphdb:7200` while
-preserving both repository identifiers.
+preserving all three repository identifiers.
 
 `Bootstrap.startup.maxAttempts` and `Bootstrap.startup.retryDelayMs` configure
 bounded startup retries. Traditional deployments default to one attempt;
@@ -17,9 +17,14 @@ ready.
 - `repositories/`: GraphDB 10 Turtle templates using the
   `http://www.ontotext.com/config/graphdb#` vocabulary. Placeholders are replaced
   from `lexo-server.properties`; the lexicon uses `owl-horst-optimized`, while
-  texts use `empty`.
+  texts use `empty` and WordNet uses `owl-horst-optimized`.
 - `schema/schema-imports.json`: ordered list of RDF/XML resources imported into
   `https://lexo.ilc.cnr.it/graphs/lexical/schema` in the lexical repository.
+- `schema/wordnet-schema-imports.json`: independent RDF/XML manifest imported
+  into `WordnetGraphDb.schemaNamedGraph` in `LexOWordnets`. It includes the
+  pinned GWA 1.4 vocabulary and local OntoLex/LIME/SKOS/SynSem/VarTrans
+  dependencies; its checksum marker is stored in the separate graph configured
+  by `Bootstrap.wordnet.metadata.namedGraph`.
 - `text-organization/textOrganization.rdf`: RDF/XML vocabulary imported into
   the configured text-organization schema graph in `LexOTexts`.
 - `indexes/indexes.json`: ordered list of GraphDB Lucene connector definitions.
@@ -50,6 +55,16 @@ bootstrap metadata graph. Startup reads it through `TextGraphDb.url` and
 only `TextGraphDb.organizationSchemaNamedGraph` when the resource changes. It
 never clears `TextGraphDb.organizationNamedGraph`, so ontology upgrades cannot
 remove user folders or memberships.
+
+WordNet schema bootstrap has an independent marker and never clears an
+application graph below `WordnetGraphDb.namedGraphBase`. The source Turtle
+`schema/wn-lemon-1.4.ttl` is pinned with SHA-256
+`deecbb23eb84ff9f9a3d40adb6077810f2a0bd6ab9ccedd7d0b3b26af3f422bb`;
+`schema/wn-lemon-1.4.rdf` is its lossless RDF/XML runtime artifact. This phase
+runs before lexical and text repository mutation so a WordNet-specific
+bootstrap failure leaves those repositories unchanged. Full service, graph and
+deployment rules are in
+[`docs/wordnet-services.md`](../../../../docs/wordnet-services.md).
 
 ## Application named graphs
 
@@ -85,6 +100,16 @@ that graph is recalculated or removed when no typed attestations remain.
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.
+
+`LexOWordnets` contains only the WordNet schema/bootstrap graphs and one
+application graph per WordNet:
+
+```text
+{WordnetGraphDb.namedGraphBase}{language}/{wordnetId}
+```
+
+All business resources of one WordNet are co-located in that graph; WordNet
+application data is never divided between language and lexical-concept graphs.
 
 It also keeps the optional text-folder overlay in two independent graphs:
 

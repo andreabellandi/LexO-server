@@ -29,14 +29,18 @@ docker compose ps
 ```
 
 The first build compiles and tests the WAR, downloads the runtime images, and
-may take several minutes. LexO waits for GraphDB, creates `LexOLexica` and
-`LexOTexts`, and applies the idempotent schema and index bootstrap.
+may take several minutes. LexO waits for GraphDB, creates `LexOLexica`,
+`LexOTexts`, and `LexOWordnets`, and applies the idempotent schema and index
+bootstrap.
 
 Open:
 
 - `http://localhost:8080/LexO-server/` for Swagger and the REST API;
 - `http://localhost:7200/` for the local GraphDB Workbench;
 - `http://localhost:8080/LexO-server/service/health/ready` for readiness.
+
+Readiness is `UP` only after bootstrap has completed and all three configured
+GraphDB repositories (`LexOLexica`, `LexOTexts`, and `LexOWordnets`) respond.
 
 Both published ports bind to `127.0.0.1` by default. GraphDB must not be
 published on an external interface in a shared deployment.
@@ -71,6 +75,7 @@ camel-case words, replacing punctuation with `_`, uppercasing, and adding
 | --- | --- |
 | `GraphDb.url` | `LEXO_GRAPH_DB_URL` |
 | `TextGraphDb.url` | `LEXO_TEXT_GRAPH_DB_URL` |
+| `WordnetGraphDb.url` | `LEXO_WORDNET_GRAPH_DB_URL` |
 | `lexo.text.storage.dir` | `LEXO_TEXT_STORAGE_DIR` |
 | `Bootstrap.startup.maxAttempts` | `LEXO_BOOTSTRAP_STARTUP_MAX_ATTEMPTS` |
 
@@ -82,7 +87,7 @@ storage to `/var/lib/lexo/texts`, and legacy conversion storage to
 
 | Volume | Content |
 | --- | --- |
-| `lexo-graphdb-home` | GraphDB configuration, `LexOLexica`, and `LexOTexts` |
+| `lexo-graphdb-home` | GraphDB configuration, `LexOLexica`, `LexOTexts`, and `LexOWordnets` |
 | `lexo-data` | Original texts, CoNLL-U, corpora, and conversion artifacts |
 | `lexo-logs` | Structured LexO log files and archives |
 
