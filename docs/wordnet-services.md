@@ -214,3 +214,27 @@ graph, ontology checksum/isomorphism, idempotent schema import, CRUD, member
 lists, relations, rollback, nested metadata, workflow and REST annotations.
 Remote GraphDB end-to-end verification requires three dedicated test
 repositories and must never target development or production data.
+
+The opt-in `WordnetServicesIT` suite exercises the deployed REST layer and
+queries the dedicated remote repository directly. It verifies schema
+provenance, a complete CRUD/workflow lifecycle, collection filters, detail
+projections, rollback after duplicate relations and stale workflow batches,
+the application named graph, the unchanged schema graph and an empty default
+graph. Every created WordNet uses a random id and is removed in `finally`; the
+application graph is cleared directly as a last-resort cleanup, so the suite
+must only run against an isolated repository.
+
+```bash
+mvn verify \
+  -Dlexo.test.wordnet.dedicated=true \
+  -Dlexo.test.wordnet.baseUrl=http://localhost:18080/LexO-server/service \
+  -Dlexo.test.wordnet.authorization='Bearer TOKEN_LEXO' \
+  -Dlexo.test.wordnet.repositoryUrl=http://localhost:7200/repositories/LexOWordnetsE2E
+```
+
+`lexo.test.wordnet.baseUrl` and `lexo.test.wordnet.authorization` fall back to
+the corresponding shared `lexo.test.baseUrl` and
+`lexo.test.authorization` properties. Non-default deployments may also set
+`lexo.test.wordnet.namedGraphBase` and `lexo.test.wordnet.schemaGraph`. Without
+the explicit `lexo.test.wordnet.dedicated=true` opt-in or any required
+connection property, these tests are skipped.
