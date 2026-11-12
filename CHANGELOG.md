@@ -38,6 +38,17 @@ starts from the ongoing `Unreleased` work.
   idempotently into a separate schema graph, while text deletion removes and,
   on rollback, restores folder membership without changing NIF, corpus, or
   Lucene data.
+- Six CPP run endpoints now register declared collocation extraction provenance,
+  list and read effective parameters, correct associations, delete provenance
+  while preserving FrAC data, and export selected or all runs as flattened
+  Turtle with optional existing scores. Writes are atomic in a dedicated graph,
+  with caller-scoped idempotency and exclusive run ownership of collocations;
+  provenance preserves validated `TOKEN`, `LEMMA`, or `POS` node and collocate
+  selectors used by the integrated extraction API.
+
+- CPP 0.2.1 and CollScore 1.2.0 schemas (18 measures) are now included in
+  GraphDB bootstrap alongside the existing RDF/XML vocabularies.
+
 - Standalone Apache Lucene corpus indexing now provides occurrence-level
   full-text search, phrase and multi-term queries, positional KWIC resizing,
   frequencies, co-occurrences and collocate extraction without GraphDB-specific

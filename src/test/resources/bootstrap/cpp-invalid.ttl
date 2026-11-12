@@ -1,0 +1,2 @@
+@prefix bad: <urn:bad:> .
+bad:broken a [ unfinished

@@ -1,5 +1,43 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 12 novembre 2026 con l'integrazione del branch `cpp` in `master`.
+Il merge parte da `origin/master` aggiornato e conserva integralmente
+la nuova API WordNet, l'organizzazione e la ricerca testuale e aggiunge i sei
+endpoint CPP, le ontologie CPP 0.2.1/CollScore 1.2.0 e il relativo bootstrap
+Turtle/RDF/XML. `README.md` è rimasto invariato e non è stato eseguito alcun
+deploy.
+
+I conflitti sono stati risolti mantenendo l'ordine di bootstrap isolato di
+WordNet e applicando il riconoscimento del formato per estensione soltanto al
+manifest lessicale misto. La normalizzazione effettiva dell'estrazione collocati
+è ora condivisa tra Lucene e CPP e comprende anche `nodeField` e
+`collocateField`: `TOKEN`, `LEMMA` e `POS` vengono normalizzati, validati e
+conservati nel record CPP; selettori non supportati sono rifiutati prima di
+qualsiasi scrittura. Un nuovo test verifica il round-trip CPP `LEMMA` → `POS`
+e il rollback del valore non valido.
+
+Verifica eseguita sul risultato integrato:
+
+- compilazione Maven offline riuscita;
+- suite mirata CPP/WordNet/Lucene: 65 test superati;
+- `mvn -o test`: 341 test unitari/repository superati, nessun failure, errore o
+  skip;
+- `mvn -o verify`: stessi 341 test superati e WAR generato; 19 end-to-end
+  compilati ma skipped perché non erano configurati gli opt-in e i deployment
+  dedicati per CPP, testi, WordNet e Web Annotation;
+- restano attesi gli stack trace dei percorsi d'errore simulati, i warning Maven
+  sui metadata/checksum legacy e il warning Lucene `MMapDirectory` sul JDK
+  moderno.
+
+Rimane da eseguire il collaudo remoto CPP su Tomcat e repository GraphDB
+esclusivamente dedicati, seguendo `docs/cpp-run-services.md`; l'E2E WordNet era
+già stato completato separatamente prima del merge. Restano validi i limiti CPP
+documentati: un solo writer per repository, provenienza dichiarata senza prova
+di riesecuzione storica e nessuna migrazione automatica degli score FrAC legacy.
+Il prossimo passo raccomandato è distribuire il WAR in un ambiente isolato,
+eseguire `CppRunsIT` con opt-in e verificare il graph CPP insieme ai tre
+repository esistenti.
+
 Aggiornato al 9 novembre 2026 con l'implementazione completa della nuova API
 WordNet. Il lavoro è sul branch `master`, che è stato aggiornato e verificato
 allineato a `origin/master` prima delle modifiche. I nuovi E2E WordNet e la loro
@@ -212,6 +250,39 @@ configurato un deployment Tomcat/GraphDB con directory Lucene/filesystem
 dedicate. Il passo successivo raccomandato è ridistribuire il WAR in
 quell'ambiente ed eseguire il nuovo UC-05 con le proprietà descritte in
 `docs/text-services-tests.md`. Non è stato eseguito alcun deploy.
+Attività CPP del 15 ottobre 2026 sul branch `cpp`, creato dal `master`
+aggiornato `d4429e3` con fetch e fast-forward sicuro. Il commit `b03e398`
+introduce le ontologie CPP 0.2.1 e CollScore 1.2.0 senza alterarne i byte,
+il bootstrap misto Turtle/RDF/XML e il report amministrativo compatibile.
+
+Implementate le sei API `/service/cpp/runs` (POST/lista/dettaglio/PATCH/DELETE)
+e `/service/cpp/runs/export`, con DTO Swagger, JSON rigoroso, normalizzazione
+condivisa con Lucene, 18 misure, mapper CPP, graph dedicato e transazioni
+LEXICON. Idempotenza autore/chiave e unicità delle associazioni sono protette
+da lock condiviso nella JVM. L'export Turtle appiattisce i graph, conserva
+letterali e score esistenti e usa temporanei con cleanup anche su errori o
+disconnessione. Non esegue ricerche e non modifica FrAC, indice o TEXT.
+Documentazione completa: `docs/cpp-run-services.md`.
+
+Verifica completata: 302 test unitari/repository passati senza errori o skip,
+sia con JDK 21 sia sulla JVM Java 8 `1.8.0_504` (Surefire `-Djvm=...`).
+`mvn -o verify -Dit.test=CppRunsIT` ha generato `target/LexO-server.war` e
+superato la verifica: il solo test E2E CPP è skipped per assenza di opt-in e
+configurazione Tomcat/GraphDB dedicata, quindi non è un collaudo remoto.
+`git diff --check` passato. Restano warning non bloccanti del modello Maven e
+delle policy checksum di repository legacy, API deprecated/unchecked e
+Lucene MMapDirectory sul JDK moderno. Nessun deploy. README.md invariato.
+Maven disponibile in `/opt/homebrew/bin/mvn`; il percorso storico NetBeans
+12.2 non è presente.
+
+Limiti noti: configurare un solo writer CPP per repository (nessun lock
+distribuito); snapshot e parametri sono provenienza dichiarata, non prova di
+riesecuzione storica. FrAC/P-Plan/PROV-O non sono schemi locali completi e non
+vengono scaricati da owl:imports; i vincoli sono validati nel servizio. Restano
+fuori scope migrazione dei 15 score FrAC legacy e persistenza di
+RAW_FREQUENCY/NPMI/Z_SCORE. PATCH conserva la vista corrente e non uno storico
+di versioni. Prossimi passi: collaudo E2E isolato e, se richiesto, gestione
+multi-writer e migrazione score in attività separate.
 
 Aggiornato al 15 ottobre 2026: il branch `lucene`, già pubblicato e verificato,
 è stato integrato in `master` con fast-forward fino al commit `9eac18f`. Non si
@@ -974,22 +1045,26 @@ Se `mvn` non è nel `PATH` nell'ambiente Codex locale:
 
 ## Stato Git
 
-- Branch locale corrente: `master`.
-- Base del commit export dell'8 settembre 2026: `9799a44`
-  (`Preserve imported plain text exactly`).
-  `git fetch origin master` e `git merge --ff-only origin/master` hanno
-  confermato che tutti i commit remoti sono presenti. Prima del commit export
-  il branch locale aveva quattro commit in più rispetto a `origin/master`,
-  senza commit remoti mancanti.
-- Il commit `Export attestations as Web Annotation JSON-LD` contiene il servizio,
-  i test e la relativa documentazione. Le modifiche preesistenti alle microguide
-  manuali e ai loro riferimenti in README/HANDOFF restano nel working tree,
-  escluse dal commit dell'export.
-- Log runtime e `nb-configuration.xml` restano esclusi dal lavoro.
+- Branch di consegna corrente: `cpp`, richiesto dall'utente.
+- Base verificata con fetch di `origin/master` e fast-forward: `d4429e3`.
+- Primo commit CPP: `b03e398`, bootstrap e ontologie.
+- Il commit `Record and export CPP collocation extraction provenance` completa
+  API, mapper, repository, limiti, test e documentazione.
+- Pubblicazione sul branch remoto corrispondente `origin/cpp`, senza PR e senza
+  modificare `master` o riscrivere storia.
+- Nessuna modifica utente preesistente all'avvio; artefatti runtime, IDE e WAR
+  restano esclusi dai commit.
 
 ## Ultimi file modificati
 
-Per l'export dell'8 settembre: `Attestations.java`, `AttestationManager.java`,
+Per CPP: `service/CppRuns.java`, `manager/CppRunManager.java`, componenti sotto
+`manager/cpp`, DTO sotto `service/data/cpp`, normalizzazione condivisa
+`CollocateExtractionParameters`, manifest e risorse bootstrap, proprietà,
+`CppRunManagerTest`, `CppContractTest`, `CppRunsTest`, `CppRunsIT` e
+`GraphDbBootstrapTest`. Contratto e deployment in `docs/cpp-run-services.md`;
+aggiornati test-services, CHANGELOG Unreleased e questo handoff.
+
+Cronologia precedente: per l'export dell'8 settembre: `Attestations.java`, `AttestationManager.java`,
 `AttestationWebAnnotationExporter.java`, `WebAnnotationExportException.java`,
 `LexicalNamedGraphs.java`, i DTO `WebAnnotationDocument`/`AttestationProvenance`,
 la proprietà `webAnnotation.quoteContextLength`, i test
