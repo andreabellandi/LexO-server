@@ -4,6 +4,7 @@ import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.metadata.MetadataPolicy;
 import it.cnr.ilc.lexo.manager.metadata.RdfMetadataCodec;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalRdfProperty;
@@ -55,6 +56,7 @@ public final class LexicalEntryManager implements Manager {
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final RdfMetadataCodec metadataCodec = new RdfMetadataCodec();
+    private final LexIntGraphGuard graphGuard = new LexIntGraphGuard();
     private final Repository repository;
 
     /** Runtime constructor used by {@link ManagerFactory}. */
@@ -74,6 +76,7 @@ public final class LexicalEntryManager implements Manager {
         RepositoryConnection connection = acquire();
         try {
             connection.begin();
+            graphGuard.requireDirectWriteAllowed(connection, input.language);
             Resource graph = vf.createIRI(
                     LexiconCrudSupport.lexicalGraphUri(input.language));
             Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());

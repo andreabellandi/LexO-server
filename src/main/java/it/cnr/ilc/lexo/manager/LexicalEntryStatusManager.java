@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChange;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryStatusChangeRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryStatusChangeItem;
@@ -35,6 +36,7 @@ public final class LexicalEntryStatusManager implements Manager {
     private static final String LEXO = "https://lexo.ilc.cnr.it#";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final LexIntGraphGuard graphGuard = new LexIntGraphGuard();
     private final Repository repository;
 
     /** Runtime constructor used by {@link ManagerFactory}. */
@@ -54,6 +56,7 @@ public final class LexicalEntryStatusManager implements Manager {
         RepositoryConnection connection = acquire();
         try {
             connection.begin();
+            graphGuard.requireDirectWriteAllowed(connection, batch.language);
             Resource graph = vf.createIRI(
                     LexiconCrudSupport.lexicalGraphUri(batch.language));
             Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());

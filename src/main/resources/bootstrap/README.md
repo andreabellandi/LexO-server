@@ -20,6 +20,14 @@ ready.
   texts use `empty` and WordNet uses `owl-horst-optimized`.
 - `schema/schema-imports.json`: ordered list of RDF/XML resources imported into
   `https://lexo.ilc.cnr.it/graphs/lexical/schema` in the lexical repository.
+  The mixed-format manifest also installs the LexInt Management and
+  Publication & Audit ontologies from Turtle in this same schema graph.
+- `shapes/lexint-shapes-imports.json`: the two LexInt SHACL resources imported
+  transactionally into the dedicated graph
+  `https://lexo.ilc.cnr.it/graphs/lexical/lexint/shapes`. Its independent
+  checksum marker is `/lexint-shapes`; a parse or required-term validation
+  failure rolls back both the shape graph and marker without touching schema
+  or application graphs.
 - `schema/wordnet-schema-imports.json`: independent RDF/XML manifest imported
   into `WordnetGraphDb.schemaNamedGraph` in `LexOWordnets`. It includes the
   pinned GWA 1.4 vocabulary and local OntoLex/LIME/SKOS/SynSem/VarTrans
@@ -82,6 +90,14 @@ deployment rules are in
 - `https://lexo.ilc.cnr.it/graphs/lexical/annotations/documents/{fileId}`
   contains the Web Annotations of one text;
 - `https://lexo.ilc.cnr.it/graphs/lexical/schema` contains the imported vocabularies;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexint/shapes` contains only the two
+  installed LexInt SHACL resources;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexint/records` contains runtime
+  claims, target assertions and lexicographic decisions;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexint/audit` contains agents,
+  version ledger, publications, operations, verifications and reports;
+- `https://lexo.ilc.cnr.it/graphs/lexical/lexint/snapshots/{language}/{versionCode}`
+  contains immutable published lexical snapshots;
 - `https://lexo.ilc.cnr.it/graphs/bootstrap` contains bootstrap checksums.
 
 The lexical graph URIs can be changed with `GraphDb.namedGraphBase`,
@@ -97,6 +113,19 @@ subject or object is one of that text's attestations, then clears both of its
 document graphs. If the cleanup removes a cross-graph `frac:attestation` link
 from another valid document graph, the corresponding observable frequency in
 that graph is recalculated or removed when no typed attestations remain.
+
+LexInt graph settings are `GraphDb.lexintShapesNamedGraph`,
+`GraphDb.lexintRecordsNamedGraph`, `GraphDb.lexintAuditNamedGraph` and
+`GraphDb.lexintSnapshotsBase`. Startup rejects collisions between these,
+schema, bootstrap, legacy lexical, lexical-concept, CPP, text-organization and
+WordNet graphs, as well as the active lexical, attestation, annotation, NIF and
+WordNet graph families. The same validation runs whenever the LexInt
+repository is opened and rejects unsafe family bases or traversal. The profile
+uses the maintainer-approved singular `lexint:targetAssertion`; Publication
+keeps its separate `pub:targetAssertion`. No example instances are
+bootstrapped.
+Operational rules are in
+[`docs/lexint-services.md`](../../../../docs/lexint-services.md).
 
 `LexOTexts` continues to create one graph per document and one graph per corpus
 below `TextGraphDb.namedGraphBase`.

@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.bootstrap;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cnr.ilc.lexo.LexOProperties;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphConfiguration;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -50,6 +51,11 @@ public final class GraphDbBootstrap {
             "https://lexo.ilc.cnr.it/profiles/wordnet/1.4";
     private static final String WORDNET_TURTLE_SHA256 =
             "deecbb23eb84ff9f9a3d40adb6077810f2a0bd6ab9ccedd7d0b3b26af3f422bb";
+    private static final String LEXINT =
+            "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#";
+    private static final String PUBLICATION =
+            "https://ilc.cnr.it/klab/ontology/lexint/publication#";
+    private static final String SHACL = "http://www.w3.org/ns/shacl#";
     private static volatile boolean initialized;
 
     private GraphDbBootstrap() {
@@ -148,6 +154,7 @@ public final class GraphDbBootstrap {
                         + lexiconRepository);
             }
             importSchema(repository);
+            importLexIntShapes(repository);
             applyIndexes(repository, false);
         } finally {
             manager.shutDown();
@@ -265,6 +272,119 @@ public final class GraphDbBootstrap {
                 throw new IllegalStateException("Unable to import schema resources", ex);
             }
         }
+    }
+
+    /** Imports the authoritative LexInt SHACL resources into their own graph. */
+    static void importLexIntShapes(Repository repository) {
+        String manifestResource = LexOProperties.getProperty(
+                "Bootstrap.lexint.shapes.manifest",
+                "bootstrap/shapes/lexint-shapes-imports.json");
+        JsonNode manifest = parseJson(manifestResource);
+        String manifestGraph = manifest.path("namedGraph").asText();
+        String configuredGraph = LexOProperties.getProperty(
+                "GraphDb.lexintShapesNamedGraph");
+        String namedGraph = configuredGraph == null
+                || configuredGraph.trim().isEmpty()
+                || configuredGraph.contains("${")
+                ? manifestGraph : configuredGraph.trim();
+        if (namedGraph.isEmpty()) {
+            throw new IllegalStateException("Missing namedGraph in "
+                    + manifestResource);
+        }
+        validateLexIntGraphConfiguration(namedGraph);
+        List<String> resources = stringArray(manifest.path("files"),
+                manifestResource, "files");
+        if (resources.size() != 2) {
+            throw new IllegalStateException(
+                    "LexInt shapes manifest must contain exactly two ordered SHACL resources");
+        }
+        String checksum = checksum(resources);
+        IRI graph = VF.createIRI(namedGraph);
+        IRI metadataGraph = metadataGraph();
+        IRI marker = VF.createIRI(metadataGraph.stringValue()
+                + "/lexint-shapes");
+
+        try (RepositoryConnection connection = repository.getConnection()) {
+            boolean unchanged = checksum.equals(readChecksum(connection, marker,
+                    metadataGraph)) && hasRequiredLexIntShapes(connection, graph);
+            if (!unchanged) {
+                connection.begin();
+                try {
+                    connection.clear(graph);
+                    for (String resource : resources) {
+                        byte[] bytes = BootstrapResources.readBytes(resource);
+                        try (InputStream input = new ByteArrayInputStream(bytes)) {
+                            connection.add(input, schemaBaseIri(resource),
+                                    RDFFormat.TURTLE, graph);
+                        }
+                    }
+                    validateLexIntShapes(connection, graph);
+                    writeChecksum(connection, marker, checksum, metadataGraph);
+                    connection.commit();
+                    LOGGER.info("Imported {} LexInt SHACL resources into {}",
+                            Integer.valueOf(resources.size()), namedGraph);
+                } catch (RuntimeException | IOException ex) {
+                    connection.rollback();
+                    throw new IllegalStateException(
+                            "Unable to import LexInt SHACL resources", ex);
+                }
+            } else {
+                validateLexIntShapes(connection, graph);
+                LOGGER.info("LexInt SHACL resources unchanged; import skipped");
+            }
+            if (Boolean.parseBoolean(LexOProperties.getProperty(
+                    "LexInt.enabled", "false"))) {
+                validateLexIntSchema(connection, graph);
+            }
+        }
+    }
+
+    private static void validateLexIntSchema(RepositoryConnection connection,
+            IRI shapesGraph) {
+        IRI schemaGraph = VF.createIRI(requiredProperty("GraphDb.schemaNamedGraph"));
+        IRI ontology = VF.createIRI(
+                "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation");
+        IRI publicationOntology = VF.createIRI(
+                "https://ilc.cnr.it/klab/ontology/lexint/publication");
+        if (!connection.hasStatement(ontology, RDF.TYPE, OWL.ONTOLOGY, false,
+                schemaGraph)
+                || !connection.hasStatement(publicationOntology, RDF.TYPE,
+                        OWL.ONTOLOGY, false, schemaGraph)
+                || !connection.hasStatement(VF.createIRI(LEXINT
+                        + "InterpretiveClaim"), RDF.TYPE, OWL.CLASS, false,
+                        schemaGraph)
+                || !connection.hasStatement(VF.createIRI(LEXINT
+                        + "targetAssertion"), RDF.TYPE, OWL.OBJECTPROPERTY,
+                        false, schemaGraph)
+                || !connection.hasStatement(VF.createIRI(PUBLICATION
+                        + "Publication"), RDF.TYPE, OWL.CLASS, false,
+                        schemaGraph)
+                || !hasRequiredLexIntShapes(connection, shapesGraph)) {
+            throw new IllegalStateException(
+                    "LexInt ontology or SHACL profile is incomplete");
+        }
+    }
+
+    private static boolean hasRequiredLexIntShapes(
+            RepositoryConnection connection, IRI graph) {
+        return connection.hasStatement(VF.createIRI(
+                "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation/shapes#ClaimShape"),
+                RDF.TYPE, VF.createIRI(SHACL + "NodeShape"), false, graph)
+                && connection.hasStatement(VF.createIRI(PUBLICATION
+                        + "PublicationShape"), RDF.TYPE,
+                        VF.createIRI(SHACL + "NodeShape"), false, graph);
+    }
+
+    private static void validateLexIntShapes(RepositoryConnection connection,
+            IRI graph) {
+        if (!hasRequiredLexIntShapes(connection, graph)) {
+            throw new IllegalStateException(
+                    "LexInt shapes graph is missing ClaimShape or PublicationShape");
+        }
+    }
+
+    private static void validateLexIntGraphConfiguration(String shapesGraph) {
+        LexIntGraphConfiguration.validate(shapesGraph);
     }
 
     static void importWordnetSchema(Repository repository) {

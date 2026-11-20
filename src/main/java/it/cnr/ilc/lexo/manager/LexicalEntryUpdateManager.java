@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.manager;
 import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.text.Iso639LanguageValidator;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryUpdateRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.output.LexicalEntryUpdateResult;
 import it.cnr.ilc.lexo.util.LexicalNamedGraphs;
@@ -33,6 +34,7 @@ public final class LexicalEntryUpdateManager implements Manager {
             "http://www.lexinfo.net/ontology/3.0/lexinfo#";
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
+    private final LexIntGraphGuard graphGuard = new LexIntGraphGuard();
     private final Repository repository;
 
     public LexicalEntryUpdateManager() {
@@ -50,6 +52,7 @@ public final class LexicalEntryUpdateManager implements Manager {
         RepositoryConnection connection = acquire();
         try {
             connection.begin();
+            graphGuard.requireDirectWriteAllowed(connection, input.language);
             Resource graph = vf.createIRI(
                     LexiconCrudSupport.lexicalGraphUri(input.language));
             Resource schemaGraph = vf.createIRI(LexicalNamedGraphs.schemaGraphUri());

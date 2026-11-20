@@ -4,6 +4,7 @@ import it.cnr.ilc.lexo.GraphDbUtil;
 import it.cnr.ilc.lexo.RepositoryTarget;
 import it.cnr.ilc.lexo.manager.LexiconCrudSupport;
 import it.cnr.ilc.lexo.manager.Manager;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataDeleteRequest;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataPatchRequest;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataResult;
@@ -37,6 +38,7 @@ public final class MetadataManager implements Manager {
 
     private final ValueFactory vf = SimpleValueFactory.getInstance();
     private final RdfMetadataCodec codec = new RdfMetadataCodec();
+    private final LexIntGraphGuard graphGuard = new LexIntGraphGuard();
     private final Repository repository;
 
     public MetadataManager() {
@@ -142,6 +144,10 @@ public final class MetadataManager implements Manager {
         try {
             validateResource(connection, resolved);
             connection.begin();
+            if (resolved.language != null) {
+                graphGuard.requireDirectWriteAllowed(connection,
+                        resolved.language);
+            }
             for (Map.Entry<IRI, List<Value>> property : replacements.entrySet()) {
                 connection.remove(resolved.resource, property.getKey(), null,
                         resolved.graph);
@@ -267,14 +273,14 @@ public final class MetadataManager implements Manager {
         if ("lexicalconcept".equals(kind)) {
             return new ResolvedTarget("lexicalConcept", resource,
                     vf.createIRI(LexiconCrudSupport.lexicalConceptGraphUri()),
-                    vf.createIRI(ONTOLEX + "LexicalConcept"), false);
+                    vf.createIRI(ONTOLEX + "LexicalConcept"), false, null);
         }
         if ("attestation".equals(kind)) {
             String fileId = required(target.fileId, "MISSING_FILE_ID",
                     "fileId is required for attestation");
             return new ResolvedTarget("attestation", resource,
                     vf.createIRI(LexicalNamedGraphs.attestationGraphUri(fileId)),
-                    vf.createIRI(FRAC + "Attestation"), false);
+                    vf.createIRI(FRAC + "Attestation"), false, null);
         }
         throw invalid("UNSUPPORTED_METADATA_ENTITY_TYPE",
                 "entityType must be lexicalEntry, lexicalSense, form, lexicalConcept, or attestation");
@@ -284,11 +290,12 @@ public final class MetadataManager implements Manager {
                                                 String ontologyType,
                                                 IRI resource,
                                                 String language) {
+        String canonical = required(language, "MISSING_LANGUAGE",
+                "language is required for " + entityType);
         Resource graph = vf.createIRI(LexiconCrudSupport.lexicalGraphUri(
-                required(language, "MISSING_LANGUAGE",
-                        "language is required for " + entityType)));
+                canonical));
         return new ResolvedTarget(entityType, resource, graph,
-                vf.createIRI(ONTOLEX + ontologyType), true);
+                vf.createIRI(ONTOLEX + ontologyType), true, canonical);
     }
 
     private String required(String value, String code, String message) {
@@ -330,14 +337,17 @@ public final class MetadataManager implements Manager {
         final Resource graph;
         final IRI expectedType;
         final boolean allowSubclass;
+        final String language;
 
         ResolvedTarget(String entityType, IRI resource, Resource graph,
-                       IRI expectedType, boolean allowSubclass) {
+                       IRI expectedType, boolean allowSubclass,
+                       String language) {
             this.entityType = entityType;
             this.resource = resource;
             this.graph = graph;
             this.expectedType = expectedType;
             this.allowSubclass = allowSubclass;
+            this.language = language;
         }
     }
 }

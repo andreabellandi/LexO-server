@@ -3,6 +3,7 @@ package it.cnr.ilc.lexo.service.data;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +25,9 @@ public class AuthenticationData implements Data {
     private String remoteAddress;
     private Date loginTime;
     private Date lastActionTime;
+    private String issuer;
+    private String subject;
+    private List<String> roles;
 
     public AuthenticationData() {
     }
@@ -137,5 +141,15 @@ public class AuthenticationData implements Data {
     public void setLastActionTime(Date lastActionTime) {
         this.lastActionTime = lastActionTime;
     }
+
+    @JsonIgnore
+    public String getIssuer() { return issuer; }
+    public void setIssuer(String issuer) { this.issuer = issuer; }
+    @JsonIgnore
+    public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
+    @JsonIgnore
+    public List<String> getRoles() { return roles; }
+    public void setRoles(List<String> roles) { this.roles = roles; }
 
 }

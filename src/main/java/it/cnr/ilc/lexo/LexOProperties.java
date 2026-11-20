@@ -63,6 +63,15 @@ public class LexOProperties {
         PROPERTIES.setProperty(key, value);
     }
 
+    /** Removes a runtime override and resolves the property from normal sources. */
+    public static synchronized void clearPropertyOverride(String key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Property key is required");
+        }
+        RUNTIME_OVERRIDES.remove(key);
+        load();
+    }
+
     static String environmentVariableName(String propertyName) {
         String value = propertyName == null ? "" : propertyName.trim();
         if (value.startsWith("lexo.")) {

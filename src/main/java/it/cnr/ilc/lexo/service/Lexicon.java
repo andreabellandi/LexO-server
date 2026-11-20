@@ -13,6 +13,7 @@ import it.cnr.ilc.lexo.manager.LexicalEntryListManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryStatusManager;
 import it.cnr.ilc.lexo.manager.LexicalEntryUpdateManager;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalEntryCreationRequest;
 import it.cnr.ilc.lexo.service.data.lexicon.input.LexicalConceptCreationRequest;
@@ -340,6 +341,9 @@ public class Lexicon extends Service {
         } catch (LexicalEntryStatusManager.StatusChangeException e) {
             log(Level.ERROR, "/lexica/entries/status: " + e.getMessage());
             return plain(e.httpStatus, e.getMessage());
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
+            log(Level.ERROR, "/lexica/entries/status: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             String username = authenticationData == null
                     || authenticationData.getUsername() == null
@@ -388,6 +392,9 @@ public class Lexicon extends Service {
         } catch (IllegalArgumentException e) {
             log(Level.ERROR, "/lexica/entry: " + e.getMessage());
             return plain(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
+            log(Level.ERROR, "/lexica/entry: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {
             String username = authenticationData == null
                     || authenticationData.getUsername() == null
@@ -433,6 +440,9 @@ public class Lexicon extends Service {
             log(Level.ERROR, "/lexica/entry: " + e.getMessage());
             return plain(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (LexicalEntryUpdateManager.EntryUpdateException e) {
+            log(Level.ERROR, "/lexica/entry: " + e.getMessage());
+            return plain(e.httpStatus, e.getMessage());
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
             log(Level.ERROR, "/lexica/entry: " + e.getMessage());
             return plain(e.httpStatus, e.getMessage());
         } catch (AuthorizationException | ServiceException e) {

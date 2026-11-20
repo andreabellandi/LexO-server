@@ -7,6 +7,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import it.cnr.ilc.lexo.manager.ManagerFactory;
 import it.cnr.ilc.lexo.manager.metadata.MetadataManager;
+import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataDeleteRequest;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataPatchRequest;
 import it.cnr.ilc.lexo.service.data.metadata.MetadataTarget;
@@ -65,6 +66,8 @@ public class Metadata extends Service {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);
         } catch (MetadataManager.MetadataException e) {
             return error(e.httpStatus, e);
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
+            return error(e.httpStatus, e);
         } catch (AuthorizationException | ServiceException e) {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);
         } catch (RuntimeException e) {
@@ -92,6 +95,8 @@ public class Metadata extends Service {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);
         } catch (MetadataManager.MetadataException e) {
             return error(e.httpStatus, e);
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
+            return error(e.httpStatus, e);
         } catch (AuthorizationException | ServiceException e) {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);
         } catch (RuntimeException e) {
@@ -118,6 +123,8 @@ public class Metadata extends Service {
         } catch (IllegalArgumentException e) {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);
         } catch (MetadataManager.MetadataException e) {
+            return error(e.httpStatus, e);
+        } catch (LexIntGraphGuard.ManagedWriteException e) {
             return error(e.httpStatus, e);
         } catch (AuthorizationException | ServiceException e) {
             return error(Response.Status.BAD_REQUEST.getStatusCode(), e);

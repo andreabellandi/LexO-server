@@ -21,6 +21,8 @@ import java.net.URL;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -93,8 +95,32 @@ public class UserManager implements Manager, Cached {
                     .build()
                     .parseClaimsJws(token);
             Claims cl = jwt.getBody();
-            ad.setUsername(cl.get("preferred_username").toString());
-            ad.setType(((Map) ((Map) cl.get("resource_access")).get(LexOProperties.getProperty("keycloack.client"))).get("roles").toString());
+            Object username = cl.get("preferred_username");
+            if (username == null || username.toString().trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "preferred_username is missing from the bearer token");
+            }
+            ad.setUsername(username.toString());
+            ad.setIssuer(cl.getIssuer());
+            ad.setSubject(cl.getSubject());
+            Object resourceAccess = cl.get("resource_access");
+            Object clientAccess = resourceAccess instanceof Map
+                    ? ((Map) resourceAccess).get(LexOProperties.getProperty(
+                            "keycloack.client")) : null;
+            Object rolesValue = clientAccess instanceof Map
+                    ? ((Map) clientAccess).get("roles") : null;
+            if (rolesValue != null) {
+                ad.setType(rolesValue.toString());
+            }
+            List<String> roles = new ArrayList<String>();
+            if (rolesValue instanceof Iterable) {
+                for (Object role : (Iterable) rolesValue) {
+                    if (role != null) {
+                        roles.add(role.toString());
+                    }
+                }
+            }
+            ad.setRoles(roles);
         } catch (ExpiredJwtException | MalformedJwtException | UnsupportedJwtException | SignatureException | IllegalArgumentException e) {
             // if you get error, that means token is invalid. 
             throw new Exception(e);

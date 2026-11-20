@@ -1,0 +1,4 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix broken: <https://example.org/broken#> .
+
+broken:Shape a sh:NodeShape ; sh:property [ sh:path

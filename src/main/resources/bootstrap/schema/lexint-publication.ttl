@@ -1,0 +1,152 @@
+@prefix pub: <https://ilc.cnr.it/klab/ontology/lexint/publication#> .
+@prefix lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix vann: <http://purl.org/vocab/vann/> .
+
+# LexInt Publication & Audit Ontology — version 0.1.0
+# Publication and verification are PROV-O activities; an operation is a
+# record of an individual inserted/deleted target assertion (a PROV entity).
+# This vocabulary does NOT assert the lexical candidate triples itself.
+
+<https://ilc.cnr.it/klab/ontology/lexint/publication>
+    a owl:Ontology ;
+    owl:versionIRI <https://ilc.cnr.it/klab/ontology/lexint/publication/0.1.0> ;
+    owl:versionInfo "0.1.0" ;
+    dcterms:title "LexInt Publication and Audit Ontology"@en,
+                  "Ontologia di pubblicazione e audit di LexInt"@it ;
+    dcterms:description "A minimal PROV-O-based vocabulary for recording versioned lexical publications, explicitly authorized insertions/deletions, effective usernames, and subsequent publication audit reports. Compatible with the existing LexInt profile."@en ;
+    dcterms:description "Vocabolario minimale basato su PROV-O per registrare pubblicazioni lessicali versionate, inserimenti e cancellazioni autorizzati, username effettivi e rapporti successivi di verifica."@it ;
+    dcterms:creator [ a foaf:Person ;
+                      foaf:name "Andrea Bellandi" ;
+                      foaf:homepage <https://www.ilc.cnr.it/people/andrea-bellandi-2/> ] ;
+    dcterms:created "2026-11-19"^^xsd:date ;
+    vann:preferredNamespacePrefix "pub" ;
+    vann:preferredNamespaceUri "https://ilc.cnr.it/klab/ontology/lexint/publication#" ;
+    rdfs:seeAlso <https://www.w3.org/TR/prov-o/>,
+                 <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation> .
+
+# -- Classes --------------------------------------------------------------
+
+pub:Publication a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "publication"@en, "pubblicazione"@it ;
+    rdfs:comment "A completed, controlled publication activity that transforms a source lexical-resource version into a published target version. Its operator username is recorded on the activity; each actual change is documented as an Operation."@en .
+
+pub:Operation a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "publication operation record"@en, "registrazione di operazione"@it ;
+    rdfs:comment "Immutable record of one lexical triple insertion or deletion performed within a Publication. The referenced LexInt TargetAssertion identifies one RDF proposition; this record does not assert it."@en .
+
+pub:Insertion a owl:Class ;
+    rdfs:subClassOf pub:Operation ;
+    owl:disjointWith pub:Deletion ;
+    rdfs:label "insertion"@en, "inserimento"@it ;
+    rdfs:comment "Record of an authorized insertion of a candidate lexical RDF triple."@en .
+
+pub:Deletion a owl:Class ;
+    rdfs:subClassOf pub:Operation ;
+    rdfs:label "deletion"@en, "cancellazione"@it ;
+    rdfs:comment "Record of an authorized deletion of a previously published lexical RDF triple."@en .
+
+pub:Verification a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "publication verification"@en, "verifica della pubblicazione"@it ;
+    rdfs:comment "An audit activity, performed at a particular time, comparing the publication plan and its authorized delta with the observed published graph. It may occur during publication or later."@en .
+
+pub:AuditReport a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "audit report"@en, "rapporto di verifica"@it ;
+    rdfs:comment "Immutable result of one Verification. Multiple reports may concern the same Publication, preserving the history of checks."@en .
+
+pub:AuditOutcome a owl:Class ;
+    rdfs:label "audit outcome"@en, "esito della verifica"@it ;
+    rdfs:comment "Controlled outcome of a verification: PASS, FAIL, or INDETERMINATE."@en .
+
+# -- Relationships to LexInt and versions ---------------------------------
+
+pub:hasOperation a owl:ObjectProperty ;
+    rdfs:domain pub:Publication ;
+    rdfs:range pub:Operation ;
+    rdfs:label "has operation"@en, "comprende operazione"@it ;
+    rdfs:comment "Links a publication to a record of an executed insertion or deletion."@en .
+
+pub:targetAssertion a owl:ObjectProperty ;
+    rdfs:domain pub:Operation ;
+    rdfs:range lexint:TargetAssertion ;
+    rdfs:label "target assertion"@en, "asserzione candidata interessata"@it ;
+    rdfs:comment "The single LexInt target assertion identifying the triple affected by the operation."@en .
+
+pub:authorizedBy a owl:ObjectProperty ;
+    rdfs:domain pub:Operation ;
+    rdfs:range lexint:LexicographicDecision ;
+    rdfs:label "authorized by decision"@en, "autorizzata da decisione"@it ;
+    rdfs:comment "The finalized, version-relevant LexInt decision supporting this particular operation. Eligibility of the decision outcome is checked by the application, not inferred by OWL."@en .
+
+pub:sourceVersion a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:used ;
+    rdfs:domain pub:Publication ;
+    rdfs:range prov:Entity ;
+    rdfs:label "source version"@en, "versione di partenza"@it .
+
+pub:targetVersion a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:generated ;
+    rdfs:domain pub:Publication ;
+    rdfs:range prov:Entity ;
+    rdfs:label "published version"@en, "versione pubblicata"@it .
+
+pub:verifiesPublication a owl:ObjectProperty ;
+    rdfs:domain pub:Verification ;
+    rdfs:range pub:Publication ;
+    rdfs:label "verifies publication"@en, "verifica la pubblicazione"@it .
+
+pub:hasReport a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:generated ;
+    rdfs:domain pub:Verification ;
+    rdfs:range pub:AuditReport ;
+    rdfs:label "generates report"@en, "genera rapporto"@it .
+
+# -- Operator and verification result -------------------------------------
+
+pub:username a owl:DatatypeProperty ;
+    rdfs:domain prov:Activity ;
+    rdfs:range xsd:string ;
+    rdfs:label "effective username"@en, "username effettivo"@it ;
+    rdfs:comment "Snapshot of the effective application username responsible for an activity. For Publication it identifies the user who initiated/authorized the publishing operation. The publication must also be associated with that user's prov:Agent via prov:wasAssociatedWith. In authenticated mode this value must come from the server security context, never from an untrusted request body."@en .
+
+pub:hasOutcome a owl:ObjectProperty ;
+    rdfs:domain pub:AuditReport ;
+    rdfs:range pub:AuditOutcome ;
+    rdfs:label "has audit outcome"@en, "ha esito della verifica"@it .
+
+pub:missingTripleCount a owl:DatatypeProperty ;
+    rdfs:domain pub:AuditReport ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "missing triple count"@en, "numero di triple mancanti"@it .
+
+pub:unexpectedTripleCount a owl:DatatypeProperty ;
+    rdfs:domain pub:AuditReport ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "unexpected triple count"@en, "numero di triple inattese"@it .
+
+# -- Controlled outcomes --------------------------------------------------
+
+pub:pass a owl:NamedIndividual, pub:AuditOutcome ;
+    rdfs:label "PASS"@en, "verifica superata"@it ;
+    rdfs:comment "The observed graph matches the authorized publication delta within the checked scope."@en .
+
+pub:fail a owl:NamedIndividual, pub:AuditOutcome ;
+    rdfs:label "FAIL"@en, "verifica fallita"@it ;
+    rdfs:comment "A deviation between the observed graph and the authorized publication delta was detected."@en .
+
+pub:indeterminate a owl:NamedIndividual, pub:AuditOutcome ;
+    rdfs:label "INDETERMINATE"@en, "verifica indeterminata"@it ;
+    rdfs:comment "The verification could not establish conformance, for example due to unavailable inputs; it must not be treated as PASS."@en .
+
+# No owl:imports: LexO-server controls the versions of reused vocabularies.
+# Mandatory fields, cardinalities and enumerations are enforced by SHACL;
+# semantic authorization and graph-delta equality require application logic.

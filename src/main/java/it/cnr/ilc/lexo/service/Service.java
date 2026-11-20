@@ -41,19 +41,23 @@ abstract class Service {
     private UserManager userManager = null;
 
     protected void checkKey(String key) throws AuthorizationException, ServiceException {
-        if (LexOProperties.getProperty("keycloack.url") != null) {
+        String keycloakUrl = LexOProperties.getProperty("keycloack.url");
+        if (keycloakUrl != null && !keycloakUrl.trim().isEmpty()) {
+            if (key == null || key.length() <= 7
+                    || !key.regionMatches(true, 0, "Bearer ", 0, 7)
+                    || key.substring(7).trim().isEmpty()) {
+                throw new ServiceException(
+                        "A valid bearer authorization header is required");
+            }
             if (userManager == null) {
                 userManager = ManagerFactory.getManager(UserManager.class);
             }
             try {
                 // LexO-server server was configured with Keycloack
-                if (null != key) {
-                    authenticationData = userManager.authorize(key.substring(7));
-                    setActorContext(authenticationData == null
-                            ? null : authenticationData.getUsername());
-                } else {
-                    throw new ServiceException("authorization key is null");
-                }
+                authenticationData = userManager.authorize(
+                        key.substring(7).trim());
+                setActorContext(authenticationData == null
+                        ? null : authenticationData.getUsername());
             } catch (Exception ex) {
                 throw new AuthorizationException(ex.getMessage());
             }
@@ -99,7 +103,7 @@ abstract class Service {
                 .log(LogSanitizer.singleLine(message));
     }
 
-    private void setActorContext(String actor) {
+    protected final void setActorContext(String actor) {
         if (actor == null || actor.trim().isEmpty()) {
             MDC.remove("actor");
         } else {

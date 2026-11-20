@@ -1,0 +1,45 @@
+@prefix pub: <https://ilc.cnr.it/klab/ontology/lexint/publication#> .
+@prefix lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Structural constraints; run with the publication ontology and LexInt schema
+# loaded. These shapes DO NOT compare old/new lexical RDF graphs.
+
+pub:PublicationShape a sh:NodeShape ;
+    sh:targetClass pub:Publication ;
+    sh:property [ sh:path pub:username ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:datatype xsd:string ; sh:minLength 1 ;
+                  sh:message "A publication must record exactly one effective username."@en ] ;
+    sh:property [ sh:path prov:wasAssociatedWith ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class prov:Agent ] ;
+    sh:property [ sh:path pub:sourceVersion ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class prov:Entity ] ;
+    sh:property [ sh:path pub:targetVersion ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class prov:Entity ] ;
+    sh:property [ sh:path pub:hasOperation ; sh:minCount 1 ;
+                  sh:class pub:Operation ] .
+
+pub:OperationShape a sh:NodeShape ;
+    sh:targetClass pub:Operation ;
+    sh:property [ sh:path pub:targetAssertion ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class lexint:TargetAssertion ] ;
+    sh:property [ sh:path pub:authorizedBy ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class lexint:LexicographicDecision ] .
+
+pub:VerificationShape a sh:NodeShape ;
+    sh:targetClass pub:Verification ;
+    sh:property [ sh:path pub:verifiesPublication ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class pub:Publication ] ;
+    sh:property [ sh:path pub:hasReport ; sh:minCount 1 ;
+                  sh:class pub:AuditReport ] .
+
+pub:AuditReportShape a sh:NodeShape ;
+    sh:targetClass pub:AuditReport ;
+    sh:property [ sh:path pub:hasOutcome ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:in ( pub:pass pub:fail pub:indeterminate ) ] ;
+    sh:property [ sh:path pub:missingTripleCount ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:datatype xsd:nonNegativeInteger ] ;
+    sh:property [ sh:path pub:unexpectedTripleCount ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:datatype xsd:nonNegativeInteger ] .

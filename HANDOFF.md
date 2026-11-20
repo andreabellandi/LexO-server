@@ -1,5 +1,81 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 20 novembre 2026 con l'implementazione locale di LexInt
+Management e LexInt Publication & Audit su `master`, partito allineato a
+`origin/master` (`0c15581df2207756a40b97c443b45a1c6d0b5429`). Il lavoro non è
+stato committato né distribuito. `README.md` è rimasto byte-identico.
+
+Il WAR espone ora le risorse Swagger `LexInt Management`, `LexInt Versions` e
+`LexInt Publication & Audit`: CRUD di claim/target/decisione, finalizzazione,
+baseline e draft, preview senza scritture, publish per-target con ETag e
+idempotenza persistente, snapshot Turtle, listing, audit storico e verify.
+Tutto usa `RepositoryTarget.LEXICON`; records, audit, shapes e snapshot sono
+named graph separati e il default graph resta vuoto. Un writer centralizzato
+assegna creator/created/modified a ogni individuo runtime. Username e ruolo
+publisher sono risolti server-side; in free mode l'identità è `DECLARED` e il
+publish resta disabilitato per default.
+
+Le due ontologie Turtle sono nel manifest schema e le due shape hanno manifest,
+checksum e rollback dedicati. Su richiesta esplicita del maintainer,
+la proprietà della claim è stata uniformata ovunque al singolare
+`lexint:targetAssertion`, inclusi i TTL sorgente sotto
+`/Users/andrea/Documents/Submissions/UD 2026/lexint`; il distinto
+`pub:targetAssertion` non è cambiato. Il vecchio namespace LexInt non è stato
+introdotto.
+
+La pubblicazione costruisce `(G_source - D) + I`, controlla drift, autorizza
+ogni target con una decisione finalizzata, committa snapshot/current/ledger e
+primo report in una sola transazione. Retry identici non creano nuove IRI.
+Verify ricostruisce lo specifico delta storico e conserva JSON bounded di
+missing/unexpected e codici diagnostici nel report. Link, tipi, metadati,
+decisioni e versioni storiche vengono rivalidati; un input danneggiato genera
+un nuovo report persistito `INDETERMINATE`, non un falso PASS. Il dettaglio
+versione include la storia audit della publication associata. Il write guard
+blocca entry create/update, status e metadata diretti soltanto quando i flag
+managed sono attivi e la lingua possiede una baseline corrente; con i flag
+default i servizi esistenti restano invariati.
+
+La configurazione dei graph è validata centralmente sia al bootstrap sia a
+ogni apertura LexInt contro graph esatti e famiglie lessicali, testuali,
+attestazioni, annotazioni e WordNet. I Bearer mancanti o malformati vengono
+rifiutati prima dell'accesso al provider. Payload JSON ed export snapshot sono
+bounded durante lo streaming; tutte le route applicano inoltre un rate limit
+per identità, con cache LRU bounded e proprietà configurabili.
+
+Verifica eseguita:
+
+- `mvn -DskipTests compile`: riuscita;
+- `GraphDbBootstrapTest`: 6 test superati;
+- `LexIntWorkflowTest`, `LexIntAuthPolicyTest`, `LexIntApiContractTest` e
+  `LexIntRateLimiterTest`, `LexIntGraphGuardIntegrationTest`: 21 test superati,
+  inclusi SHACL
+  fail-closed, CRUD e finalizzazione, metadata, auth/ruolo, V1→V2→V3,
+  preview read-only, rollback ETag e post-write, idempotenza scoped per
+  principal, baseline V1 stabile, target sovrapposti, claim parziale, audit
+  storico fail-closed, mismatch di policy/versione/claim, rate limit,
+  concorrenza sullo stesso scope, drift e blocco dei writer lessicali nello
+  scope gestito;
+- `mvn verify`: 365 test unitari/repository superati senza failure, errori o
+  skip; WAR generato; 20 E2E, inclusa la nuova `LexIntServicesIT`, compilati e
+  saltati perché gli opt-in e i deployment Tomcat/GraphDB dedicati non erano
+  configurati.
+
+Limiti noti: RDF4J 3.7/Java 8 non implementa direttamente
+`XoneConstraintComponent`; il TTL resta invariato e il validator applica lo
+stesso vincolo fail-closed prima della revalidazione ShaclSail degli altri
+componenti. Il runtime v1 rifiuta RDF 1.2 `rdf:reifies`. La serializzazione
+publish usa un lock JVM e richiede una sola istanza writer; non è un lock
+distribuito; anche il rate limit è locale alla JVM e richiede un limite
+coordinato al reverse proxy in un deployment multi-istanza. Differenze in
+componenti blank-node non isomorfe producono `INDETERMINATE`. Restano da
+eseguire gli E2E LexInt su Tomcat/GraphDB isolati; prima del rollout vanno
+inoltre configurati permessi GraphDB che impediscano writer esterni. Maven ha
+segnalato il certificato scaduto del repository metadata legacy
+`maven.java.net`, senza impedire build o test. Il prossimo passo raccomandato è
+distribuire il WAR in un ambiente dedicato, eseguire il workflow completo via
+REST e verificare direttamente named graph e default graph. La guida completa
+è `docs/lexint-services.md`.
+
 Aggiornato al 12 novembre 2026 con l'integrazione del branch `cpp` in `master`.
 Il merge parte da `origin/master` aggiornato e conserva integralmente
 la nuova API WordNet, l'organizzazione e la ricerca testuale e aggiunge i sei

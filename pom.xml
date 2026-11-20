@@ -218,6 +218,11 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-shacl</artifactId>
+            <version>3.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
             <artifactId>rdf4j-tools-federation</artifactId>
             <version>3.7.6</version>
         </dependency>

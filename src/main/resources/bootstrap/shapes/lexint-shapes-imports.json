@@ -1,0 +1,7 @@
+{
+  "namedGraph": "https://lexo.ilc.cnr.it/graphs/lexical/lexint/shapes",
+  "files": [
+    "bootstrap/shapes/lexint-shapes.ttl",
+    "bootstrap/shapes/lexint-publication-shapes.ttl"
+  ]
+}

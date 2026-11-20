@@ -1,0 +1,105 @@
+@prefix lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix crminf: <http://www.cidoc-crm.org/extensions/crminf/> .
+
+<https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation>
+    a owl:Ontology ;
+    owl:versionIRI <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation/0.2.0> ;
+    owl:versionInfo "0.2.0-audit-draft" ;
+    dcterms:title "LexInt: Lexicographic Interpretation Profile"@en ;
+    dcterms:description "Minimal application profile for scholarly claims about candidate lexical RDF propositions and version-specific editorial decisions. HiCO, PROV-O, CRMinf and other vocabularies retain their own meanings; RDF 1.2 or RDF 1.1 represent unasserted candidates."@en ;
+    dcterms:created "2026-11-03"^^xsd:date ;
+    dcterms:license <https://creativecommons.org/publicdomain/zero/1.0/> ;
+    rdfs:seeAlso <https://marilenadaquino.github.io/hico/> ,
+        <https://cidoc-crm.org/extensions/crminf/html/CRMinf_v1.2.1.html> ,
+        <https://www.w3.org/TR/prov-o/> ,
+        <https://www.w3.org/TR/rdf12-concepts/> ,
+        <https://www.w3.org/TR/rdf11-mt/> .
+
+# A claim is here DEFINED as proposition content, not as the action of asserting it.
+# Thus a claim is a CRMinf I4 Proposition Set, which can be held with different
+# belief values (I2/J4/J5), and an entity with PROV generation/attribution.
+# This modelling commitment eliminates an extra evaluatesClaim property.
+lexint:InterpretiveClaim a owl:Class ;
+    rdfs:subClassOf crminf:I4_Proposition_Set, prov:Entity ;
+    rdfs:label "interpretive claim"@en ;
+    rdfs:comment "A proposition or set of propositions expressing a scholarly interpretation about lexical information. It is not an editorial decision and its existence does not assert the candidate lexical RDF triples. Its content is independent of any particular interpretation act; belief values belong to CRMinf I2_Belief instances."@en .
+
+# rdf:reifies (RDF 1.2) and classic rdf:Statement (RDF 1.1) are alternatives.
+# This role is NOT equivalent to rdf:Statement: 1.2 reifiers are broader.
+lexint:TargetAssertion a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "target assertion"@en ;
+    rdfs:comment "A stable identifier for one candidate RDF proposition relevant to a claim, represented by an rdf:reifies triple term (RDF 1.2) or rdf:Statement subject/predicate/object (RDF 1.1). In neither form is the underlying lexical triple thereby asserted."@en .
+
+lexint:LexicographicDecision a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "lexicographic decision"@en ;
+    rdfs:comment "A version-scoped editorial activity selecting a disposition for an interpretive claim, distinct from accepting that claim as true. It does not itself insert or retract triples: a managed publication transaction does so."@en .
+
+# Minimal bridges: four object properties. Do not conflate their meanings.
+lexint:targetAssertion a owl:ObjectProperty ;
+    rdfs:domain lexint:InterpretiveClaim ;
+    rdfs:range lexint:TargetAssertion ;
+    rdfs:label "targets assertion"@en ;
+    rdfs:comment "Identifies a lexical RDF proposition affected by this claim; it does NOT indicate whether the claim supports or rejects that proposition. One claim may target multiple propositions."@en .
+
+lexint:concernsClaim a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:used ;
+    rdfs:domain lexint:LexicographicDecision ;
+    rdfs:range lexint:InterpretiveClaim ;
+    rdfs:label "concerns claim"@en ;
+    rdfs:comment "The specific scholarly claim under editorial consideration. As a specialization of prov:used, it retains an interoperable PROV usage relation without confusing the claim with other evidence consulted."@en .
+
+lexint:decisionOutcome a owl:ObjectProperty ;
+    rdfs:domain lexint:LexicographicDecision ;
+    rdfs:range skos:Concept ;
+    rdfs:label "decision outcome"@en ;
+    rdfs:comment "The editorial disposition of the claim, using the DecisionOutcomes concept scheme. Not an epistemic belief value."@en .
+
+lexint:appliesToVersion a owl:ObjectProperty ;
+    rdfs:domain lexint:LexicographicDecision ;
+    rdfs:range prov:Entity ;
+    rdfs:label "applies to version"@en ;
+    rdfs:comment "Identifies the concrete lexical-resource version whose editorial policy/content is affected. This is not identical to prov:used: a target version need not have pre-existed the decision."@en .
+
+lexint:DecisionOutcomes a skos:ConceptScheme ;
+    skos:prefLabel "Lexicographic decision outcomes"@en ;
+    skos:prefLabel "Esiti delle decisioni lessicografiche"@it .
+
+lexint:adopted a skos:Concept ;
+    skos:inScheme lexint:DecisionOutcomes ;
+    skos:prefLabel "adopted"@en ; skos:prefLabel "adottato"@it ;
+    skos:definition "The claim is editorially adopted in the specified version; materialization of its authorized candidate triples is a separate publication operation."@en .
+
+lexint:rejected a skos:Concept ;
+    skos:inScheme lexint:DecisionOutcomes ;
+    skos:prefLabel "rejected"@en ; skos:prefLabel "rifiutato"@it ;
+    skos:definition "The claim was explicitly considered and not selected for the specified version; this is not a statement that its content is false."@en .
+
+lexint:suspended a skos:Concept ;
+    skos:inScheme lexint:DecisionOutcomes ;
+    skos:prefLabel "suspended"@en ; skos:prefLabel "sospeso"@it ;
+    skos:definition "The selection of the claim is deferred or left pending for the specified version."@en .
+
+lexint:replaced a skos:Concept ;
+    skos:inScheme lexint:DecisionOutcomes ;
+    skos:prefLabel "replaced"@en ; skos:prefLabel "sostituito"@it ;
+    skos:definition "The claim is no longer the selected editorial account because an alternative is preferred in the specified version; link the replacing decision using dcterms:replaces where known."@en .
+
+# Documented reuse patterns, deliberately NOT declared owl:equivalentProperty:
+# claim-to-belief: claim IS crminf:I4_Proposition_Set; belief J4_that claim;
+#                  belief J5_holds_to_be crminf:I6_Belief_Value.
+# conflict:       cito:disagreesWith between hico:InterpretationAct activities
+#                 as documented by HiCO, or full AIF/CRMinf arguments.
+# supersession:  dcterms:replaces from the later decision to the earlier one.
+# candidate etymology: lemonEty:etymology expressed as an unasserted target.
+# source meaning:      crminf:I16_Meaning_Comprehension with J22, J23.
+# stand-off evidence:  oa:Annotation, oa:hasTarget, oa:hasBody.
+# bounded date:        crm:P4_has_time-span -> E52_Time-Span/P82b_end_of_the_end.
+# No owl:imports: LexO-server controls vocab loading/version policy.

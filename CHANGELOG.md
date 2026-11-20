@@ -9,6 +9,17 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- LexInt Management and Publication & Audit now run inside the existing WAR
+  and `LexOLexica`, with claim/target/decision CRUD, server-managed versions,
+  read-only preview, transactional per-target publication, persistent
+  idempotency, immutable snapshots and repeatable historical audit APIs.
+- Bootstrap now installs both LexInt ontologies in the lexical schema graph
+  and both SHACL resources in an isolated shapes graph with independent
+  checksums, idempotency and rollback. Runtime individuals receive centralized
+  creator/created/modified metadata and authenticated publication requires the
+  configured publisher role; all LexInt routes also have configurable bounded
+  per-identity request limiting.
+
 - A complete `/service/wordnet` REST API now manages WordNet roots, entries,
   forms, senses, synsets and explicit VarTrans relations, with selectable GET
   projections, paginated filters, stable Base64URL resource IDs, common RDF
@@ -160,6 +171,13 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- The LexInt profile property is consistently named
+  `lexint:targetAssertion` in the packaged ontology, shape and runtime code;
+  the distinct Publication property remains `pub:targetAssertion`.
+- When explicitly enabled for a language with a baseline, LexInt managed mode
+  now prevents direct entry, status and metadata writers from bypassing the
+  controlled publication workflow; defaults remain disabled for compatibility.
+
 - The global metadata policy now protects the complete GWA WordNet namespace
   and the service-managed LexO workflow predicates, while retaining the
   permanent `skos:note` exception.
@@ -273,6 +291,11 @@ starts from the ongoing `Unreleased` work.
 - SKOS API documentation now treats authorization parameters as optional.
 
 ### Fixed
+
+- LexInt historical verification now fails closed when publication links or
+  provenance metadata are damaged, persists diagnostic `INDETERMINATE`
+  reports, returns version audit history, rejects malformed Bearer headers
+  before provider access, and prevents graph-family configuration collisions.
 
 - WordNet detail projections now honor explicit `sections` without leaking
   unrequested core/native fields, and Synset/Sense relation sections support
