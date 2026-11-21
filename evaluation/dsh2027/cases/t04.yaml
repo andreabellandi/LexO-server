@@ -1,0 +1,5 @@
+test_id: T04
+setup: fresh V1 with valid T1 decisions and invalid suspended S1 decision
+action: submit two valid etymological operations plus invalid S1 INSERT
+oracle: LEXINT_DECISION_NOT_ELIGIBLE
+assertions: [whole_plan_rejected, ratio_retained, haraz_absent, no_partial_commit]

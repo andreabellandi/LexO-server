@@ -14,6 +14,8 @@ import it.cnr.ilc.lexo.manager.lexint.LexIntGraphGuard;
 import it.cnr.ilc.lexo.manager.lexint.LexIntMetadataWriter;
 import it.cnr.ilc.lexo.manager.lexint.LexIntRepository;
 import it.cnr.ilc.lexo.manager.lexint.LexIntShaclValidator;
+import it.cnr.ilc.lexo.manager.lexint.LexIntResourceUris;
+import it.cnr.ilc.lexo.manager.lexint.PublicationFaultInjector;
 import it.cnr.ilc.lexo.service.data.lexint.input.ClaimCreateRequest;
 import it.cnr.ilc.lexo.service.data.lexint.input.ClaimPatchRequest;
 import it.cnr.ilc.lexo.service.data.lexint.input.DecisionCreateRequest;
@@ -39,6 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -146,6 +149,16 @@ class LexIntWorkflowTest {
         assertThat(publications.getVersion(draft.id).audit).hasSize(1);
         assertThat(publications.getVersion(baseline.version.id).state)
                 .isEqualTo("PUBLISHED");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            IRI auditGraph = iri(LexOProperties.getProperty(
+                    "GraphDb.lexintAuditNamedGraph"));
+            assertThat(connection.hasStatement(iri(baseline.version.iri),
+                    SNAPSHOT_TRIPLE_COUNT,
+                    vf.createLiteral("1", XSD.NON_NEGATIVE_INTEGER), false,
+                    auditGraph)).isTrue();
+            assertThat(connection.hasStatement(iri(draft.iri),
+                    SNAPSHOT_TRIPLE_COUNT, null, false, auditGraph)).isTrue();
+        }
         LexIntPublicationManager.VersionCreation baselineReplay =
                 publications.baseline("it", actor);
         assertThat(baselineReplay.replayed).isTrue();
@@ -272,6 +285,15 @@ class LexIntWorkflowTest {
         assertThat(publications.auditHistory(first.id).get(
                 publications.auditHistory(first.id).size() - 1).errorCodes)
                 .contains("LEXINT_DATA_INCONSISTENT");
+
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.clear(iri(baseline.version.snapshotGraphIri));
+        }
+        AuditReportDetails missingSnapshot = publications.verify(first.id,
+                false, actor);
+        assertThat(missingSnapshot.outcome).isEqualTo("INDETERMINATE");
+        assertThat(missingSnapshot.errorCodes)
+                .contains("LEXINT_AUDIT_INPUT_UNAVAILABLE");
     }
 
     @Test
@@ -514,6 +536,70 @@ class LexIntWorkflowTest {
         assertThat(publications.getVersion(baseline.version.id).state)
                 .isEqualTo("CURRENT");
         assertThat(publications.getVersion(draft.id).state)
+                .isEqualTo("RESERVED");
+    }
+
+    @Test
+    void rollsBackEveryProvisionalWriteWhenTestFailpointInterruptsPublish() {
+        IRI active = iri(LexiconCrudSupport.lexicalGraphUri("it"));
+        IRI stableSubject = iri("https://example.org/dsh2027/stable");
+        IRI stablePredicate = iri("https://example.org/dsh2027/status");
+        try (RepositoryConnection connection = repository.getConnection()) {
+            connection.add(stableSubject, stablePredicate,
+                    vf.createLiteral("before"), active);
+        }
+        LexIntPublicationManager.VersionCreation baseline =
+                publications.baseline("it", actor);
+        VersionDetails draft = publications.reserveDraft("it", actor);
+        ClaimDetails claim = records.createClaim(claim(), actor);
+        DecisionDetails decision = records.createDecision(
+                decision(claim.iri, draft.iri), actor);
+        decision = records.finalizeDecision(decision.id, actor);
+        PublicationRequest request = publication(baseline.version.iri,
+                draft.iri, claim.targets.get(0).iri, decision.iri);
+        PublicationPreview preview = publications.preview(request, actor);
+
+        final AtomicBoolean reached = new AtomicBoolean(false);
+        PublicationFaultInjector interrupt = new PublicationFaultInjector() {
+            @Override public void afterProvisionalWrites() {
+                reached.set(true);
+                throw new DeliberatePublicationInterruption();
+            }
+        };
+        LexIntPublicationManager interrupted = new LexIntPublicationManager(
+                new LexIntRepository(repository), new LexIntResourceUris(),
+                new LexIntMetadataWriter(), interrupt);
+        IRI auditGraph = iri(LexOProperties.getProperty(
+                "GraphDb.lexintAuditNamedGraph"));
+        IRI targetSnapshot = iri(LexOProperties.getProperty(
+                "GraphDb.lexintSnapshotsBase") + "it/" + draft.versionCode);
+        long auditSize;
+        long activeSize;
+        try (RepositoryConnection connection = repository.getConnection()) {
+            auditSize = connection.size(auditGraph);
+            activeSize = connection.size(active);
+        }
+
+        assertThatThrownBy(() -> interrupted.publish(request, actor,
+                preview.baseEtag, "dsh-t9-failpoint", "request-dsh-t9"))
+                .isInstanceOf(DeliberatePublicationInterruption.class);
+        assertThat(reached).as("the pre-commit failpoint was reached").isTrue();
+        try (RepositoryConnection connection = repository.getConnection()) {
+            assertThat(connection.size(auditGraph)).isEqualTo(auditSize);
+            assertThat(connection.size(active)).isEqualTo(activeSize);
+            assertThat(connection.size(targetSnapshot)).isZero();
+            assertThat(connection.hasStatement(stableSubject, stablePredicate,
+                    vf.createLiteral("before"), false, active)).isTrue();
+            assertThat(connection.hasStatement(
+                    iri("https://example.org/entry/casa"),
+                    iri("https://example.org/vocabulary/interpretation"),
+                    vf.createLiteral("abitazione", "it"), false, active))
+                    .isFalse();
+            assertThat(connection.size((Resource) null)).isZero();
+        }
+        assertThat(interrupted.getVersion(baseline.version.id).state)
+                .isEqualTo("CURRENT");
+        assertThat(interrupted.getVersion(draft.id).state)
                 .isEqualTo("RESERVED");
     }
 
@@ -836,4 +922,9 @@ class LexIntWorkflowTest {
     }
 
     private IRI iri(String value) { return vf.createIRI(value); }
+
+    private static final class DeliberatePublicationInterruption
+            extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+    }
 }

@@ -1,0 +1,5 @@
+test_id: T12
+variants:
+  - {id: T12a, trigger: create legitimate V3 then verify V1-to-V2, expected: PASS}
+  - {id: T12b, trigger: L2 clears required V1 snapshot then verify V1-to-V2, expected: INDETERMINATE}
+assertions: [historical_scope_v1_v2, v3_not_substituted, reports_append_only, never_false_pass]

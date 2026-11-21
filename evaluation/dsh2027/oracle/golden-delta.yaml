@@ -1,0 +1,11 @@
+oracle_version: 1
+source: fixtures/expected-v1.ttl
+destination: fixtures/expected-v2.ttl
+authorized_deletions:
+  - [https://example.org/dsh2027/razza, http://lari-datasets.ilc.cnr.it/lemonEty#etymology, https://example.org/dsh2027/etyRatio]
+authorized_insertions:
+  - [https://example.org/dsh2027/razza, http://lari-datasets.ilc.cnr.it/lemonEty#etymology, https://example.org/dsh2027/etyHaraz]
+semantic_candidates:
+  - [https://example.org/dsh2027/senseCandidateA, http://www.w3.org/1999/02/22-rdf-syntax-ns#type, http://www.w3.org/ns/lemon/ontolex#LexicalSense]
+  - [https://example.org/dsh2027/razza, http://www.w3.org/ns/lemon/ontolex#sense, https://example.org/dsh2027/senseCandidateA]
+  - [https://example.org/dsh2027/senseCandidateA, http://www.w3.org/ns/lemon/ontolex#reference, https://example.org/dsh2027/conceptCandidateA]

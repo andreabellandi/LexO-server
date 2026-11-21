@@ -1,0 +1,5 @@
+test_id: T03
+setup: fresh V1, V2 reserved, finalized suspended decision
+action: preview and direct publish of S1 INSERT
+oracle: LEXINT_DECISION_NOT_ELIGIBLE
+assertions: [http_422, active_unchanged, no_publication, no_snapshot_v2]

@@ -1,0 +1,5 @@
+test_id: T07
+setup: separate adopted technical claim with two independent rdfs:comment targets
+action: publish one explicitly selected target
+oracle: fixtures/test7-independent-targets.yaml
+assertions: [partial_claim_reported, selected_present, unselected_absent, one_operation]

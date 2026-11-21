@@ -1,0 +1,13 @@
+@prefix ex: <https://example.org/dsh2027/> .
+@prefix ontolex: <http://www.w3.org/ns/lemon/ontolex#> .
+@prefix lemonEty: <http://lari-datasets.ilc.cnr.it/lemonEty#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+ex:razza a ontolex:LexicalEntry ;
+    rdfs:label "razza"@it ;
+    dcterms:language "it" ;
+    lemonEty:etymology ex:etyRatio .
+
+ex:unrelatedEntry a ontolex:LexicalEntry ;
+    rdfs:label "controllo invariato"@it .

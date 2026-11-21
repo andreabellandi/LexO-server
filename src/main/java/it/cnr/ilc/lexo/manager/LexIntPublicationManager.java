@@ -10,6 +10,7 @@ import it.cnr.ilc.lexo.manager.lexint.LexIntPublicationPlanner;
 import it.cnr.ilc.lexo.manager.lexint.LexIntRepository;
 import it.cnr.ilc.lexo.manager.lexint.LexIntResourceUris;
 import it.cnr.ilc.lexo.manager.lexint.LexIntShaclValidator;
+import it.cnr.ilc.lexo.manager.lexint.PublicationFaultInjector;
 import it.cnr.ilc.lexo.service.data.lexint.input.PublicationOperationInput;
 import it.cnr.ilc.lexo.service.data.lexint.input.PublicationRequest;
 import it.cnr.ilc.lexo.service.data.lexint.output.AuditReportDetails;
@@ -54,24 +55,34 @@ public final class LexIntPublicationManager implements Manager {
     private final LexIntPublicationPlanner planner;
     private final LexIntPublicationAuditor auditor;
     private final LexIntShaclValidator shacl;
+    private final PublicationFaultInjector faultInjector;
 
     public LexIntPublicationManager() {
         this(new LexIntRepository(), new LexIntResourceUris(),
-                new LexIntMetadataWriter());
+                new LexIntMetadataWriter(), PublicationFaultInjector.NONE);
     }
 
     public LexIntPublicationManager(Repository rdfRepository) {
         this(new LexIntRepository(rdfRepository), new LexIntResourceUris(),
-                new LexIntMetadataWriter());
+                new LexIntMetadataWriter(), PublicationFaultInjector.NONE);
     }
 
     public LexIntPublicationManager(LexIntRepository repository,
             LexIntResourceUris uris, LexIntMetadataWriter metadata) {
+        this(repository, uris, metadata, PublicationFaultInjector.NONE);
+    }
+
+    /** Constructor for in-process tests that need a pre-commit failpoint. */
+    public LexIntPublicationManager(LexIntRepository repository,
+            LexIntResourceUris uris, LexIntMetadataWriter metadata,
+            PublicationFaultInjector faultInjector) {
         this.repository = repository; this.uris = uris;
         this.metadata = metadata;
         this.planner = new LexIntPublicationPlanner(repository, metadata);
         this.auditor = new LexIntPublicationAuditor();
         this.shacl = new LexIntShaclValidator(repository);
+        this.faultInjector = faultInjector == null
+                ? PublicationFaultInjector.NONE : faultInjector;
     }
 
     public VersionCreation baseline(String language, final LexIntActor actor) {
@@ -106,7 +117,8 @@ public final class LexIntPublicationManager implements Manager {
                     Model activeModel = repository.model(connection, active);
                     connection.add(activeModel, snapshot);
                     addVersion(connection, version, canonical, code, "CURRENT",
-                            snapshot, uris.opaqueEtag(), agent, actor, focus);
+                            snapshot, Long.valueOf(activeModel.size()),
+                            uris.opaqueEtag(), agent, actor, focus);
                     shacl.validate(connection, focus);
                     if (!Models.isomorphic(activeModel,
                             repository.model(connection, snapshot))) {
@@ -138,7 +150,7 @@ public final class LexIntPublicationManager implements Manager {
                     IRI version = uris.mint("version");
                     String code = nextVersionCode(connection, canonical);
                     addVersion(connection, version, canonical, code, "RESERVED",
-                            null, null, agent, actor, focus);
+                            null, null, null, agent, actor, focus);
                     shacl.validate(connection, focus);
                     return versionDetails(connection, version,
                             actor.identityAssurance);
@@ -317,6 +329,7 @@ public final class LexIntPublicationManager implements Manager {
                             new ArrayList<TripleDetails>(),
                             new ArrayList<TripleDetails>(),
                             new ArrayList<String>(), focus);
+                    faultInjector.afterProvisionalWrites();
                     shacl.validate(connection, focus);
                     if (!Models.isomorphic(plan.expected,
                             repository.model(connection,
@@ -447,7 +460,11 @@ public final class LexIntPublicationManager implements Manager {
                     }
                     LexIntPublicationAuditor.Result comparison;
                     try {
-                        if (sourceGraph == null || targetGraph == null) {
+                        if (sourceGraph == null || targetGraph == null
+                                || snapshotInputUnavailable(connection,
+                                        sourceVersion, sourceGraph)
+                                || snapshotInputUnavailable(connection,
+                                        targetVersion, targetGraph)) {
                             comparison = auditor.compare(null, null);
                         } else {
                             Model source = repository.model(connection, sourceGraph);
@@ -486,7 +503,8 @@ public final class LexIntPublicationManager implements Manager {
 
     private void addVersion(RepositoryConnection connection, IRI version,
             String language, String code, String state, IRI snapshot,
-            String etag, IRI agent, LexIntActor actor, List<IRI> focus) {
+            Long snapshotTripleCount, String etag, IRI agent,
+            LexIntActor actor, List<IRI> focus) {
         connection.add(version, RDF.TYPE, ENTITY, repository.auditGraph);
         connection.add(version, LANGUAGE, vf.createLiteral(language),
                 repository.auditGraph);
@@ -496,6 +514,13 @@ public final class LexIntPublicationManager implements Manager {
                 repository.auditGraph);
         if (snapshot != null) {
             connection.add(version, SNAPSHOT_GRAPH, snapshot,
+                    repository.auditGraph);
+        }
+        if (snapshotTripleCount != null) {
+            connection.add(version, SNAPSHOT_TRIPLE_COUNT,
+                    vf.createLiteral(Long.toString(
+                            snapshotTripleCount.longValue()),
+                            XSD.NON_NEGATIVE_INTEGER),
                     repository.auditGraph);
         }
         if (etag != null) {
@@ -578,6 +603,10 @@ public final class LexIntPublicationManager implements Manager {
                 vf.createLiteral("CURRENT"), repository.auditGraph);
         connection.add(plan.targetVersion, SNAPSHOT_GRAPH,
                 plan.targetSnapshotGraph, repository.auditGraph);
+        connection.add(plan.targetVersion, SNAPSHOT_TRIPLE_COUNT,
+                vf.createLiteral(Long.toString(plan.expected.size()),
+                        XSD.NON_NEGATIVE_INTEGER),
+                repository.auditGraph);
         connection.add(plan.targetVersion, ETAG, vf.createLiteral(targetEtag),
                 repository.auditGraph);
         connection.add(plan.targetVersion, WAS_REVISION_OF, plan.sourceVersion,
@@ -588,6 +617,26 @@ public final class LexIntPublicationManager implements Manager {
                 repository.auditGraph);
         metadata.touch(connection, plan.targetVersion, actor,
                 repository.auditGraph);
+    }
+
+    private boolean snapshotInputUnavailable(RepositoryConnection connection,
+            IRI version, IRI graph) {
+        String recorded = optionalLiteral(connection, version,
+                SNAPSHOT_TRIPLE_COUNT, repository.auditGraph);
+        if (recorded == null) {
+            // Backward-compatible fallback for ledgers created before snapshot
+            // cardinality was recorded.
+            return false;
+        }
+        long expected;
+        try {
+            expected = Long.parseLong(recorded);
+        } catch (NumberFormatException ex) {
+            throw new LexIntException(409, "LEXINT_DATA_INCONSISTENT",
+                    "Snapshot triple count is invalid");
+        }
+        return expected > 0L
+                && !connection.hasStatement(null, null, null, false, graph);
     }
 
     private AuditRecord addAudit(RepositoryConnection connection,

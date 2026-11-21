@@ -9,4 +9,5 @@ target
 logs
 data
 backups
+evaluation/dsh2027/results
 *.war

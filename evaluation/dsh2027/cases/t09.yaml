@@ -1,0 +1,7 @@
+test_id: T09
+level: L0 MemoryStore plus L2 GraphDB transactional fault injection
+setup: frozen V1 and a valid V1-to-V2 plan in the dedicated GraphDB LexOLexica repository
+action: test-only PublicationFaultInjector throws after provisional snapshot, active, operation, ledger and audit writes and before validation/commit
+oracle: exact per-graph RDF statement sets captured through independent HTTPRepository connections
+assertions: [graphdb_backend_proved, hook_reached_once, exception_propagated, v1_unchanged, active_rollback, v2_snapshot_absent, records_rollback, audit_and_ledger_rollback, no_modified_timestamp_leak, reset_success_path]
+pass_rule: overall T09 passes only when T09-GraphDB passes; L0 is reported separately

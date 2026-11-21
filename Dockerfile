@@ -15,6 +15,9 @@ RUN mvn -B -ntp install:install-file \
     && mvn -B -ntp -DskipTests dependency:go-offline
 
 COPY src ./src
+# The namespace contract test also verifies the versioned evaluation fixtures
+# and SPARQL queries. They are build inputs only and are not copied to runtime.
+COPY evaluation ./evaluation
 RUN mvn -B -ntp clean package
 
 FROM ${TOMCAT_IMAGE} AS runtime

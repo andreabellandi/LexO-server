@@ -1,0 +1,5 @@
+oracle_version: 1
+counterexamples:
+  CE1-retained-ratio: {shacl: CONFORMS, audit: FAIL, missing: 0, unexpected: 1}
+  CE2-missing-haraz: {shacl: CONFORMS, audit: FAIL, missing: 1, unexpected: 0}
+  CE3-materialised-sense: {shacl: CONFORMS, audit: FAIL, missing: 0, unexpected: 1}

@@ -1,5 +1,48 @@
 # LexO-server — handoff per attività Codex
 
+Aggiornato al 21 novembre 2026 con la correzione focalizzata della valutazione
+DSH 2027 LexInt sul branch `codex/dsh2027-corrections`, partito dal commit
+`3fee281c939350947927c002fc807b57c4bad23f` di `origin/master`. `README.md`
+principale, le quattro ontologie/shapes contrattuali e il manoscritto DSH2027
+sono rimasti invariati. Il contratto approvato usa esclusivamente
+`lexint:targetAssertion`; il distinto `pub:targetAssertion` resta singolare.
+`evaluation/dsh2027/namespace-contract-audit.md` documenta fonti, hash,
+consistency check e proposta di correzione del manoscritto, non applicata.
+
+La correzione P0-A mantiene il test MemoryStore come `T09-L0` e aggiunge
+`T09-GraphDB`: il vero `LexIntPublicationManager` usa un hook in-process non
+configurabile da REST/property, lancia dopo le scritture provvisorie e prima di
+commit, quindi connessioni `HTTPRepositoryConnection` indipendenti confrontano
+isomorficamente active, V1, V2, records e audit/ledger. Il run diagnostico
+completo `dsh2027-corrections-diagnostic-20261121-3` ha osservato hook=1,
+eccezione propagata, rollback identico e successivo publish ordinario HTTP 201.
+
+La correzione P0-B sostituisce i vecchi predicati CQ permissivi con un unico
+comparatore multinsieme: tutte le variabili e i termini RDF conservano tipo,
+datatype, lingua e molteplicità; gli ID runtime sono risolti da mappe prodotte
+dai servizi, mai dall'output SPARQL. CQ05 risolve i target per predicato RDF,
+non per ordine della risposta. Quattro mutazioni avversarie (associazioni
+CQ01/CQ04/CQ05 e duplicato CQ07) devono essere respinte. Lo stesso diagnostico
+ha ottenuto T01–T12 12/12, CQ01–CQ07 7/7 esatti e CE1–CE3 3/3 coincidenti con
+l'oracle; il default graph era vuoto e il boundary GraphDB esterno non era
+raggiungibile. Il run resta marcato `worktree_dirty=true` ed è solo una prova
+pre-commit: il pacchetto consegnabile deve essere rigenerato da un checkout
+pulito del commit definitivo, con SHA e image ID nel manifest del run.
+
+Verifiche locali: i test mirati di workflow, L0, comparatore e namespace sono
+20/20; `mvn -o verify` ha superato 372 test unitari/repository e generato il WAR
+con 21 IT opt-in correttamente saltati fuori dagli ambienti dedicati. Il build
+Docker ha rieseguito gli stessi 372 test. Stack trace dei percorsi d'errore
+simulati, warning Lucene `Unsafe` e warning checksum dell'artefatto Maven
+vendorizzato sono attesi e non hanno prodotto failure.
+
+Non resta lavoro di implementazione noto. Il gate di consegna è il run completo
+da commit pulito e il controllo del nuovo ZIP/manifest. Limiti dichiarati:
+lock di pubblicazione JVM singola istanza, nessuna prova di concorrenza
+multi-istanza, niente RDF 1.2, identità demo `DECLARED`; la garanzia anti-bypass
+richiede i guard applicativi più ACL/rete GraphDB equivalenti alla topologia
+valutata. Gli esempi non certificano verità storica o lessicografica.
+
 Aggiornato al 20 novembre 2026 con l'implementazione locale di LexInt
 Management e LexInt Publication & Audit su `master`, partito allineato a
 `origin/master` (`0c15581df2207756a40b97c443b45a1c6d0b5429`). Il lavoro non è

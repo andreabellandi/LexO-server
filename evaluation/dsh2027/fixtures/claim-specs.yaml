@@ -1,0 +1,23 @@
+fixture_version: 1
+claim_target_property: https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#targetAssertion
+claims:
+  - role: previous_ratio
+    description: Retrospective record of the demonstrative V1 ratio assertion.
+    targets:
+      - [https://example.org/dsh2027/razza, http://lari-datasets.ilc.cnr.it/lemonEty#etymology, https://example.org/dsh2027/etyRatio]
+  - role: proposed_haraz
+    description: Demonstrative haraz proposal; the test does not establish historical truth.
+    evidence:
+      - https://example.org/dsh2027/source/contini-1959
+      - https://example.org/dsh2027/source/sabatini-1962
+    targets:
+      - [https://example.org/dsh2027/razza, http://lari-datasets.ilc.cnr.it/lemonEty#etymology, https://example.org/dsh2027/etyHaraz]
+  - role: unresolved_sense
+    description: The contrasted sources do not necessarily imply distinct senses.
+    evidence:
+      - https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/
+      - https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3
+    targets:
+      - [https://example.org/dsh2027/senseCandidateA, http://www.w3.org/1999/02/22-rdf-syntax-ns#type, http://www.w3.org/ns/lemon/ontolex#LexicalSense]
+      - [https://example.org/dsh2027/razza, http://www.w3.org/ns/lemon/ontolex#sense, https://example.org/dsh2027/senseCandidateA]
+      - [https://example.org/dsh2027/senseCandidateA, http://www.w3.org/ns/lemon/ontolex#reference, https://example.org/dsh2027/conceptCandidateA]

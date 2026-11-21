@@ -1,0 +1,5 @@
+test_id: T08
+variants:
+  - {id: T08a, trigger: stale If-Match, expected: LEXINT_BASE_VERSION_MISMATCH}
+  - {id: T08b, trigger: L2 active-graph drift, expected: LEXINT_ACTIVE_GRAPH_DRIFT}
+assertions: [no_publication, no_target_snapshot, v1_current]

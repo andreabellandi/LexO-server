@@ -1,0 +1,6 @@
+test_id: T10
+variants:
+  - {id: T10a, trigger: idempotent replay and conflicting replay, expected: one publication and conflict}
+  - {id: T10b, trigger: direct lexical-entry writer after managed baseline, expected: LEXINT_MANAGED_WRITE_REQUIRED}
+  - {id: T10c, trigger: external direct GraphDB network probe, expected: unreachable}
+assertions: [one_snapshot, one_operation_set, writer_guarded, graphdb_not_exposed_to_application_client]

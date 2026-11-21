@@ -1,0 +1,12 @@
+PREFIX pub: <https://ilc.cnr.it/klab/ontology/lexint/publication#>
+PREFIX ledger: <https://lexo.ilc.cnr.it/vocabulary/lexint-management#>
+SELECT ?sourceVersion ?targetVersion ?sourceGraph ?targetGraph ?verification ?outcome WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/audit> {
+    <${PUBLICATION}> pub:sourceVersion ?sourceVersion ; pub:targetVersion ?targetVersion .
+    ?sourceVersion ledger:snapshotGraph ?sourceGraph .
+    ?targetVersion ledger:snapshotGraph ?targetGraph .
+    ?verification pub:verifiesPublication <${PUBLICATION}> ; pub:hasReport ?report .
+    ?report pub:hasOutcome ?outcome .
+  }
+}
+ORDER BY ?verification

@@ -9,6 +9,18 @@ starts from the ongoing `Unreleased` work.
 
 ### Added
 
+- A reproducible DSH 2027 LexInt evaluation package now provides frozen RDF
+  fixtures and oracles, T01–T12 REST/GraphDB tests, CQ01–CQ07 SPARQL answer
+  checks, CE1–CE3 structural-SHACL comparisons, per-case evidence, machine and
+  reviewer reports, and a deterministic replication archive from an isolated
+  Docker stack.
+- LexInt publication tests now include a test-only pre-commit fault injector
+  that proves rollback after provisional active, snapshot and audit writes,
+  without adding a public corruption endpoint.
+- The corrected DSH 2027 package now proves T09 rollback against the dedicated
+  GraphDB backend with independent pre/post connections and compares CQ01–CQ07
+  as complete typed RDF-binding multisets, including adversarial association
+  and duplicate-row tests.
 - LexInt Management and Publication & Audit now run inside the existing WAR
   and `LexOLexica`, with claim/target/decision CRUD, server-managed versions,
   read-only preview, transactional per-target publication, persistent
@@ -171,6 +183,10 @@ starts from the ongoing `Unreleased` work.
 
 ### Changed
 
+- Historical LexInt versions now record snapshot cardinality in the private
+  management ledger, so removal of a previously non-empty audit input appends
+  an `INDETERMINATE` report instead of misclassifying missing evidence as an
+  ordinary publication mismatch.
 - The LexInt profile property is consistently named
   `lexint:targetAssertion` in the packaged ontology, shape and runtime code;
   the distinct Publication property remains `pub:targetAssertion`.

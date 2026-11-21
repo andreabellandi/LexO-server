@@ -1,0 +1,11 @@
+PREFIX lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+SELECT ?source ?target ?s ?p ?o WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/records> {
+    <${CLAIM_SENSE}> prov:wasDerivedFrom ?source ;
+        lexint:targetAssertion ?target .
+    ?target rdf:subject ?s ; rdf:predicate ?p ; rdf:object ?o .
+  }
+}
+ORDER BY ?source ?target

@@ -1,0 +1,9 @@
+PREFIX lemonEty: <http://lari-datasets.ilc.cnr.it/lemonEty#>
+SELECT ?version ?etymology WHERE {
+  { GRAPH <${V1_GRAPH}> { <https://example.org/dsh2027/razza> lemonEty:etymology ?etymology }
+    BIND("V1" AS ?version) }
+  UNION
+  { GRAPH <${V2_GRAPH}> { <https://example.org/dsh2027/razza> lemonEty:etymology ?etymology }
+    BIND("V2" AS ?version) }
+}
+ORDER BY ?version ?etymology

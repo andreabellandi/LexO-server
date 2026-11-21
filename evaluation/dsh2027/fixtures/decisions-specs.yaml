@@ -1,0 +1,14 @@
+fixture_version: 1
+decisions:
+  - role: D1
+    claim_role: proposed_haraz
+    outcome: adopted
+    version_alias: V2
+  - role: D2
+    claim_role: previous_ratio
+    outcome: replaced
+    version_alias: V2
+  - role: D_sense
+    claim_role: unresolved_sense
+    outcome: suspended
+    version_alias: V2

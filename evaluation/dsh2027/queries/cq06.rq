@@ -1,0 +1,9 @@
+PREFIX lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#>
+SELECT ?decision ?outcome ?version WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/records> {
+    ?decision lexint:concernsClaim <${CLAIM_SENSE}> ;
+              lexint:decisionOutcome ?outcome ;
+              lexint:appliesToVersion ?version .
+  }
+}
+ORDER BY ?decision

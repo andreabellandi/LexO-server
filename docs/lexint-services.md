@@ -119,6 +119,14 @@ Una decisione finalizzata è immutabile. Gli esiti ammessi sono `adopted`,
 Gli stati sono `RESERVED`, `CURRENT` e `PUBLISHED`. Il client non sceglie né il
 codice versione né il graph snapshot.
 
+Per le versioni create dal runtime corrente, il ledger privato conserva anche
+`lexint-management:snapshotTripleCount`. Il valore non è un dato lessicale né
+un'estensione delle ontologie contrattuali: serve a distinguere uno snapshot
+storico non vuoto successivamente rimosso da un grafo intenzionalmente vuoto.
+In verifica, la scomparsa di un input registrato produce un report append-only
+`INDETERMINATE` con `LEXINT_AUDIT_INPUT_UNAVAILABLE`; una mutazione leggibile
+continua invece a produrre `FAIL` con il delta puntuale.
+
 ### Pubblicazione e audit
 
 | Metodo | Path | Uso |
@@ -227,3 +235,26 @@ Con Keycloak aggiungere
 `-Dlexo.test.lexint.authorization='Bearer TOKEN_PUBLISHER'`. La suite verifica
 lifecycle REST, preview read-only, ETag, idempotenza, metadata di ogni
 individuo, named graph/default graph, audit PASS/FAIL e cleanup transazionale.
+
+## Valutazione DSH 2027
+
+La suite riproducibile completa è descritta in
+`evaluation/dsh2027/README.md`; la matrice fra T01–T12 e i controlli tecnici è
+in `docs/evaluation-test-mapping.md`. Il runner avvia GraphDB 10.8.14 e una sola
+istanza del WAR in volumi nuovi, non pubblica la porta GraphDB, esegue un probe
+di rete fail-closed, produce evidenze RDF/HTTP per caso e rimuove container,
+reti e volumi dedicati al termine. L'oracle usa una connessione RDF4J separata
+e expected graph congelati. Il canale L2 non è esposto come endpoint HTTP.
+
+```bash
+./evaluation/dsh2027/scripts/run-evaluation.sh --check-environment
+./evaluation/dsh2027/scripts/run-evaluation.sh \
+  --mode all \
+  --output evaluation/dsh2027/results/<run_id>
+```
+
+Il profilo dimostrativo usa `identityAssurance=DECLARED` e abilita il publish
+senza Keycloak soltanto nello stack effimero. Non è una configurazione di
+autenticazione forte. La proprietà claim/target adottata dal maintainer e da
+tutta la suite è la singolare `lexint:targetAssertion`; la proprietà distinta
+delle operazioni resta `pub:targetAssertion`.

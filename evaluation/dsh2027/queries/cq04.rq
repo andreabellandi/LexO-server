@@ -1,0 +1,13 @@
+PREFIX pub: <https://ilc.cnr.it/klab/ontology/lexint/publication#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+SELECT ?operation ?type ?s ?p ?o WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/audit> {
+    <${PUBLICATION}> pub:hasOperation ?operation .
+    ?operation a ?type ; pub:targetAssertion ?target .
+    FILTER(?type IN (pub:Insertion, pub:Deletion))
+  }
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/records> {
+    ?target rdf:subject ?s ; rdf:predicate ?p ; rdf:object ?o .
+  }
+}
+ORDER BY ?type ?operation

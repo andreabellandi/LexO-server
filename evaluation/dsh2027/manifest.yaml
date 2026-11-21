@@ -1,0 +1,76 @@
+fixture_version: "1.1.0"
+frozen_at_utc: "2026-11-20T00:00:00Z"
+correction_version: "1.0"
+baseline_reference:
+  run_id: "dsh2027-20261121T072523Z-82217"
+  archive_sha256: "075132f87737f3974b894a48a4e42fe02cbf1b0045cffa0edd4ff8117320ecd7"
+language: it
+graph_scope:
+  active: "https://lexo.ilc.cnr.it/graphs/lexical/lexica/it"
+  records: "https://lexo.ilc.cnr.it/graphs/lexical/lexint/records"
+  audit: "https://lexo.ilc.cnr.it/graphs/lexical/lexint/audit"
+  shapes: "https://lexo.ilc.cnr.it/graphs/lexical/lexint/shapes"
+  schema: "https://lexo.ilc.cnr.it/graphs/lexical/schema"
+  snapshots_base: "https://lexo.ilc.cnr.it/graphs/lexical/lexint/snapshots/"
+  default_graph_must_be_empty: true
+provenance_policy:
+  runtime_actor: dsh-test-editor
+  identity_assurance: DECLARED
+  note: "Demonstrative test data; the suite does not decide historical or lexical truth."
+contract_overrides:
+  claim_target_property: "lexint:targetAssertion"
+  rationale: "Direct maintainer instruction; the DSH manuscript is intentionally unchanged."
+source_references:
+  - Contini 1959
+  - Sabatini 1962
+  - CDEC consultation page for the 1938 document
+  - Italian Senate consultation page for Constitution Article 3
+ontology_hashes:
+  lexint-profile.ttl: 9a4fb27351d12f268047969491becf584117c83b4e7a6edde859bb77d4bef73d
+  lexint-publication.ttl: 0b52d24e179d5709c51b31eff5132dc2b09098a804bcaeccc3651e41b8740170
+  lexint-shapes.ttl: 3c1e6a5e01918a01fbb8813602b87742e9bca2be951bd6eb6e1ee5df401bafbf
+  lexint-publication-shapes.ttl: c797bc223a6e8320fd613792f31bb14e1270653ae225a4428239ea63a35be2be
+source_hashes:
+  cases/comparison.yaml: 5738ec52e38cc53f30d45c821a439a3607003171a3b7599d437d573a5ffdab0b
+  cases/t01.yaml: 54ce56675bd1430bb69102e51671d0bac2f0c63fe75f4a351e420e938525725e
+  cases/t02.yaml: 94f831ce1574e67bce1235e37e4356d4de9f1c4582e4e8ef3f37f514f677e574
+  cases/t03.yaml: b920ee235d4de7485325bc5a6312f0e0939e0d905c7625ef9c27190f329c2c3e
+  cases/t04.yaml: 1c6956b9ac9ef87513804086cf0c9f1db09ac105cd0034644b4e65022cdd5910
+  cases/t05.yaml: 69a95efd10fbc191f1ed39755bc23b6e9e5c82680258a5e5337aa987b28492ee
+  cases/t06.yaml: 7cd5d027f13b37b4a95e378be68c936f01abfa870da00506d25b5bae754b8443
+  cases/t07.yaml: 590dbb39f6271fbd7291510afe6d3b2b14a16bad734f7c671a2dd69cfea4ea5d
+  cases/t08.yaml: caac4f1de55a271398d5704187d3a5b3046276d8c65c7c9cc50eb41d6123f851
+  cases/t09.yaml: 8bb3552cb43614e32825b82867408a83a0bd4dad8582a87c40ba70304dc411dd
+  cases/t10.yaml: d0cfeae889fceac0e602003317c6e8a8644f99e3d65d14e149092ec77af99852
+  cases/t11.yaml: e5dbb6ea4808cecc5cefb422b1ce1fea39401fb36c72112086e2a10ef2c49e7e
+  cases/t12.yaml: aae884294b917703b09a7399832289e652ba0e0f1a11c2f1ab5d3e52495f4948
+  fixtures/claim-specs.yaml: 1ff71f0cac80d8b7262be042bef7fa2a95a5cdadf5d5a6c8b4629e08a3d5809e
+  fixtures/decisions-specs.yaml: 735ddaae03679e5a8855a9a72a2f4f317d366b2fbb712e2711dfec755ba11a2c
+  fixtures/evidence-manifest.yaml: 0275b2bce9849b2a2a8bbdc68ab06b9b026ac109a68c37b4b79b996589d7033f
+  fixtures/lexical-v1.ttl: 9ca53df8b07bebfbd07c42f3a9bebadaa5b6baf5dbc0fa1c0e0575fc01f4cfc4
+  fixtures/expected-v1.ttl: 9ca53df8b07bebfbd07c42f3a9bebadaa5b6baf5dbc0fa1c0e0575fc01f4cfc4
+  fixtures/expected-v2.ttl: 6924b8695bbf0cc12e1cd8948afaba27617c3c5e0fac556ed363374e1fc07e03
+  fixtures/test7-independent-targets.yaml: b9ac753bc1f7a780dddda1056a4dc3bd031206207153a4cc4b281461f68174ff
+  oracle/golden-delta.yaml: 8f65dc4b0e825298fde6b2b9ad86d280818dbe2e7aa6cd7d8c460d0aa1883d87
+  oracle/cq-answer-key.yaml: 1c0785ecc23eac9ea7f7de8e58835976eda0ce772a6baaca6478b5f3d9bf37ee
+  oracle/expected-counterexamples.yaml: a54f67116ce3338578b71576e7fcbc015c0618521e51c54befd558c3c0573c5d
+  queries/cq01.rq: 4439725248b978a1650d741be7193d714d68de1691b5489d9131b714fb8d43a5
+  queries/cq02.rq: a2873143395cde6f41d385b00a52fc4256338b5da9c4b140cf6aba9b06bec22d
+  queries/cq03.rq: 2cef80457afb820887abab597a38373804f28ad3286f62e7ffa8fd1ff56bc042
+  queries/cq04.rq: c3f901e8b945924ceda472a4a3d7d10db2c5c04591486953ad14ba6a37ce5535
+  queries/cq05.rq: be646bff5ab65ee2aca4be9eb6bf9e6222cbbb9af53b2eb40977676715494962
+  queries/cq06.rq: f63f80389b22d6aa1c5bb20bb7c9eeb2c3a902394577d4e4b6b57d6113b9f067
+  queries/cq07.rq: f31377be10f9d6434b5ca256c17e94018bf044d3a8672adc7061a28439c4e44a
+  baseline-reference.json: d1f0c494fc8c33ad067e0ee3da4aa6add0065921e61bd65f56fc30dc2dfcfe74
+  namespace-contract-audit.md: d613f52ad1e4ec7c4ecf5e60ad5cfee07b1e99a2bb172cdeae1fbb4aa5ede12b
+  OPEN_ISSUES.md: 41e37ddfbf9661523e37dd2ea94a88fffc4190b90ce9e4572d3cc1e952a43a44
+expected:
+  v1: "ratio asserted; haraz absent"
+  v2: "ratio removed; haraz asserted; all unrelated fixture triples preserved"
+  selected_insertions: 1
+  selected_deletions: 1
+  semantic_candidates: 3
+  documentary_sources: 2
+runtime_mapping:
+  file: results/<run_id>/artifacts/run-ids.json
+  generated_by_services: true

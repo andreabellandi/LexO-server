@@ -1,0 +1,5 @@
+test_id: T02
+setup: fresh V1 plus unresolved semantic claim with two sources and three targets
+action: finalize suspended decision for V2 and publish only the T1 etymological plan
+oracle: oracle/cq-answer-key.yaml#CQ5
+assertions: [three_complete_reifications, two_sources, suspended_decision, zero_materialised_candidates]

@@ -1,0 +1,5 @@
+test_id: T11
+setup: successful isolated T1 with preserved initial PASS report
+action: L2 reinserts ratio into immutable V2 snapshot then invokes verify
+oracle: oracle/expected-counterexamples.yaml#CE1-retained-ratio
+assertions: [new_fail_report, unexpected_one, initial_pass_unchanged, no_retrospective_rollback]

@@ -1,0 +1,7 @@
+PREFIX prov: <http://www.w3.org/ns/prov#>
+SELECT ?source WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/records> {
+    <${CLAIM_HARAZ}> prov:wasDerivedFrom ?source .
+  }
+}
+ORDER BY ?source

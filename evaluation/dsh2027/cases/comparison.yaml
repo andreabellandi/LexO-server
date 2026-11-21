@@ -1,0 +1,7 @@
+case_id: DSH2027-SHACL-R5-COMPARISON
+setup: structurally valid LexInt/PUB records from a successful T1
+variants:
+  - CE1-retained-ratio
+  - CE2-missing-haraz
+  - CE3-materialised-sense
+assertions: [same_structural_shapes, observed_shacl_result, observed_historical_audit, exact_single_triple_mismatch]

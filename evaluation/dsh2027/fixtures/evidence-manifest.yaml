@@ -1,0 +1,32 @@
+manifest_version: 1
+classification_note: >-
+  Synthetic demonstrative identifiers inspired by the bibliography selected
+  in the DSH2027 manuscript. Consultation pages are not asserted to be primary
+  critical editions and their live availability is not part of the test.
+sources:
+  - source_id: contini-1959
+    evidence_iri: https://example.org/dsh2027/source/contini-1959
+    title: "I più antichi esempî di «razza»"
+    year: 1959
+    source_type: scholarly-article-bibliographic-reference
+    reference: "Contini, G. (1959), Studi di filologia italiana 17: 319–327."
+  - source_id: sabatini-1962
+    evidence_iri: https://example.org/dsh2027/source/sabatini-1962
+    title: "Conferme per l’etimologia di «razza» dal fr. ant. «haraz»"
+    year: 1962
+    source_type: scholarly-article-bibliographic-reference
+    reference: "Sabatini, F. (1962), Studi di filologia italiana 20: 365–382."
+  - source_id: document-1938-cdec-consultation
+    evidence_iri: https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/
+    title: "I testi programmatici del razzismo e dell’antisemitismo fascista"
+    year: 1938
+    source_type: consultation-page-about-historical-document
+    url: https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/
+    verified_utc: 2026-11-20T00:00:00Z
+  - source_id: constitution-article-3-senate-consultation
+    evidence_iri: https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3
+    title: "La Costituzione: articolo 3"
+    year: 1948
+    source_type: institutional-consultation-page
+    url: https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3
+    verified_utc: 2026-11-20T00:00:00Z

@@ -1,0 +1,5 @@
+test_id: T06
+setup: existing claims, targets, V2/V3 drafts, finalized and non-finalized decisions
+action: try wrong claim, wrong version, and non-finalized authorizations
+oracle: LEXINT_DECISION_NOT_ELIGIBLE
+assertions: [all_resources_exist, all_variants_rejected, active_and_ledger_unchanged]

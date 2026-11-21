@@ -1,0 +1,5 @@
+test_id: T05
+setup: fresh records graph and installed contractual SHACL
+action: submit incomplete claim through REST and validate incomplete RDF1.1 target in L0
+oracle: LEXINT_SHACL_VIOLATION
+assertions: [http_422, no_partial_resource, real_shacl_validator_reached]

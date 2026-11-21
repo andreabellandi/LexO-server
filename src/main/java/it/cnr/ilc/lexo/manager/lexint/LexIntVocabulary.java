@@ -65,6 +65,8 @@ public final class LexIntVocabulary {
     public static final IRI VERSION_CODE = ledger("versionCode");
     public static final IRI LANGUAGE = ledger("language");
     public static final IRI SNAPSHOT_GRAPH = ledger("snapshotGraph");
+    public static final IRI SNAPSHOT_TRIPLE_COUNT =
+            ledger("snapshotTripleCount");
     public static final IRI VERSION_STATE = ledger("versionState");
     public static final IRI ETAG = ledger("etag");
     public static final IRI PAYLOAD_HASH = ledger("payloadHash");

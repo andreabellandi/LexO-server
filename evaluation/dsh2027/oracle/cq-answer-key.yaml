@@ -1,0 +1,161 @@
+{
+  "oracle_version": 2,
+  "semantics": "Every SELECT result is compared as a complete RDF-term multiset; row order is ignored and multiplicity is preserved.",
+  "answers": {
+    "CQ1": {
+      "semantics": "MULTISET",
+      "variables": ["version", "etymology"],
+      "rows": [
+        {
+          "version": {"type": "LITERAL", "value": "V1", "datatype": "http://www.w3.org/2001/XMLSchema#string"},
+          "etymology": {"type": "IRI", "value": "https://example.org/dsh2027/etyRatio"}
+        },
+        {
+          "version": {"type": "LITERAL", "value": "V2", "datatype": "http://www.w3.org/2001/XMLSchema#string"},
+          "etymology": {"type": "IRI", "value": "https://example.org/dsh2027/etyHaraz"}
+        }
+      ]
+    },
+    "CQ2": {
+      "semantics": "MULTISET",
+      "variables": ["source"],
+      "rows": [
+        {"source": {"type": "IRI", "value": "https://example.org/dsh2027/source/contini-1959"}},
+        {"source": {"type": "IRI", "value": "https://example.org/dsh2027/source/sabatini-1962"}}
+      ]
+    },
+    "CQ3": {
+      "semantics": "MULTISET",
+      "variables": ["operation", "decision", "outcome", "version", "creator"],
+      "rows": [
+        {
+          "operation": {"type": "IRI", "value": "${OP_INSERT}"},
+          "decision": {"type": "IRI", "value": "${D_HARAZ}"},
+          "outcome": {"type": "IRI", "value": "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#adopted"},
+          "version": {"type": "IRI", "value": "${V2}"},
+          "creator": {"type": "LITERAL", "value": "dsh-test-editor", "datatype": "http://www.w3.org/2001/XMLSchema#string"}
+        },
+        {
+          "operation": {"type": "IRI", "value": "${OP_DELETE}"},
+          "decision": {"type": "IRI", "value": "${D_RATIO}"},
+          "outcome": {"type": "IRI", "value": "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#replaced"},
+          "version": {"type": "IRI", "value": "${V2}"},
+          "creator": {"type": "LITERAL", "value": "dsh-test-editor", "datatype": "http://www.w3.org/2001/XMLSchema#string"}
+        }
+      ]
+    },
+    "CQ4": {
+      "semantics": "MULTISET",
+      "variables": ["operation", "type", "s", "p", "o"],
+      "rows": [
+        {
+          "operation": {"type": "IRI", "value": "${OP_DELETE}"},
+          "type": {"type": "IRI", "value": "https://ilc.cnr.it/klab/ontology/lexint/publication#Deletion"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/razza"},
+          "p": {"type": "IRI", "value": "http://lari-datasets.ilc.cnr.it/lemonEty#etymology"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/etyRatio"}
+        },
+        {
+          "operation": {"type": "IRI", "value": "${OP_INSERT}"},
+          "type": {"type": "IRI", "value": "https://ilc.cnr.it/klab/ontology/lexint/publication#Insertion"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/razza"},
+          "p": {"type": "IRI", "value": "http://lari-datasets.ilc.cnr.it/lemonEty#etymology"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/etyHaraz"}
+        }
+      ]
+    },
+    "CQ5": {
+      "semantics": "MULTISET",
+      "variables": ["source", "target", "s", "p", "o"],
+      "rows": [
+        {
+          "source": {"type": "IRI", "value": "https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/"},
+          "target": {"type": "IRI", "value": "${TARGET_SENSE_TYPE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+          "o": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#LexicalSense"}
+        },
+        {
+          "source": {"type": "IRI", "value": "https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/"},
+          "target": {"type": "IRI", "value": "${TARGET_ENTRY_SENSE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/razza"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#sense"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"}
+        },
+        {
+          "source": {"type": "IRI", "value": "https://www.cdec.it/formazione/percorsi/per-la-storia-della-shoah/i-testi-programmatici-del-razzismo-e-dellantisemitismo-fascista/"},
+          "target": {"type": "IRI", "value": "${TARGET_SENSE_REFERENCE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#reference"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/conceptCandidateA"}
+        },
+        {
+          "source": {"type": "IRI", "value": "https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3"},
+          "target": {"type": "IRI", "value": "${TARGET_SENSE_TYPE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+          "o": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#LexicalSense"}
+        },
+        {
+          "source": {"type": "IRI", "value": "https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3"},
+          "target": {"type": "IRI", "value": "${TARGET_ENTRY_SENSE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/razza"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#sense"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"}
+        },
+        {
+          "source": {"type": "IRI", "value": "https://www.senato.it/istituzione/la-costituzione/principi-fondamentali/articolo-3"},
+          "target": {"type": "IRI", "value": "${TARGET_SENSE_REFERENCE}"},
+          "s": {"type": "IRI", "value": "https://example.org/dsh2027/senseCandidateA"},
+          "p": {"type": "IRI", "value": "http://www.w3.org/ns/lemon/ontolex#reference"},
+          "o": {"type": "IRI", "value": "https://example.org/dsh2027/conceptCandidateA"}
+        }
+      ]
+    },
+    "CQ6": {
+      "semantics": "MULTISET",
+      "variables": ["decision", "outcome", "version"],
+      "rows": [
+        {
+          "decision": {"type": "IRI", "value": "${D_SENSE}"},
+          "outcome": {"type": "IRI", "value": "https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#suspended"},
+          "version": {"type": "IRI", "value": "${V2}"}
+        }
+      ],
+      "non_query_checks": {
+        "semantic_candidates_absent": true,
+        "rejected_attempt_evidence": "artifacts/T03/suspended-insert/test-result.json"
+      }
+    },
+    "CQ7": {
+      "semantics": "MULTISET",
+      "variables": ["sourceVersion", "targetVersion", "sourceGraph", "targetGraph", "verification", "outcome"],
+      "rows": [
+        {
+          "sourceVersion": {"type": "IRI", "value": "${V1}"},
+          "targetVersion": {"type": "IRI", "value": "${V2}"},
+          "sourceGraph": {"type": "IRI", "value": "${V1_GRAPH}"},
+          "targetGraph": {"type": "IRI", "value": "${V2_GRAPH}"},
+          "verification": {"type": "IRI", "value": "${VERIFICATION_INITIAL}"},
+          "outcome": {"type": "IRI", "value": "https://ilc.cnr.it/klab/ontology/lexint/publication#pass"}
+        },
+        {
+          "sourceVersion": {"type": "IRI", "value": "${V1}"},
+          "targetVersion": {"type": "IRI", "value": "${V2}"},
+          "sourceGraph": {"type": "IRI", "value": "${V1_GRAPH}"},
+          "targetGraph": {"type": "IRI", "value": "${V2_GRAPH}"},
+          "verification": {"type": "IRI", "value": "${VERIFICATION_AFTER_V3}"},
+          "outcome": {"type": "IRI", "value": "https://ilc.cnr.it/klab/ontology/lexint/publication#pass"}
+        },
+        {
+          "sourceVersion": {"type": "IRI", "value": "${V1}"},
+          "targetVersion": {"type": "IRI", "value": "${V2}"},
+          "sourceGraph": {"type": "IRI", "value": "${V1_GRAPH}"},
+          "targetGraph": {"type": "IRI", "value": "${V2_GRAPH}"},
+          "verification": {"type": "IRI", "value": "${VERIFICATION_MISSING_V1}"},
+          "outcome": {"type": "IRI", "value": "https://ilc.cnr.it/klab/ontology/lexint/publication#indeterminate"}
+        }
+      ]
+    }
+  }
+}

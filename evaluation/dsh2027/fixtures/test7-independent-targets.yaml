@@ -1,0 +1,8 @@
+fixture_version: 1
+claim_role: technical_partial_selection
+description: Technical planner-granularity fixture; no lexicographic claim is made.
+outcome: adopted
+targets:
+  - [https://example.org/dsh2027/razza, http://www.w3.org/2000/01/rdf-schema#comment, selected technical note]
+  - [https://example.org/dsh2027/razza, http://www.w3.org/2000/01/rdf-schema#comment, unselected technical note]
+selected_index: 0

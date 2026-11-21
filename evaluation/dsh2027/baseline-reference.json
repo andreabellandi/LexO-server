@@ -1,0 +1,11 @@
+{
+  "baseline_run_id": "dsh2027-20261121T072523Z-82217",
+  "archive": "dsh2027-lexint-evaluation-dsh2027-20261121T072523Z-82217.zip",
+  "archive_sha256": "075132f87737f3974b894a48a4e42fe02cbf1b0045cffa0edd4ff8117320ecd7",
+  "reported_results": {
+    "t01_t12": "12/12 PASSED",
+    "cq01_cq07": "7/7 EXACT",
+    "ce01_ce03": "3/3 detected"
+  },
+  "qualification": "Historical baseline only: T09 was L0 MemoryStore evidence and CQ matching was permissive. The archive is preserved locally and is not copied into corrected run directories."
+}

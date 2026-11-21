@@ -1,0 +1,15 @@
+PREFIX pub: <https://ilc.cnr.it/klab/ontology/lexint/publication#>
+PREFIX lexint: <https://lexo.ilc.cnr.it/vocabulary/lexical-interpretation#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?operation ?decision ?outcome ?version ?creator WHERE {
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/audit> {
+    <${PUBLICATION}> pub:hasOperation ?operation .
+    ?operation pub:authorizedBy ?decision .
+  }
+  GRAPH <https://lexo.ilc.cnr.it/graphs/lexical/lexint/records> {
+    ?decision lexint:decisionOutcome ?outcome ;
+              lexint:appliesToVersion ?version ;
+              dcterms:creator ?creator .
+  }
+}
+ORDER BY ?operation

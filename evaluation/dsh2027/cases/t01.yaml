@@ -1,0 +1,5 @@
+test_id: T01
+setup: fresh V1 fixture, V2 reserved, D1 adopted and D2 replaced finalized
+action: preview and publish DELETE ratio plus INSERT haraz
+oracle: oracle/golden-delta.yaml
+assertions: [preview_read_only, exact_delta, active_equals_v2, v1_immutable, initial_audit_pass]

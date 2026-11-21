@@ -1,0 +1,86 @@
+services:
+  graphdb:
+    image: ${GRAPHDB_IMAGE:-ontotext/graphdb:10.8.14}
+    init: true
+    networks:
+      - backend
+    volumes:
+      - graphdb-home:/opt/graphdb/home
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7200'"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+    stop_grace_period: 2m
+    security_opt:
+      - no-new-privileges:true
+
+  lexo:
+    image: ${LEXO_EVALUATION_IMAGE:-lexo-dsh2027:local}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    init: true
+    depends_on:
+      graphdb:
+        condition: service_healthy
+    networks:
+      - backend
+      - frontend
+    environment:
+      LEXO_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_TEXT_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_WORDNET_GRAPH_DB_URL: http://graphdb:7200
+      LEXO_TEXT_STORAGE_DIR: /var/lib/lexo/texts
+      LEXO_LEGACY_STORAGE_DIR: /var/lib/lexo/legacy
+      LEXO_BOOTSTRAP_STARTUP_MAX_ATTEMPTS: "60"
+      LEXO_BOOTSTRAP_STARTUP_RETRY_DELAY_MS: "2000"
+      LEXO_LEX_INT_ENABLED: "true"
+      LEXO_LEX_INT_MANAGED_PUBLICATION_ENABLED: "true"
+      LEXO_LEX_INT_PUBLICATION_ALLOW_UNAUTHENTICATED_PUBLISH: "true"
+      JAVA_OPTS: -Xms512m -Xmx2g -Dfile.encoding=UTF-8
+    ports:
+      - "127.0.0.1:${LEXO_EVALUATION_PORT:-18080}:8080"
+    volumes:
+      - lexo-data:/var/lib/lexo
+      - lexo-logs:/var/log/lexo
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/LexO-server/service/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 180s
+    stop_grace_period: 1m
+    security_opt:
+      - no-new-privileges:true
+
+  evaluator:
+    image: ${MAVEN_IMAGE:-maven:3.9.16-eclipse-temurin-17}
+    profiles: ["tools"]
+    working_dir: /workspace
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - ../..:/workspace
+      - maven-repository:/root/.m2
+    entrypoint: ["mvn"]
+
+  boundary-probe:
+    image: ${CURL_IMAGE:-curlimages/curl:8.12.1}
+    profiles: ["tools"]
+    networks:
+      - frontend
+    entrypoint: ["curl"]
+
+networks:
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  graphdb-home:
+  lexo-data:
+  lexo-logs:
+  maven-repository:
